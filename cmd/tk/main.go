@@ -35,6 +35,10 @@ func run(args []string) int {
 		return runShow(args[2:])
 	case "create":
 		return runCreate(args[2:])
+	case "block":
+		return runBlock(args[2:])
+	case "unblock":
+		return runUnblock(args[2:])
 	case "--help", "-h":
 		printUsage()
 		return 0
@@ -329,6 +333,98 @@ func runShow(args []string) int {
 	return 0
 }
 
+func runBlock(args []string) int {
+	if len(args) < 2 {
+		fmt.Fprintln(os.Stderr, "usage: tk block <id> <blocker-id>")
+		return 2
+	}
+	root, err := repoRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect repo root: %v\n", err)
+		return 3
+	}
+	project, err := github.DetectProject(nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect project: %v\n", err)
+		return 5
+	}
+	id, err := github.NormalizeID(project, args[0])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "invalid id: %v\n", err)
+		return 4
+	}
+	blockerID, err := github.NormalizeID(project, args[1])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "invalid blocker id: %v\n", err)
+		return 4
+	}
+
+	store := tick.NewStore(filepath.Join(root, ".tick"))
+	t, err := store.Read(id)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to read tick: %v\n", err)
+		return 4
+	}
+	if _, err := store.Read(blockerID); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to read blocker tick: %v\n", err)
+		return 4
+	}
+
+	t.BlockedBy = appendUnique(t.BlockedBy, blockerID)
+	t.UpdatedAt = time.Now().UTC()
+
+	if err := store.Write(t); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to update tick: %v\n", err)
+		return 6
+	}
+
+	return 0
+}
+
+func runUnblock(args []string) int {
+	if len(args) < 2 {
+		fmt.Fprintln(os.Stderr, "usage: tk unblock <id> <blocker-id>")
+		return 2
+	}
+	root, err := repoRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect repo root: %v\n", err)
+		return 3
+	}
+	project, err := github.DetectProject(nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect project: %v\n", err)
+		return 5
+	}
+	id, err := github.NormalizeID(project, args[0])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "invalid id: %v\n", err)
+		return 4
+	}
+	blockerID, err := github.NormalizeID(project, args[1])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "invalid blocker id: %v\n", err)
+		return 4
+	}
+
+	store := tick.NewStore(filepath.Join(root, ".tick"))
+	t, err := store.Read(id)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to read tick: %v\n", err)
+		return 4
+	}
+
+	t.BlockedBy = removeString(t.BlockedBy, blockerID)
+	t.UpdatedAt = time.Now().UTC()
+
+	if err := store.Write(t); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to update tick: %v\n", err)
+		return 6
+	}
+
+	return 0
+}
+
 func splitCSV(value string) []string {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -339,6 +435,26 @@ func splitCSV(value string) []string {
 	for _, part := range parts {
 		item := strings.TrimSpace(part)
 		if item == "" {
+			continue
+		}
+		out = append(out, item)
+	}
+	return out
+}
+
+func appendUnique(values []string, value string) []string {
+	for _, item := range values {
+		if item == value {
+			return values
+		}
+	}
+	return append(values, value)
+}
+
+func removeString(values []string, value string) []string {
+	out := values[:0]
+	for _, item := range values {
+		if item == value {
 			continue
 		}
 		out = append(out, item)
@@ -373,5 +489,5 @@ func bytesTrimSpace(in []byte) []byte {
 
 func printUsage() {
 	fmt.Println("Usage: tk <command> [--help]")
-	fmt.Println("Commands: init, whoami, show, create")
+	fmt.Println("Commands: init, whoami, show, create, block, unblock")
 }
