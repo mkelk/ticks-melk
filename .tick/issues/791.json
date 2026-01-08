@@ -1,6 +1,7 @@
 {
   "id": "791",
-  "title": "Document comparison results -d Summarize methodology and results in a report.",
+  "title": "Document comparison results",
+  "description": "Summarize methodology and results in a report.",
   "status": "open",
   "priority": 2,
   "type": "task",
@@ -8,5 +9,5 @@
   "parent": "pjp",
   "created_by": "pengelbrecht",
   "created_at": "2026-01-08T21:09:15.821177Z",
-  "updated_at": "2026-01-08T21:09:15.821177Z"
+  "updated_at": "2026-01-08T21:10:33.104646Z"
 }
