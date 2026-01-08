@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,6 +40,12 @@ func run(args []string) int {
 		return runBlock(args[2:])
 	case "unblock":
 		return runUnblock(args[2:])
+	case "update":
+		return runUpdate(args[2:])
+	case "close":
+		return runClose(args[2:])
+	case "reopen":
+		return runReopen(args[2:])
 	case "--help", "-h":
 		printUsage()
 		return 0
@@ -425,6 +432,232 @@ func runUnblock(args []string) int {
 	return 0
 }
 
+func runUpdate(args []string) int {
+	fs := flag.NewFlagSet("update", flag.ContinueOnError)
+	var title, description, notes, status, typ, owner optionalString
+	var priority optionalInt
+	var addLabels, removeLabels optionalString
+	jsonOutput := fs.Bool("json", false, "output as json")
+
+	fs.Var(&title, "title", "new title")
+	fs.Var(&description, "description", "new description")
+	fs.Var(&notes, "notes", "replace notes")
+	fs.Var(&status, "status", "new status")
+	fs.Var(&priority, "priority", "new priority")
+	fs.Var(&typ, "type", "new type")
+	fs.Var(&owner, "owner", "new owner")
+	fs.Var(&addLabels, "add-labels", "labels to add")
+	fs.Var(&removeLabels, "remove-labels", "labels to remove")
+
+	fs.SetOutput(os.Stderr)
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+
+	if fs.NArg() < 1 {
+		fmt.Fprintln(os.Stderr, "id is required")
+		return 2
+	}
+
+	root, err := repoRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect repo root: %v\n", err)
+		return 3
+	}
+	project, err := github.DetectProject(nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect project: %v\n", err)
+		return 5
+	}
+	id, err := github.NormalizeID(project, fs.Arg(0))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "invalid id: %v\n", err)
+		return 4
+	}
+
+	store := tick.NewStore(filepath.Join(root, ".tick"))
+	t, err := store.Read(id)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to read tick: %v\n", err)
+		return 4
+	}
+
+	if title.set {
+		t.Title = title.value
+	}
+	if description.set {
+		t.Description = description.value
+	}
+	if notes.set {
+		t.Notes = notes.value
+	}
+	if status.set {
+		t.Status = status.value
+		if status.value == tick.StatusClosed {
+			now := time.Now().UTC()
+			t.ClosedAt = &now
+		} else {
+			t.ClosedAt = nil
+			t.ClosedReason = ""
+		}
+	}
+	if priority.set {
+		t.Priority = priority.value
+	}
+	if typ.set {
+		t.Type = typ.value
+	}
+	if owner.set {
+		t.Owner = owner.value
+	}
+	if addLabels.set {
+		for _, label := range splitCSV(addLabels.value) {
+			t.Labels = appendUnique(t.Labels, label)
+		}
+	}
+	if removeLabels.set {
+		for _, label := range splitCSV(removeLabels.value) {
+			t.Labels = removeString(t.Labels, label)
+		}
+	}
+
+	t.UpdatedAt = time.Now().UTC()
+	if err := store.Write(t); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to update tick: %v\n", err)
+		return 6
+	}
+
+	if *jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		if err := enc.Encode(t); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to encode json: %v\n", err)
+			return 6
+		}
+	}
+	return 0
+}
+
+func runClose(args []string) int {
+	fs := flag.NewFlagSet("close", flag.ContinueOnError)
+	reason := fs.String("reason", "", "close reason")
+	jsonOutput := fs.Bool("json", false, "output as json")
+	fs.SetOutput(os.Stderr)
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+	if fs.NArg() < 1 {
+		fmt.Fprintln(os.Stderr, "id is required")
+		return 2
+	}
+
+	root, err := repoRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect repo root: %v\n", err)
+		return 3
+	}
+	project, err := github.DetectProject(nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect project: %v\n", err)
+		return 5
+	}
+	id, err := github.NormalizeID(project, fs.Arg(0))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "invalid id: %v\n", err)
+		return 4
+	}
+
+	store := tick.NewStore(filepath.Join(root, ".tick"))
+	t, err := store.Read(id)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to read tick: %v\n", err)
+		return 4
+	}
+
+	now := time.Now().UTC()
+	t.Status = tick.StatusClosed
+	t.ClosedAt = &now
+	t.ClosedReason = strings.TrimSpace(*reason)
+	t.UpdatedAt = now
+
+	if err := store.Write(t); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to close tick: %v\n", err)
+		return 6
+	}
+
+	if *jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		if err := enc.Encode(t); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to encode json: %v\n", err)
+			return 6
+		}
+	}
+	return 0
+}
+
+func runReopen(args []string) int {
+	fs := flag.NewFlagSet("reopen", flag.ContinueOnError)
+	jsonOutput := fs.Bool("json", false, "output as json")
+	fs.SetOutput(os.Stderr)
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+	if fs.NArg() < 1 {
+		fmt.Fprintln(os.Stderr, "id is required")
+		return 2
+	}
+
+	root, err := repoRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect repo root: %v\n", err)
+		return 3
+	}
+	project, err := github.DetectProject(nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect project: %v\n", err)
+		return 5
+	}
+	id, err := github.NormalizeID(project, fs.Arg(0))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "invalid id: %v\n", err)
+		return 4
+	}
+
+	store := tick.NewStore(filepath.Join(root, ".tick"))
+	t, err := store.Read(id)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to read tick: %v\n", err)
+		return 4
+	}
+
+	t.Status = tick.StatusOpen
+	t.ClosedAt = nil
+	t.ClosedReason = ""
+	t.UpdatedAt = time.Now().UTC()
+
+	if err := store.Write(t); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to reopen tick: %v\n", err)
+		return 6
+	}
+
+	if *jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		if err := enc.Encode(t); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to encode json: %v\n", err)
+			return 6
+		}
+	}
+	return 0
+}
+
 func splitCSV(value string) []string {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -462,6 +695,40 @@ func removeString(values []string, value string) []string {
 	return out
 }
 
+type optionalString struct {
+	value string
+	set   bool
+}
+
+func (o *optionalString) String() string {
+	return o.value
+}
+
+func (o *optionalString) Set(value string) error {
+	o.value = value
+	o.set = true
+	return nil
+}
+
+type optionalInt struct {
+	value int
+	set   bool
+}
+
+func (o *optionalInt) String() string {
+	return fmt.Sprintf("%d", o.value)
+}
+
+func (o *optionalInt) Set(value string) error {
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return err
+	}
+	o.value = parsed
+	o.set = true
+	return nil
+}
+
 func formatTime(value time.Time) string {
 	return value.Local().Format("2006-01-02 15:04")
 }
@@ -489,5 +756,5 @@ func bytesTrimSpace(in []byte) []byte {
 
 func printUsage() {
 	fmt.Println("Usage: tk <command> [--help]")
-	fmt.Println("Commands: init, whoami, show, create, block, unblock")
+	fmt.Println("Commands: init, whoami, show, create, block, unblock, update, close, reopen")
 }
