@@ -25,12 +25,13 @@ type Model struct {
 	filter      string
 	searching   bool
 	searchInput string
+	focusedEpic string
 }
 
 // NewModel builds a tree view model from ticks.
 func NewModel(ticks []tick.Tick) Model {
 	collapsed := make(map[string]bool)
-	items := buildItems(ticks, collapsed, "")
+	items := buildItems(ticks, collapsed, "", "")
 	return Model{allTicks: ticks, items: items, collapsed: collapsed}
 }
 
@@ -51,6 +52,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.searching {
 				m.searching = false
 				m.searchInput = ""
+			} else if m.focusedEpic != "" {
+				m.focusedEpic = ""
+				m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic)
+				m.selected = 0
 			}
 		case "j", "down":
 			if m.selected < len(m.items)-1 {
@@ -60,12 +65,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.selected > 0 {
 				m.selected--
 			}
+		case "z":
+			if len(m.items) == 0 {
+				return m, nil
+			}
+			current := m.items[m.selected]
+			if current.IsEpic {
+				if m.focusedEpic == current.Tick.ID {
+					m.focusedEpic = ""
+				} else {
+					m.focusedEpic = current.Tick.ID
+				}
+				m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic)
+				m.selected = 0
+			}
 		case " ", "enter":
 			if m.searching {
 				m.filter = m.searchInput
 				m.searching = false
 				m.searchInput = ""
-				m.items = buildItems(m.allTicks, m.collapsed, m.filter)
+				m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic)
 				if m.selected >= len(m.items) {
 					m.selected = len(m.items) - 1
 				}
@@ -77,7 +96,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			current := m.items[m.selected]
 			if current.IsEpic && current.HasKids {
 				m.collapsed[current.Tick.ID] = !m.collapsed[current.Tick.ID]
-				m.items = buildItemsFromState(m.allTicks, m.collapsed, m.filter)
+				m.items = buildItemsFromState(m.allTicks, m.collapsed, m.filter, m.focusedEpic)
 				if m.selected >= len(m.items) {
 					m.selected = len(m.items) - 1
 				}
@@ -102,6 +121,9 @@ func (m Model) View() string {
 		out += fmt.Sprintf("Search: %s\n\n", m.searchInput)
 	} else if m.filter != "" {
 		out += fmt.Sprintf("Filter: %s (press / to change)\n\n", m.filter)
+	}
+	if m.focusedEpic != "" {
+		out += fmt.Sprintf("Focus: %s (press z to clear)\n\n", m.focusedEpic)
 	}
 
 	if len(m.items) == 0 {
@@ -131,8 +153,8 @@ func (m Model) View() string {
 	return out
 }
 
-func buildItems(ticks []tick.Tick, collapsed map[string]bool, filter string) []item {
-	filtered := applyFilter(ticks, filter)
+func buildItems(ticks []tick.Tick, collapsed map[string]bool, filter string, focus string) []item {
+	filtered := applyFilter(applyFocus(ticks, focus), filter)
 	roots, children := splitRoots(filtered)
 	query.SortByPriorityCreatedAt(roots)
 
@@ -151,8 +173,8 @@ func buildItems(ticks []tick.Tick, collapsed map[string]bool, filter string) []i
 	return items
 }
 
-func buildItemsFromState(all []tick.Tick, collapsed map[string]bool, filter string) []item {
-	return buildItems(all, collapsed, filter)
+func buildItemsFromState(all []tick.Tick, collapsed map[string]bool, filter string, focus string) []item {
+	return buildItems(all, collapsed, filter, focus)
 }
 
 func splitRoots(ticks []tick.Tick) ([]tick.Tick, map[string][]tick.Tick) {
@@ -199,6 +221,20 @@ func applyFilter(ticks []tick.Tick, filter string) []tick.Tick {
 				out = append(out, t)
 				break
 			}
+		}
+	}
+	return out
+}
+
+func applyFocus(ticks []tick.Tick, focus string) []tick.Tick {
+	focus = strings.TrimSpace(focus)
+	if focus == "" {
+		return ticks
+	}
+	var out []tick.Tick
+	for _, t := range ticks {
+		if t.ID == focus || t.Parent == focus {
+			out = append(out, t)
 		}
 	}
 	return out
