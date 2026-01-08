@@ -31,6 +31,8 @@ func run(args []string) int {
 		return runInit()
 	case "whoami":
 		return runWhoami(args[2:])
+	case "show":
+		return runShow(args[2:])
 	case "create":
 		return runCreate(args[2:])
 	case "--help", "-h":
@@ -239,6 +241,94 @@ func runCreate(args []string) int {
 	return 0
 }
 
+func runShow(args []string) int {
+	fs := flag.NewFlagSet("show", flag.ContinueOnError)
+	jsonOutput := fs.Bool("json", false, "output as json")
+	fs.SetOutput(os.Stderr)
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+
+	if fs.NArg() < 1 {
+		fmt.Fprintln(os.Stderr, "id is required")
+		return 2
+	}
+
+	root, err := repoRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect repo root: %v\n", err)
+		return 3
+	}
+	project, err := github.DetectProject(nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect project: %v\n", err)
+		return 5
+	}
+	id, err := github.NormalizeID(project, fs.Arg(0))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "invalid id: %v\n", err)
+		return 4
+	}
+
+	store := tick.NewStore(filepath.Join(root, ".tick"))
+	t, err := store.Read(id)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to read tick: %v\n", err)
+		return 4
+	}
+
+	if *jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		if err := enc.Encode(t); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to encode json: %v\n", err)
+			return 6
+		}
+		return 0
+	}
+
+	fmt.Printf("%s  P%d %s  %s  @%s\n\n", t.ID, t.Priority, t.Type, t.Status, t.Owner)
+	fmt.Printf("%s\n\n", t.Title)
+
+	if strings.TrimSpace(t.Description) != "" {
+		fmt.Println("Description:")
+		fmt.Printf("  %s\n\n", t.Description)
+	}
+
+	if strings.TrimSpace(t.Notes) != "" {
+		fmt.Println("Notes:")
+		for _, line := range strings.Split(t.Notes, "\n") {
+			fmt.Printf("  %s\n", line)
+		}
+		fmt.Println()
+	}
+
+	if len(t.Labels) > 0 {
+		fmt.Printf("Labels: %s\n", strings.Join(t.Labels, ", "))
+	}
+	if len(t.BlockedBy) > 0 {
+		var blocked []string
+		for _, blocker := range t.BlockedBy {
+			blk, err := store.Read(blocker)
+			if err != nil {
+				blocked = append(blocked, fmt.Sprintf("%s (unknown)", blocker))
+				continue
+			}
+			blocked = append(blocked, fmt.Sprintf("%s (%s)", blocker, blk.Status))
+		}
+		fmt.Printf("Blocked by: %s\n", strings.Join(blocked, ", "))
+	}
+
+	fmt.Printf("Created: %s by %s\n", formatTime(t.CreatedAt), t.CreatedBy)
+	fmt.Printf("Updated: %s\n\n", formatTime(t.UpdatedAt))
+
+	fmt.Printf("Global: %s:%s\n", project, t.ID)
+
+	return 0
+}
+
 func splitCSV(value string) []string {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -254,6 +344,10 @@ func splitCSV(value string) []string {
 		out = append(out, item)
 	}
 	return out
+}
+
+func formatTime(value time.Time) string {
+	return value.Local().Format("2006-01-02 15:04")
 }
 
 func repoRoot() (string, error) {
@@ -279,5 +373,5 @@ func bytesTrimSpace(in []byte) []byte {
 
 func printUsage() {
 	fmt.Println("Usage: tk <command> [--help]")
-	fmt.Println("Commands: init, whoami, create")
+	fmt.Println("Commands: init, whoami, show, create")
 }
