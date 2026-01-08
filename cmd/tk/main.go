@@ -72,6 +72,8 @@ func run(args []string) int {
 		return runStatus(args[2:])
 	case "merge-file":
 		return runMergeFile(args[2:])
+	case "stats":
+		return runStats(args[2:])
 	case "--help", "-h":
 		printUsage()
 		return 0
@@ -1471,6 +1473,88 @@ func runMergeFile(args []string) int {
 	return 0
 }
 
+func runStats(args []string) int {
+	fs := flag.NewFlagSet("stats", flag.ContinueOnError)
+	allOwners := fs.Bool("all", false, "all owners")
+	jsonOutput := fs.Bool("json", false, "output as json")
+	fs.SetOutput(os.Stderr)
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+
+	root, err := repoRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect repo root: %v\n", err)
+		return 3
+	}
+
+	owner := ""
+	if !*allOwners {
+		detected, err := github.DetectOwner(nil)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to detect owner: %v\n", err)
+			return 5
+		}
+		owner = detected
+	}
+
+	store := tick.NewStore(filepath.Join(root, ".tick"))
+	ticks, err := store.List()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to list ticks: %v\n", err)
+		return 6
+	}
+
+	filtered := query.Apply(ticks, query.Filter{Owner: owner})
+
+	statusCounts := make(map[string]int)
+	priorityCounts := make(map[int]int)
+	typeCounts := make(map[string]int)
+
+	for _, t := range filtered {
+		statusCounts[t.Status]++
+		priorityCounts[t.Priority]++
+		typeCounts[t.Type]++
+	}
+
+	ready := query.Ready(filtered)
+	blocked := query.Blocked(filtered)
+
+	if *jsonOutput {
+		payload := map[string]any{
+			"total":    len(filtered),
+			"status":   statusCounts,
+			"priority": priorityCounts,
+			"type":     typeCounts,
+			"ready":    len(ready),
+			"blocked":  len(blocked),
+		}
+		enc := json.NewEncoder(os.Stdout)
+		if err := enc.Encode(payload); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to encode json: %v\n", err)
+			return 6
+		}
+		return 0
+	}
+
+	project, err := github.DetectProject(nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect project: %v\n", err)
+		return 5
+	}
+	fmt.Println(project)
+	fmt.Printf("\n  Total: %d ticks\n", len(filtered))
+	fmt.Printf("  Status: %s\n", formatStatusCounts(statusCounts))
+	fmt.Printf("  Priority: %s\n", formatPriorityCounts(priorityCounts))
+	fmt.Printf("  Types: %s\n", formatTypeCounts(typeCounts))
+	fmt.Printf("\n  Ready: %d\n", len(ready))
+	fmt.Printf("  Blocked: %d\n", len(blocked))
+	return 0
+}
+
 func splitCSV(value string) []string {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -1536,6 +1620,21 @@ func writeTickPath(path string, t tick.Tick) error {
 	return os.WriteFile(path, data, 0o644)
 }
 
+func formatStatusCounts(counts map[string]int) string {
+	return fmt.Sprintf("open %d · in progress %d · closed %d",
+		counts[tick.StatusOpen], counts[tick.StatusInProgress], counts[tick.StatusClosed])
+}
+
+func formatPriorityCounts(counts map[int]int) string {
+	return fmt.Sprintf("P0:%d · P1:%d · P2:%d · P3:%d · P4:%d",
+		counts[0], counts[1], counts[2], counts[3], counts[4])
+}
+
+func formatTypeCounts(counts map[string]int) string {
+	return fmt.Sprintf("bug:%d · feature:%d · task:%d · epic:%d · chore:%d",
+		counts[tick.TypeBug], counts[tick.TypeFeature], counts[tick.TypeTask], counts[tick.TypeEpic], counts[tick.TypeChore])
+}
+
 type optionalString struct {
 	value string
 	set   bool
@@ -1597,5 +1696,5 @@ func bytesTrimSpace(in []byte) []byte {
 
 func printUsage() {
 	fmt.Println("Usage: tk <command> [--help]")
-	fmt.Println("Commands: init, whoami, show, create, block, unblock, update, close, reopen, note, notes, list, ready, blocked, rebuild, delete, label, labels, deps, status, merge-file")
+	fmt.Println("Commands: init, whoami, show, create, block, unblock, update, close, reopen, note, notes, list, ready, blocked, rebuild, delete, label, labels, deps, status, merge-file, stats")
 }
