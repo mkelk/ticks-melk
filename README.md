@@ -32,6 +32,7 @@ tk view
 - Fold/unfold epics with `space` or `enter`.
 - Search with `/`.
 - Focus an epic with `z` (press `z` again or `esc` to clear).
+- Details pane shows the selected tick.
 
 ## Environment Variables
 

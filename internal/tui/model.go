@@ -26,6 +26,8 @@ type Model struct {
 	searching   bool
 	searchInput string
 	focusedEpic string
+	width       int
+	height      int
 }
 
 // NewModel builds a tree view model from ticks.
@@ -41,6 +43,9 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
@@ -130,6 +135,45 @@ func (m Model) View() string {
 		return out + "No ticks\n"
 	}
 
+	list := buildListView(m)
+	detail := buildDetailView(m)
+
+	if m.width <= 0 {
+		return out + list + "\n" + detail
+	}
+
+	leftWidth := m.width / 2
+	if leftWidth < 40 {
+		leftWidth = 40
+	}
+	rightWidth := m.width - leftWidth - 1
+	if rightWidth < 20 {
+		rightWidth = 20
+	}
+
+	linesLeft := splitLines(strings.TrimRight(list, "\n"))
+	linesRight := splitLines(strings.TrimRight(detail, "\n"))
+	maxLines := len(linesLeft)
+	if len(linesRight) > maxLines {
+		maxLines = len(linesRight)
+	}
+
+	for i := 0; i < maxLines; i++ {
+		left := ""
+		if i < len(linesLeft) {
+			left = linesLeft[i]
+		}
+		right := ""
+		if i < len(linesRight) {
+			right = linesRight[i]
+		}
+		out += fmt.Sprintf("%-*s %s\n", leftWidth, truncate(left, leftWidth), truncate(right, rightWidth))
+	}
+	return out
+}
+
+func buildListView(m Model) string {
+	var out string
 	for i, item := range m.items {
 		cursor := " "
 		if i == m.selected {
@@ -147,10 +191,48 @@ func (m Model) View() string {
 				marker = "-"
 			}
 		}
-		line := fmt.Sprintf("%s %s%s %s  P%d %s\n", cursor, indent, marker, item.Tick.ID, item.Tick.Priority, item.Tick.Title)
-		out += line
+		line := fmt.Sprintf("%s %s%s %s  P%d %s", cursor, indent, marker, item.Tick.ID, item.Tick.Priority, item.Tick.Title)
+		out += line + "\n"
 	}
 	return out
+}
+
+func buildDetailView(m Model) string {
+	if len(m.items) == 0 {
+		return ""
+	}
+	current := m.items[m.selected].Tick
+	var out []string
+	out = append(out, fmt.Sprintf("%s  P%d %s  %s  @%s", current.ID, current.Priority, current.Type, current.Status, current.Owner))
+	out = append(out, current.Title)
+
+	if strings.TrimSpace(current.Description) != "" {
+		out = append(out, "")
+		out = append(out, "Description:")
+		out = append(out, indentLines(current.Description, 2)...)
+	}
+
+	if strings.TrimSpace(current.Notes) != "" {
+		out = append(out, "")
+		out = append(out, "Notes:")
+		out = append(out, indentLines(current.Notes, 2)...)
+	}
+
+	if len(current.Labels) > 0 {
+		out = append(out, "")
+		out = append(out, fmt.Sprintf("Labels: %s", strings.Join(current.Labels, ", ")))
+	}
+	if len(current.BlockedBy) > 0 {
+		out = append(out, fmt.Sprintf("Blocked by: %s", strings.Join(current.BlockedBy, ", ")))
+	}
+	if current.Parent != "" {
+		out = append(out, fmt.Sprintf("Parent: %s", current.Parent))
+	}
+	if current.DiscoveredFrom != "" {
+		out = append(out, fmt.Sprintf("Discovered from: %s", current.DiscoveredFrom))
+	}
+
+	return strings.Join(out, "\n")
 }
 
 func buildItems(ticks []tick.Tick, collapsed map[string]bool, filter string, focus string) []item {
@@ -238,4 +320,35 @@ func applyFocus(ticks []tick.Tick, focus string) []tick.Tick {
 		}
 	}
 	return out
+}
+
+func indentLines(value string, spaces int) []string {
+	prefix := strings.Repeat(" ", spaces)
+	lines := splitLines(value)
+	out := make([]string, 0, len(lines))
+	for _, line := range lines {
+		out = append(out, prefix+line)
+	}
+	return out
+}
+
+func truncate(value string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	if len(value) <= width {
+		return value
+	}
+	if width <= 1 {
+		return value[:width]
+	}
+	return value[:width-1] + "."
+}
+
+func splitLines(value string) []string {
+	value = strings.TrimRight(value, "\n")
+	if value == "" {
+		return nil
+	}
+	return strings.Split(value, "\n")
 }
