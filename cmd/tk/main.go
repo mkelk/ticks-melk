@@ -14,6 +14,7 @@ import (
 
 	"github.com/pengelbrecht/ticks/internal/config"
 	"github.com/pengelbrecht/ticks/internal/github"
+	"github.com/pengelbrecht/ticks/internal/query"
 	"github.com/pengelbrecht/ticks/internal/tick"
 )
 
@@ -50,6 +51,14 @@ func run(args []string) int {
 		return runNote(args[2:])
 	case "notes":
 		return runNotes(args[2:])
+	case "list":
+		return runList(args[2:])
+	case "ready":
+		return runReady(args[2:])
+	case "blocked":
+		return runBlocked(args[2:])
+	case "rebuild":
+		return runRebuild(args[2:])
 	case "--help", "-h":
 		printUsage()
 		return 0
@@ -814,6 +823,256 @@ func runNotes(args []string) int {
 	return 0
 }
 
+func runList(args []string) int {
+	fs := flag.NewFlagSet("list", flag.ContinueOnError)
+	allOwners := fs.Bool("all", false, "all owners")
+	fs.BoolVar(allOwners, "a", false, "all owners")
+	ownerFlag := fs.String("owner", "", "owner")
+	fs.StringVar(ownerFlag, "o", "", "owner")
+	statusFlag := fs.String("status", "", "status")
+	fs.StringVar(statusFlag, "s", "", "status")
+	priorityFlag := fs.Int("priority", -1, "priority")
+	fs.IntVar(priorityFlag, "p", -1, "priority")
+	typeFlag := fs.String("type", "", "type")
+	fs.StringVar(typeFlag, "t", "", "type")
+	labelFlag := fs.String("label", "", "label")
+	fs.StringVar(labelFlag, "l", "", "label")
+	parentFlag := fs.String("parent", "", "parent epic id")
+	jsonOutput := fs.Bool("json", false, "output as json")
+	fs.SetOutput(os.Stderr)
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+
+	root, err := repoRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect repo root: %v\n", err)
+		return 3
+	}
+
+	owner := strings.TrimSpace(*ownerFlag)
+	if !*allOwners && owner == "" {
+		detected, err := github.DetectOwner(nil)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to detect owner: %v\n", err)
+			return 5
+		}
+		owner = detected
+	}
+
+	store := tick.NewStore(filepath.Join(root, ".tick"))
+	ticks, err := store.List()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to list ticks: %v\n", err)
+		return 6
+	}
+
+	var priority *int
+	if *priorityFlag >= 0 {
+		p := *priorityFlag
+		priority = &p
+	}
+
+	filter := query.Filter{
+		Owner:    owner,
+		Status:   strings.TrimSpace(*statusFlag),
+		Priority: priority,
+		Type:     strings.TrimSpace(*typeFlag),
+		Label:    strings.TrimSpace(*labelFlag),
+		Parent:   strings.TrimSpace(*parentFlag),
+	}
+
+	filtered := query.Apply(ticks, filter)
+	query.SortByPriorityCreatedAt(filtered)
+
+	if *jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		if err := enc.Encode(filtered); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to encode json: %v\n", err)
+			return 6
+		}
+		return 0
+	}
+
+	fmt.Println(" ID   PRI  TYPE     STATUS  TITLE")
+	for _, t := range filtered {
+		fmt.Printf(" %-4s P%d   %-7s %-7s %s\n", t.ID, t.Priority, t.Type, t.Status, t.Title)
+	}
+	fmt.Printf("\n%d ticks\n", len(filtered))
+	return 0
+}
+
+func runReady(args []string) int {
+	fs := flag.NewFlagSet("ready", flag.ContinueOnError)
+	allOwners := fs.Bool("all", false, "all owners")
+	fs.BoolVar(allOwners, "a", false, "all owners")
+	ownerFlag := fs.String("owner", "", "owner")
+	fs.StringVar(ownerFlag, "o", "", "owner")
+	limitFlag := fs.Int("limit", 10, "max results")
+	fs.IntVar(limitFlag, "n", 10, "max results")
+	jsonOutput := fs.Bool("json", false, "output as json")
+	fs.SetOutput(os.Stderr)
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+
+	root, err := repoRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect repo root: %v\n", err)
+		return 3
+	}
+
+	owner := strings.TrimSpace(*ownerFlag)
+	if !*allOwners && owner == "" {
+		detected, err := github.DetectOwner(nil)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to detect owner: %v\n", err)
+			return 5
+		}
+		owner = detected
+	}
+
+	store := tick.NewStore(filepath.Join(root, ".tick"))
+	ticks, err := store.List()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to list ticks: %v\n", err)
+		return 6
+	}
+
+	filtered := query.Apply(ticks, query.Filter{Owner: owner})
+	ready := query.Ready(filtered)
+	query.SortByPriorityCreatedAt(ready)
+
+	if *limitFlag > 0 && len(ready) > *limitFlag {
+		ready = ready[:*limitFlag]
+	}
+
+	if *jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		if err := enc.Encode(ready); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to encode json: %v\n", err)
+			return 6
+		}
+		return 0
+	}
+
+	fmt.Println(" ID   PRI  TYPE     STATUS  TITLE")
+	for _, t := range ready {
+		fmt.Printf(" %-4s P%d   %-7s %-7s %s\n", t.ID, t.Priority, t.Type, t.Status, t.Title)
+	}
+	fmt.Printf("\n%d ticks (ready)\n", len(ready))
+	return 0
+}
+
+func runBlocked(args []string) int {
+	fs := flag.NewFlagSet("blocked", flag.ContinueOnError)
+	allOwners := fs.Bool("all", false, "all owners")
+	fs.BoolVar(allOwners, "a", false, "all owners")
+	ownerFlag := fs.String("owner", "", "owner")
+	fs.StringVar(ownerFlag, "o", "", "owner")
+	jsonOutput := fs.Bool("json", false, "output as json")
+	fs.SetOutput(os.Stderr)
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+
+	root, err := repoRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect repo root: %v\n", err)
+		return 3
+	}
+
+	owner := strings.TrimSpace(*ownerFlag)
+	if !*allOwners && owner == "" {
+		detected, err := github.DetectOwner(nil)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to detect owner: %v\n", err)
+			return 5
+		}
+		owner = detected
+	}
+
+	store := tick.NewStore(filepath.Join(root, ".tick"))
+	ticks, err := store.List()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to list ticks: %v\n", err)
+		return 6
+	}
+
+	filtered := query.Apply(ticks, query.Filter{Owner: owner})
+	blocked := query.Blocked(filtered)
+	query.SortByPriorityCreatedAt(blocked)
+
+	if *jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		if err := enc.Encode(blocked); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to encode json: %v\n", err)
+			return 6
+		}
+		return 0
+	}
+
+	fmt.Println(" ID   PRI  TYPE     STATUS  TITLE")
+	for _, t := range blocked {
+		fmt.Printf(" %-4s P%d   %-7s %-7s %s\n", t.ID, t.Priority, t.Type, t.Status, t.Title)
+	}
+	fmt.Printf("\n%d ticks (blocked)\n", len(blocked))
+	return 0
+}
+
+func runRebuild(args []string) int {
+	fs := flag.NewFlagSet("rebuild", flag.ContinueOnError)
+	jsonOutput := fs.Bool("json", false, "output as json")
+	fs.SetOutput(os.Stderr)
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+
+	root, err := repoRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect repo root: %v\n", err)
+		return 3
+	}
+
+	store := tick.NewStore(filepath.Join(root, ".tick"))
+	ticks, err := store.List()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to list ticks: %v\n", err)
+		return 6
+	}
+
+	indexPath := filepath.Join(root, ".tick", ".index.json")
+	if err := query.SaveIndex(indexPath, ticks); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to write index: %v\n", err)
+		return 6
+	}
+
+	if *jsonOutput {
+		payload := map[string]any{"count": len(ticks)}
+		enc := json.NewEncoder(os.Stdout)
+		if err := enc.Encode(payload); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to encode json: %v\n", err)
+			return 6
+		}
+		return 0
+	}
+
+	fmt.Printf("Rebuilt index with %d ticks\n", len(ticks))
+	return 0
+}
+
 func splitCSV(value string) []string {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -912,5 +1171,5 @@ func bytesTrimSpace(in []byte) []byte {
 
 func printUsage() {
 	fmt.Println("Usage: tk <command> [--help]")
-	fmt.Println("Commands: init, whoami, show, create, block, unblock, update, close, reopen, note, notes")
+	fmt.Println("Commands: init, whoami, show, create, block, unblock, update, close, reopen, note, notes, list, ready, blocked, rebuild")
 }
