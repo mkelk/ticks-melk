@@ -46,6 +46,10 @@ func run(args []string) int {
 		return runClose(args[2:])
 	case "reopen":
 		return runReopen(args[2:])
+	case "note":
+		return runNote(args[2:])
+	case "notes":
+		return runNotes(args[2:])
 	case "--help", "-h":
 		printUsage()
 		return 0
@@ -658,6 +662,158 @@ func runReopen(args []string) int {
 	return 0
 }
 
+func runNote(args []string) int {
+	fs := flag.NewFlagSet("note", flag.ContinueOnError)
+	edit := fs.Bool("edit", false, "edit notes in $EDITOR")
+	fs.SetOutput(os.Stderr)
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+	if fs.NArg() < 1 {
+		fmt.Fprintln(os.Stderr, "id is required")
+		return 2
+	}
+
+	root, err := repoRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect repo root: %v\n", err)
+		return 3
+	}
+	project, err := github.DetectProject(nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect project: %v\n", err)
+		return 5
+	}
+	id, err := github.NormalizeID(project, fs.Arg(0))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "invalid id: %v\n", err)
+		return 4
+	}
+
+	store := tick.NewStore(filepath.Join(root, ".tick"))
+	t, err := store.Read(id)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to read tick: %v\n", err)
+		return 4
+	}
+
+	if *edit {
+		editor := strings.TrimSpace(os.Getenv("EDITOR"))
+		if editor == "" {
+			fmt.Fprintln(os.Stderr, "EDITOR is not set")
+			return 2
+		}
+
+		tmp, err := os.CreateTemp("", "tick-notes-*.txt")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to create temp file: %v\n", err)
+			return 6
+		}
+		defer os.Remove(tmp.Name())
+
+		if _, err := tmp.WriteString(t.Notes); err != nil {
+			_ = tmp.Close()
+			fmt.Fprintf(os.Stderr, "failed to write temp file: %v\n", err)
+			return 6
+		}
+		if err := tmp.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to close temp file: %v\n", err)
+			return 6
+		}
+
+		cmd := exec.Command(editor, tmp.Name())
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "editor failed: %v\n", err)
+			return 6
+		}
+
+		updated, err := os.ReadFile(tmp.Name())
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to read temp file: %v\n", err)
+			return 6
+		}
+		t.Notes = string(updated)
+		t.UpdatedAt = time.Now().UTC()
+		if err := store.Write(t); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to update tick: %v\n", err)
+			return 6
+		}
+		return 0
+	}
+
+	if fs.NArg() < 2 {
+		fmt.Fprintln(os.Stderr, "note text is required")
+		return 2
+	}
+	note := strings.TrimSpace(strings.Join(fs.Args()[1:], " "))
+	if note == "" {
+		fmt.Fprintln(os.Stderr, "note text is required")
+		return 2
+	}
+
+	timestamp := time.Now().Format("2006-01-02 15:04")
+	line := fmt.Sprintf("%s - %s", timestamp, note)
+	if strings.TrimSpace(t.Notes) == "" {
+		t.Notes = line
+	} else {
+		t.Notes = strings.TrimRight(t.Notes, "\n") + "\n" + line
+	}
+	t.UpdatedAt = time.Now().UTC()
+	if err := store.Write(t); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to update tick: %v\n", err)
+		return 6
+	}
+	return 0
+}
+
+func runNotes(args []string) int {
+	fs := flag.NewFlagSet("notes", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+	if fs.NArg() < 1 {
+		fmt.Fprintln(os.Stderr, "id is required")
+		return 2
+	}
+
+	root, err := repoRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect repo root: %v\n", err)
+		return 3
+	}
+	project, err := github.DetectProject(nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect project: %v\n", err)
+		return 5
+	}
+	id, err := github.NormalizeID(project, fs.Arg(0))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "invalid id: %v\n", err)
+		return 4
+	}
+
+	store := tick.NewStore(filepath.Join(root, ".tick"))
+	t, err := store.Read(id)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to read tick: %v\n", err)
+		return 4
+	}
+
+	fmt.Printf("Notes for %s (%s):\n\n", t.ID, t.Title)
+	fmt.Printf("%s\n", t.Notes)
+	return 0
+}
+
 func splitCSV(value string) []string {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -756,5 +912,5 @@ func bytesTrimSpace(in []byte) []byte {
 
 func printUsage() {
 	fmt.Println("Usage: tk <command> [--help]")
-	fmt.Println("Commands: init, whoami, show, create, block, unblock, update, close, reopen")
+	fmt.Println("Commands: init, whoami, show, create, block, unblock, update, close, reopen, note, notes")
 }
