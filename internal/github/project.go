@@ -23,6 +23,22 @@ func ParseProjectFromRemote(remote string) (string, error) {
 	}
 }
 
+// DetectProject resolves the current git remote project via origin.
+func DetectProject(run CommandRunner) (string, error) {
+	if run == nil {
+		run = defaultRunner
+	}
+	out, err := run("git", "remote", "get-url", "origin")
+	if err != nil {
+		return "", fmt.Errorf("failed to read git remote: %w", err)
+	}
+	project, err := ParseProjectFromRemote(string(out))
+	if err != nil {
+		return "", err
+	}
+	return project, nil
+}
+
 func parsePath(path string) (string, error) {
 	path = strings.TrimSuffix(path, ".git")
 	parts := strings.Split(path, "/")

@@ -31,3 +31,15 @@ func TestParseProjectFromRemote(t *testing.T) {
 		})
 	}
 }
+
+func TestDetectProject(t *testing.T) {
+	project, err := DetectProject(func(string, ...string) ([]byte, error) {
+		return []byte("https://github.com/petere/chefswiz.git"), nil
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if project != "petere/chefswiz" {
+		t.Fatalf("expected project petere/chefswiz, got %s", project)
+	}
+}

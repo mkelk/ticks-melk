@@ -3,12 +3,8 @@ package github
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 )
-
-// CommandRunner executes a command and returns stdout.
-type CommandRunner func(name string, args ...string) ([]byte, error)
 
 // DetectOwner resolves owner via TICK_OWNER or gh.
 func DetectOwner(run CommandRunner) (string, error) {
@@ -31,9 +27,4 @@ func DetectOwner(run CommandRunner) (string, error) {
 	}
 
 	return owner, nil
-}
-
-func defaultRunner(name string, args ...string) ([]byte, error) {
-	cmd := exec.Command(name, args...)
-	return cmd.Output()
 }
