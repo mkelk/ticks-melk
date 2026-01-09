@@ -7,7 +7,10 @@ import time
 from pathlib import Path
 
 RUNS = int(os.environ.get("BENCH_RUNS", "20"))
-COUNT = int(os.environ.get("BENCH_COUNT", "100"))
+COUNT = int(os.environ.get("BENCH_COUNT", "1000"))
+SEED_COUNT = int(os.environ.get("BENCH_SEED_COUNT", "20"))
+SEED_LABEL = "bench-hit"
+SEED_LABEL_ALT = "bench-alt"
 
 
 def run(cmd, cwd=None, env=None):
@@ -40,9 +43,29 @@ def main():
 
         ids = []
         for i in range(COUNT):
-            out = run([str(bin_path), "create", f"Tick {i}", "--json"], cwd=tmp, env=env)
+            if i < SEED_COUNT:
+                label = SEED_LABEL if i < SEED_COUNT // 2 else SEED_LABEL_ALT
+                desc = f"Benchmark seed {i} with context for filtering/search."
+                out = run(
+                    [
+                        str(bin_path),
+                        "create",
+                        f"Seed {i} {label}",
+                        "--description",
+                        desc,
+                        "--labels",
+                        label,
+                        "--json",
+                    ],
+                    cwd=tmp,
+                    env=env,
+                )
+            else:
+                out = run([str(bin_path), "create", f"Tick {i}", "--json"], cwd=tmp, env=env)
             tid = json.loads(out)["id"]
             ids.append(tid)
+            if i < SEED_COUNT:
+                run([str(bin_path), "note", tid, f"Context note seed {i} keyword: needle"], cwd=tmp, env=env)
 
         for i in range(0, len(ids), 10):
             if i == 0:
@@ -59,6 +82,7 @@ def main():
 
         ops = {
             "list_open": [str(bin_path), "list", "--json"],
+            "list_label": [str(bin_path), "list", "--label", SEED_LABEL, "--all", "--json"],
             "ready": [str(bin_path), "ready", "--json"],
             "create": [str(bin_path), "create", "Bench create"],
             "update": [str(bin_path), "update", ids[1], "--status", "in_progress"],

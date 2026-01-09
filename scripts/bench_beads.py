@@ -7,7 +7,10 @@ import time
 from pathlib import Path
 
 RUNS = int(os.environ.get("BENCH_RUNS", "20"))
-COUNT = int(os.environ.get("BENCH_COUNT", "100"))
+COUNT = int(os.environ.get("BENCH_COUNT", "1000"))
+SEED_COUNT = int(os.environ.get("BENCH_SEED_COUNT", "20"))
+SEED_LABEL = "bench-hit"
+SEED_LABEL_ALT = "bench-alt"
 
 
 def run(cmd, cwd=None, env=None):
@@ -37,7 +40,30 @@ def main():
 
         ids = []
         for i in range(COUNT):
-            out = run(["bd", "create", f"Issue {i}", "--description", "Benchmark issue", "--json"], cwd=tmp, env=env)
+            if i < SEED_COUNT:
+                label = SEED_LABEL if i < SEED_COUNT // 2 else SEED_LABEL_ALT
+                out = run(
+                    [
+                        "bd",
+                        "create",
+                        f"Seed {i} {label}",
+                        "--description",
+                        f"Benchmark seed {i} with context for filtering/search.",
+                        "--notes",
+                        f"Context note seed {i} keyword: needle",
+                        "--labels",
+                        label,
+                        "--json",
+                    ],
+                    cwd=tmp,
+                    env=env,
+                )
+            else:
+                out = run(
+                    ["bd", "create", f"Issue {i}", "--description", "Benchmark issue", "--json"],
+                    cwd=tmp,
+                    env=env,
+                )
             tid = json.loads(out)["id"]
             ids.append(tid)
 
@@ -53,6 +79,7 @@ def main():
 
         ops = {
             "list_open": ["bd", "list"],
+            "list_label": ["bd", "list", "--label", SEED_LABEL],
             "ready": ["bd", "ready"],
             "create": ["bd", "create", "Bench create"],
             "update": ["bd", "update", ids[1], "--status", "in_progress"],
