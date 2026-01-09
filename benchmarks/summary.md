@@ -9,7 +9,7 @@ Warm runs per op: 20
 ### Tick
 - Repo: temp git repo with fake origin.
 - Init: `tk init` (TICK_OWNER=bench).
-- Data: 100 ticks created via `tk create "Tick N" --json`.
+- Data: 1000 ticks created via `tk create "Tick N" --json`.
 - Blockers: every 10th tick blocked by the first tick via `tk block`.
 - Ops measured:
   - `list_open`: `tk list --json`
@@ -21,7 +21,7 @@ Warm runs per op: 20
 ### Beads
 - Repo: temp git repo with fake origin.
 - Init: `bd init` (BD_ACTOR=bench).
-- Data: 100 issues via `bd create "Issue N" --description "Benchmark issue" --json`.
+- Data: 1000 issues via `bd create "Issue N" --description "Benchmark issue" --json`.
 - Blockers: skipped (bd dep unstable; see script).
 - Ops measured:
   - `list_open`: `bd list`
@@ -43,4 +43,3 @@ Warm runs per op: 20
 - create: cold 74.58 / warm median 75.64 / warm p95 77.51
 - update: cold 59.08 / warm median 57.16 / warm p95 70.66
 - note: cold 56.90 / warm median 56.66 / warm p95 57.81
-
