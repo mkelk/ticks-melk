@@ -65,6 +65,18 @@ All commands accept `--json` for machine-readable output.
  tk stats --all --json
 ```
 
+## Search and Filtering
+
+```bash
+# Match any label
+tk list --label-any backend,auth --all
+
+# Substring search (case-insensitive)
+tk list --title-contains "auth" --all
+tk list --desc-contains "token expiry" --all
+tk list --notes-contains "root cause" --all
+```
+
 ## Reference
 
 See `SPEC.md` for the full specification and architecture notes.

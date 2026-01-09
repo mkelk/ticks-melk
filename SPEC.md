@@ -404,6 +404,10 @@ tk list [flags]
 | `--priority` | `-p` | Filter by priority |
 | `--type` | `-t` | Filter by type |
 | `--label` | `-l` | Filter by label (ticks must have this label) |
+| `--label-any` | | Filter by labels (ticks must have at least one label) |
+| `--title-contains` | | Case-insensitive title substring match |
+| `--desc-contains` | | Case-insensitive description substring match |
+| `--notes-contains` | | Case-insensitive notes substring match |
 | `--parent` | | Filter by parent epic |
 | `--json` | | Output as JSON array |
 
@@ -437,6 +441,14 @@ tk list -a -p 1
 
 # Everything in an epic
 tk list --parent e1a --all
+
+# Search by title/description/notes
+tk list --title-contains "auth" --all
+tk list --desc-contains "token expiry" --all
+tk list --notes-contains "root cause" --all
+
+# Match any label
+tk list --label-any backend,auth --all
 ```
 
 ### Notes
@@ -649,6 +661,11 @@ tk ready [flags]
 |------|-------|-------------|
 | `--all` | `-a` | All owners |
 | `--owner` | `-o` | Specific owner |
+| `--label` | `-l` | Filter by label (ticks must have this label) |
+| `--label-any` | | Filter by labels (ticks must have at least one label) |
+| `--title-contains` | | Case-insensitive title substring match |
+| `--desc-contains` | | Case-insensitive description substring match |
+| `--notes-contains` | | Case-insensitive notes substring match |
 | `--limit` | `-n` | Max results (default: 10) |
 | `--json` | | Output as JSON |
 
