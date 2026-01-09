@@ -2,12 +2,14 @@
   "id": "6q9",
   "title": "Run benchmarks and collect results",
   "description": "Execute benchmarks on the same dataset and capture timings.",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "type": "task",
   "owner": "pengelbrecht",
   "parent": "pjp",
   "created_by": "pengelbrecht",
   "created_at": "2026-01-08T21:09:15.424879Z",
-  "updated_at": "2026-01-08T21:10:33.015217Z"
+  "updated_at": "2026-01-09T08:58:52.403696Z",
+  "closed_at": "2026-01-09T08:58:52.403696Z",
+  "closed_reason": "Ran benchmarks and captured results in benchmarks/*.json."
 }
