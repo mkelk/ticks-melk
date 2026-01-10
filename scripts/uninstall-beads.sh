@@ -157,7 +157,7 @@ if $CLEAN_REPO; then
     fi
 
     # Git hooks - remove beads hooks or beads lines from hooks
-    for hook in .git/hooks/pre-commit .git/hooks/post-merge; do
+    for hook in .git/hooks/pre-commit .git/hooks/post-merge .git/hooks/pre-push .git/hooks/post-checkout; do
       if [[ -f "$hook" ]]; then
         if grep -q "bd " "$hook" 2>/dev/null; then
           # Check if hook is purely beads or has other content
