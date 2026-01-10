@@ -39,6 +39,31 @@ const (
 	exitIO       = 6
 )
 
+const snippetText = `## Ticks
+
+This project uses ` + "`tk`" + ` for issue tracking. Use ticks for work that spans sessions, has dependencies, or is discovered during other work. Use TodoWrite for simple single-session tasks.
+
+**Essential commands:**
+` + "```" + `
+tk next                  # next ready tick
+tk next EPIC_ID          # next ready tick in epic
+tk create "title"        # create issue
+tk update ID --status in_progress
+tk note ID "message"     # log progress
+tk close ID              # mark done
+` + "```" + `
+
+**Dependencies & epics:**
+` + "```" + `
+tk block ID BLOCKER_ID   # ID is blocked by BLOCKER_ID
+tk create "task" --parent EPIC_ID
+` + "```" + `
+
+Commands show your ticks by default. Use ` + "`--all`" + ` to see everyone's (e.g. ` + "`tk next --all`" + `).
+
+All commands support ` + "`--help`" + ` for options.
+`
+
 func run(args []string) int {
 	if len(args) < 2 {
 		printUsage()
@@ -94,8 +119,8 @@ func run(args []string) int {
 		return runStats(args[2:])
 	case "view":
 		return runView(args[2:])
-	case "prime":
-		return runPrime()
+	case "snippet":
+		return runSnippet()
 	case "import":
 		return runImport(args[2:])
 	case "version", "--version", "-v":
@@ -190,7 +215,9 @@ func runInit(args []string) int {
 	}
 
 	fmt.Println()
-	fmt.Println("Run `tk prime` to get CLAUDE.md content for agent integration.")
+	fmt.Println("Add the following to your CLAUDE.md or AGENTS.md:")
+	fmt.Println()
+	fmt.Print(snippetText)
 
 	return exitSuccess
 }
@@ -1856,32 +1883,8 @@ func runView(args []string) int {
 	return exitSuccess
 }
 
-func runPrime() int {
-	const primeText = `## Ticks
-
-This project uses ` + "`tk`" + ` for issue tracking. Use ticks for work that spans sessions, has dependencies, or is discovered during other work. Use TodoWrite for simple single-session tasks.
-
-**Essential commands:**
-` + "```" + `
-tk next                  # next ready tick
-tk next EPIC_ID          # next ready tick in epic
-tk create "title"        # create issue
-tk update ID --status in_progress
-tk note ID "message"     # log progress
-tk close ID              # mark done
-` + "```" + `
-
-**Dependencies & epics:**
-` + "```" + `
-tk block ID BLOCKER_ID   # ID is blocked by BLOCKER_ID
-tk create "task" --parent EPIC_ID
-` + "```" + `
-
-Commands show your ticks by default. Use ` + "`--all`" + ` to see everyone's (e.g. ` + "`tk next --all`" + `).
-
-All commands support ` + "`--help`" + ` for options.
-`
-	fmt.Print(primeText)
+func runSnippet() int {
+	fmt.Print(snippetText)
 	return exitSuccess
 }
 
@@ -2153,5 +2156,5 @@ func bytesTrimSpace(in []byte) []byte {
 
 func printUsage() {
 	fmt.Println("Usage: tk <command> [--help]")
-	fmt.Println("Commands: init, whoami, show, create, block, unblock, update, close, reopen, note, notes, list, ready, next, blocked, rebuild, delete, label, labels, deps, status, merge-file, stats, view, prime")
+	fmt.Println("Commands: init, whoami, show, create, block, unblock, update, close, reopen, note, notes, list, ready, next, blocked, rebuild, delete, label, labels, deps, status, merge-file, stats, view, snippet, import")
 }
