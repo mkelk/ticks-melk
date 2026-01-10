@@ -113,12 +113,22 @@ tk note <id> "Investigating token expiry"  # Log progress
 tk close <id> --reason "Fixed"             # Complete
 ```
 
-## Agent Integration
-
-Run `tk prime` to get CLAUDE.md content for AI agent integration:
+## Upgrading
 
 ```bash
-tk prime >> CLAUDE.md
+# Shell/Go installs: self-update
+tk upgrade
+
+# Homebrew
+brew upgrade pengelbrecht/tap/ticks
+```
+
+## Agent Integration
+
+Run `tk snippet` to get CLAUDE.md content for AI agent integration:
+
+```bash
+tk snippet >> CLAUDE.md
 ```
 
 This tells agents to use ticks for persistent tracking instead of TodoWrite.
