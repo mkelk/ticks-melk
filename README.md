@@ -44,7 +44,12 @@ With 1000 issues, median times (ms):
 | Operation | ticks | beads |
 |-----------|-------|-------|
 | `ready` | 35 | 69 |
-| `list` | 35-37 | 65-72 |
+| `list` | 37 | 72 |
+| `list --label` | 35 | 67 |
+| `list --label-any` | 35 | 67 |
+| `list --title-contains` | 36 | 67 |
+| `list --desc-contains` | 35 | 66 |
+| `list --notes-contains` | 36 | 66 |
 | `create` | 15 | 91 |
 | `update` | 27 | 68 |
 
