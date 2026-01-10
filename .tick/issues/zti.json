@@ -1,0 +1,16 @@
+{
+  "id": "zti",
+  "title": "Create .github/workflows/release.yml",
+  "description": "Trigger on v* tags. Job 1: goreleaser build. Job 2: update homebrew-tap with formula generation.",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "blocked_by": [
+    "zjl"
+  ],
+  "parent": "ee5",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-10T08:44:48.774909Z",
+  "updated_at": "2026-01-10T08:44:57.543592Z"
+}
