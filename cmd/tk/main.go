@@ -22,6 +22,8 @@ import (
 	"github.com/pengelbrecht/ticks/internal/tui"
 )
 
+var Version = "dev"
+
 func main() {
 	os.Exit(run(os.Args))
 }
@@ -93,6 +95,9 @@ func run(args []string) int {
 		return runView(args[2:])
 	case "prime":
 		return runPrime()
+	case "version", "--version", "-v":
+		fmt.Printf("tk %s\n", Version)
+		return exitSuccess
 	case "--help", "-h":
 		printUsage()
 		return exitSuccess
