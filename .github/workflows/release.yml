@@ -1,0 +1,176 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: |
+            dist/*.tar.gz
+            dist/checksums.txt
+
+  update-homebrew:
+    needs: release
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.ref_name, '-') }}
+
+    steps:
+      - name: Checkout homebrew tap
+        uses: actions/checkout@v4
+        with:
+          repository: pengelbrecht/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Create release on homebrew-tap with binaries
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          TAG="${{ github.ref_name }}"
+
+          cd homebrew-tap
+
+          # Delete existing release/tag if it exists
+          gh release delete "$TAG" --yes 2>/dev/null || true
+          git push origin --delete "$TAG" 2>/dev/null || true
+
+          # Create new release with binaries
+          gh release create "$TAG" \
+            --title "tk $TAG" \
+            --notes "Binary release for tk $TAG" \
+            ../dist/tk_${VERSION}_darwin_arm64.tar.gz \
+            ../dist/tk_${VERSION}_darwin_amd64.tar.gz \
+            ../dist/tk_${VERSION}_linux_arm64.tar.gz \
+            ../dist/tk_${VERSION}_linux_amd64.tar.gz \
+            ../dist/checksums.txt
+
+      - name: Generate Homebrew formula
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+
+          # Extract SHA256 hashes from checksums.txt
+          SHA_DARWIN_ARM64=$(grep "tk_${VERSION}_darwin_arm64.tar.gz" dist/checksums.txt | awk '{print $1}')
+          SHA_DARWIN_AMD64=$(grep "tk_${VERSION}_darwin_amd64.tar.gz" dist/checksums.txt | awk '{print $1}')
+          SHA_LINUX_ARM64=$(grep "tk_${VERSION}_linux_arm64.tar.gz" dist/checksums.txt | awk '{print $1}')
+          SHA_LINUX_AMD64=$(grep "tk_${VERSION}_linux_amd64.tar.gz" dist/checksums.txt | awk '{print $1}')
+
+          echo "Darwin ARM64: $SHA_DARWIN_ARM64"
+          echo "Darwin AMD64: $SHA_DARWIN_AMD64"
+          echo "Linux ARM64: $SHA_LINUX_ARM64"
+          echo "Linux AMD64: $SHA_LINUX_AMD64"
+
+          # Generate formula from scratch
+          cat > homebrew-tap/Formula/tk.rb << 'FORMULA'
+          # typed: false
+          # frozen_string_literal: true
+
+          class Tk < Formula
+            desc "Multiplayer-first issue tracker for AI coding agents"
+            homepage "https://github.com/pengelbrecht/ticks"
+            version "VERSION_PLACEHOLDER"
+            license "MIT"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "https://github.com/pengelbrecht/homebrew-tap/releases/download/v#{version}/tk_#{version}_darwin_arm64.tar.gz"
+                sha256 "SHA_DARWIN_ARM64_PLACEHOLDER"
+
+                def install
+                  bin.install "tk"
+                end
+              else
+                url "https://github.com/pengelbrecht/homebrew-tap/releases/download/v#{version}/tk_#{version}_darwin_amd64.tar.gz"
+                sha256 "SHA_DARWIN_AMD64_PLACEHOLDER"
+
+                def install
+                  bin.install "tk"
+                end
+              end
+            end
+
+            on_linux do
+              if Hardware::CPU.arm?
+                url "https://github.com/pengelbrecht/homebrew-tap/releases/download/v#{version}/tk_#{version}_linux_arm64.tar.gz"
+                sha256 "SHA_LINUX_ARM64_PLACEHOLDER"
+
+                def install
+                  bin.install "tk"
+                end
+              else
+                url "https://github.com/pengelbrecht/homebrew-tap/releases/download/v#{version}/tk_#{version}_linux_amd64.tar.gz"
+                sha256 "SHA_LINUX_AMD64_PLACEHOLDER"
+
+                def install
+                  bin.install "tk"
+                end
+              end
+            end
+
+            test do
+              assert_match "tk", shell_output("#{bin}/tk version")
+            end
+          end
+          FORMULA
+
+          # Replace placeholders
+          sed -i "s/VERSION_PLACEHOLDER/${VERSION}/" homebrew-tap/Formula/tk.rb
+          sed -i "s/SHA_DARWIN_ARM64_PLACEHOLDER/${SHA_DARWIN_ARM64}/" homebrew-tap/Formula/tk.rb
+          sed -i "s/SHA_DARWIN_AMD64_PLACEHOLDER/${SHA_DARWIN_AMD64}/" homebrew-tap/Formula/tk.rb
+          sed -i "s/SHA_LINUX_ARM64_PLACEHOLDER/${SHA_LINUX_ARM64}/" homebrew-tap/Formula/tk.rb
+          sed -i "s/SHA_LINUX_AMD64_PLACEHOLDER/${SHA_LINUX_AMD64}/" homebrew-tap/Formula/tk.rb
+
+          # Remove leading whitespace from heredoc
+          sed -i 's/^          //' homebrew-tap/Formula/tk.rb
+
+          echo "Generated formula:"
+          cat homebrew-tap/Formula/tk.rb
+
+      - name: Commit and push formula update
+        working-directory: homebrew-tap
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/tk.rb
+          git commit -m "Update tk to ${{ github.ref_name }}" || echo "No changes to commit"
+          git push
