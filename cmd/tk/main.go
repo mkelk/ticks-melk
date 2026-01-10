@@ -1775,7 +1775,8 @@ This project uses ` + "`tk`" + ` for issue tracking. Use ticks for work that spa
 
 **Essential commands:**
 ` + "```" + `
-tk ready                 # find work (unblocked only)
+tk next                  # next ready tick
+tk next EPIC_ID          # next ready tick in epic
 tk create "title"        # create issue
 tk update ID --status in_progress
 tk note ID "message"     # log progress
@@ -1788,7 +1789,7 @@ tk block ID BLOCKER_ID   # ID is blocked by BLOCKER_ID
 tk create "task" --parent EPIC_ID
 ` + "```" + `
 
-Commands show your ticks by default. Use ` + "`--all`" + ` to see everyone's (e.g. ` + "`tk ready --all`" + `).
+Commands show your ticks by default. Use ` + "`--all`" + ` to see everyone's (e.g. ` + "`tk next --all`" + `).
 
 All commands support ` + "`--help`" + ` for options.
 `
