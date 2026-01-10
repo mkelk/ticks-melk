@@ -1695,7 +1695,9 @@ tk block ID BLOCKER_ID   # ID is blocked by BLOCKER_ID
 tk create "task" --parent EPIC_ID
 ` + "```" + `
 
-All commands support ` + "`--help`" + ` for options (e.g. ` + "`tk create --help`" + `, ` + "`tk list --help`" + `).
+Commands show your ticks by default. Use ` + "`--all`" + ` to see everyone's (e.g. ` + "`tk ready --all`" + `).
+
+All commands support ` + "`--help`" + ` for options.
 `
 	fmt.Print(primeText)
 	return exitSuccess
