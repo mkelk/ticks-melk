@@ -73,6 +73,17 @@ func run(args []string) int {
 		return exitSuccess
 	}
 
+	// Check for updates periodically (skip for certain commands)
+	cmd := args[1]
+	if cmd != "version" && cmd != "--version" && cmd != "-v" &&
+		cmd != "upgrade" && cmd != "--help" && cmd != "-h" &&
+		cmd != "merge-file" && cmd != "snippet" {
+		if notice := update.CheckPeriodically(Version); notice != "" {
+			fmt.Fprintln(os.Stderr, notice)
+			fmt.Fprintln(os.Stderr)
+		}
+	}
+
 	switch args[1] {
 	case "init":
 		return runInit(args[2:])

@@ -3,19 +3,80 @@ package update
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/creativeprojects/go-selfupdate"
 )
 
 const (
-	repoOwner = "pengelbrecht"
-	repoName  = "ticks"
+	repoOwner     = "pengelbrecht"
+	repoName      = "ticks"
+	checkInterval = 24 * time.Hour
 )
+
+// updateCache stores the last update check result.
+type updateCache struct {
+	LastCheck      time.Time `json:"last_check"`
+	LatestVersion  string    `json:"latest_version,omitempty"`
+	UpdateAvailable bool      `json:"update_available"`
+}
+
+func cacheDir() string {
+	if dir := os.Getenv("XDG_CONFIG_HOME"); dir != "" {
+		return filepath.Join(dir, "tk")
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".config", "tk")
+}
+
+func cachePath() string {
+	dir := cacheDir()
+	if dir == "" {
+		return ""
+	}
+	return filepath.Join(dir, "update-cache.json")
+}
+
+func loadCache() *updateCache {
+	path := cachePath()
+	if path == "" {
+		return nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var cache updateCache
+	if err := json.Unmarshal(data, &cache); err != nil {
+		return nil
+	}
+	return &cache
+}
+
+func saveCache(cache *updateCache) {
+	path := cachePath()
+	if path == "" {
+		return
+	}
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return
+	}
+	data, err := json.Marshal(cache)
+	if err != nil {
+		return
+	}
+	_ = os.WriteFile(path, data, 0644)
+}
 
 // InstallMethod represents how tk was installed.
 type InstallMethod int
@@ -189,4 +250,58 @@ func UpdateInstructions(method InstallMethod) string {
 	default:
 		return "Run: tk upgrade"
 	}
+}
+
+// CheckPeriodically checks for updates at most once per day.
+// Returns a notice string if an update is available, empty string otherwise.
+// This is designed to be called at the start of common commands.
+func CheckPeriodically(currentVersion string) string {
+	// Skip for dev builds
+	current := strings.TrimPrefix(currentVersion, "v")
+	if current == "dev" || current == "" {
+		return ""
+	}
+
+	// Check cache first
+	cache := loadCache()
+	if cache != nil && time.Since(cache.LastCheck) < checkInterval {
+		// Use cached result
+		if cache.UpdateAvailable && cache.LatestVersion != "" {
+			method := DetectInstallMethod()
+			return formatUpdateNotice(currentVersion, cache.LatestVersion, method)
+		}
+		return ""
+	}
+
+	// Perform check in background to avoid slowing down commands
+	// For now, do a quick synchronous check but with a short timeout
+	release, hasUpdate, err := CheckForUpdate(currentVersion)
+
+	// Update cache
+	newCache := &updateCache{
+		LastCheck:       time.Now(),
+		UpdateAvailable: hasUpdate && err == nil,
+	}
+	if release != nil {
+		newCache.LatestVersion = release.Version
+	}
+	saveCache(newCache)
+
+	if err != nil || !hasUpdate {
+		return ""
+	}
+
+	method := DetectInstallMethod()
+	return formatUpdateNotice(currentVersion, release.Version, method)
+}
+
+func formatUpdateNotice(current, latest string, method InstallMethod) string {
+	var cmd string
+	switch method {
+	case InstallHomebrew:
+		cmd = "brew upgrade ticks"
+	default:
+		cmd = "tk upgrade"
+	}
+	return fmt.Sprintf("Update available: %s -> %s (run: %s)", current, latest, cmd)
 }
