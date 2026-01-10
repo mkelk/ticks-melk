@@ -30,11 +30,13 @@ GitHub recently added [dependencies](https://github.blog/changelog/2025-08-21-de
 
 Ticks is a radically simpler alternative to [beads](https://github.com/steveyegge/beads). Both solve the same core problem—giving AI agents persistent memory across sessions—but with different tradeoffs.
 
-Ticks is **multiplayer-first**: designed for teams where multiple developers each have their own agents. Commands show your issues by default (`tk ready` vs `tk ready --all`), making it natural for a team to share a repo without stepping on each other's work. Beads focuses more on coordinating multiple agents for a single user.
+Ticks is **multiplayer-first**: designed for teams where multiple developers each have their own agents. Commands show your issues by default (`tk ready` vs `tk ready --all`), making it natural for a team to share a repo without stepping on each other's work.
+
+Both support multi-agent workflows via git worktrees. The difference is ticks adds owner scoping for teams of humans, not just teams of agents.
 
 | | ticks | beads |
 |---|---|---|
-| **Multiplayer** | Built-in owner scoping | Multi-agent focused |
+| **Multiplayer** | Owner scoping for teams | Single-user focused |
 | **Storage** | One JSON file per issue | JSONL + SQLite |
 | **Conflicts** | Native git merge driver | Custom sync logic |
 | **Background process** | None | Daemon required |
