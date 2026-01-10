@@ -69,6 +69,8 @@ func run(args []string) int {
 		return runList(args[2:])
 	case "ready":
 		return runReady(args[2:])
+	case "next":
+		return runNext(args[2:])
 	case "blocked":
 		return runBlocked(args[2:])
 	case "rebuild":
@@ -1032,6 +1034,97 @@ func runReady(args []string) int {
 	return exitSuccess
 }
 
+func runNext(args []string) int {
+	fs := flag.NewFlagSet("next", flag.ContinueOnError)
+	allOwners := fs.Bool("all", false, "all owners")
+	fs.BoolVar(allOwners, "a", false, "all owners")
+	ownerFlag := fs.String("owner", "", "owner")
+	fs.StringVar(ownerFlag, "o", "", "owner")
+	epicFlag := fs.Bool("epic", false, "show next ready epic")
+	fs.BoolVar(epicFlag, "e", false, "show next ready epic")
+	jsonOutput := fs.Bool("json", false, "output as json")
+	fs.SetOutput(os.Stderr)
+	positionals, err := parseInterleaved(fs, args)
+	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return exitSuccess
+		}
+		return exitUsage
+	}
+
+	root, err := repoRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect repo root: %v\n", err)
+		return exitNoRepo
+	}
+
+	project, err := github.DetectProject(nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect project: %v\n", err)
+		return exitGitHub
+	}
+
+	owner := strings.TrimSpace(*ownerFlag)
+	if !*allOwners && owner == "" {
+		detected, err := github.DetectOwner(nil)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to detect owner: %v\n", err)
+			return exitGitHub
+		}
+		owner = detected
+	}
+
+	store := tick.NewStore(filepath.Join(root, ".tick"))
+	ticks, err := store.List()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to list ticks: %v\n", err)
+		return exitIO
+	}
+
+	// Determine filter based on flags and positional args
+	filter := query.Filter{Owner: owner}
+
+	if *epicFlag {
+		// Next ready epic
+		filter.Type = tick.TypeEpic
+	} else if len(positionals) > 0 {
+		// Next ready tick in a specific epic
+		parentID, err := github.NormalizeID(project, positionals[0])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "invalid epic id: %v\n", err)
+			return exitNotFound
+		}
+		filter.Parent = parentID
+	}
+
+	filtered := query.Apply(ticks, filter)
+	ready := query.Ready(filtered)
+	query.SortByPriorityCreatedAt(ready)
+
+	if len(ready) == 0 {
+		if *jsonOutput {
+			fmt.Println("null")
+			return exitSuccess
+		}
+		fmt.Println("No ready ticks")
+		return exitSuccess
+	}
+
+	next := ready[0]
+
+	if *jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		if err := enc.Encode(next); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to encode json: %v\n", err)
+			return exitIO
+		}
+		return exitSuccess
+	}
+
+	fmt.Printf("%s  P%d %s  %s\n", next.ID, next.Priority, next.Type, next.Title)
+	return exitSuccess
+}
+
 func runBlocked(args []string) int {
 	fs := flag.NewFlagSet("blocked", flag.ContinueOnError)
 	allOwners := fs.Bool("all", false, "all owners")
@@ -1897,5 +1990,5 @@ func bytesTrimSpace(in []byte) []byte {
 
 func printUsage() {
 	fmt.Println("Usage: tk <command> [--help]")
-	fmt.Println("Commands: init, whoami, show, create, block, unblock, update, close, reopen, note, notes, list, ready, blocked, rebuild, delete, label, labels, deps, status, merge-file, stats, view, prime")
+	fmt.Println("Commands: init, whoami, show, create, block, unblock, update, close, reopen, note, notes, list, ready, next, blocked, rebuild, delete, label, labels, deps, status, merge-file, stats, view, prime")
 }
