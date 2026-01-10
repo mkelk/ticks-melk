@@ -10,6 +10,22 @@ tk ready
 
 ## Why Ticks?
 
+### The Problem
+
+AI coding agents lose context between sessions. They forget what they were working on, what's blocked, and what they discovered along the way. Traditional issue trackers like GitHub Issues aren't designed for this—they're slow to query, require network access, and aren't optimized for agent workflows.
+
+Ticks gives agents persistent memory that survives session restarts, context compaction, and even switching between different AI tools. Issues live in your repo as simple JSON files, tracked by git, queryable in milliseconds.
+
+### Why Not GitHub Issues?
+
+- **Speed**: `tk ready` returns in <20ms. GitHub API calls take seconds.
+- **Offline**: Works without network access.
+- **Agent-native**: Commands like `tk next` and `--json` output are designed for agents.
+- **Git-tracked**: Issues travel with your code. Branch, merge, fork—issues come along.
+- **Multiplayer**: Built-in owner scoping for multi-agent collaboration.
+
+### Why Ticks Over Beads?
+
 Ticks is a radically simpler alternative to [beads](https://github.com/steveyegge/beads). Both solve the same core problem—giving AI agents persistent memory across sessions—but with different tradeoffs:
 
 | | ticks | beads |
