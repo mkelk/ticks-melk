@@ -14,6 +14,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/pengelbrecht/ticks/internal/beads"
 	"github.com/pengelbrecht/ticks/internal/config"
 	"github.com/pengelbrecht/ticks/internal/github"
 	"github.com/pengelbrecht/ticks/internal/merge"
@@ -46,7 +47,7 @@ func run(args []string) int {
 
 	switch args[1] {
 	case "init":
-		return runInit()
+		return runInit(args[2:])
 	case "whoami":
 		return runWhoami(args[2:])
 	case "show":
@@ -95,6 +96,8 @@ func run(args []string) int {
 		return runView(args[2:])
 	case "prime":
 		return runPrime()
+	case "import":
+		return runImport(args[2:])
 	case "version", "--version", "-v":
 		fmt.Printf("tk %s\n", Version)
 		return exitSuccess
@@ -108,7 +111,17 @@ func run(args []string) int {
 	}
 }
 
-func runInit() int {
+func runInit(args []string) int {
+	fs := flag.NewFlagSet("init", flag.ContinueOnError)
+	importBeads := fs.Bool("import-beads", false, "import beads issues after init")
+	fs.SetOutput(os.Stderr)
+	if _, err := parseInterleaved(fs, args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return exitSuccess
+		}
+		return exitUsage
+	}
+
 	root, err := repoRoot()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to detect repo root: %v\n", err)
@@ -154,6 +167,28 @@ func runInit() int {
 	fmt.Printf("Detected GitHub repo: %s\n", project)
 	fmt.Printf("Detected user: %s\n\n", owner)
 	fmt.Println("Initialized .tick/")
+
+	// Import beads if requested
+	if *importBeads {
+		beadsFile := beads.FindBeadsFile(root)
+		if beadsFile == "" {
+			fmt.Println("\nNo beads file found to import.")
+		} else {
+			issues, err := beads.ParseFile(beadsFile)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "\nFailed to parse beads file: %v\n", err)
+				return exitIO
+			}
+			store := tick.NewStore(tickDir)
+			result, err := beads.Import(issues, store, owner)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "\nFailed to import beads: %v\n", err)
+				return exitIO
+			}
+			fmt.Printf("\nImported %d beads issues (%d skipped)\n", result.Imported, result.Skipped)
+		}
+	}
+
 	fmt.Println()
 	fmt.Println("Run `tk prime` to get CLAUDE.md content for agent integration.")
 
@@ -1847,6 +1882,80 @@ Commands show your ticks by default. Use ` + "`--all`" + ` to see everyone's (e.
 All commands support ` + "`--help`" + ` for options.
 `
 	fmt.Print(primeText)
+	return exitSuccess
+}
+
+func runImport(args []string) int {
+	fs := flag.NewFlagSet("import", flag.ContinueOnError)
+	jsonOutput := fs.Bool("json", false, "output as json")
+	fs.SetOutput(os.Stderr)
+
+	positionals, err := parseInterleaved(fs, args)
+	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return exitSuccess
+		}
+		return exitUsage
+	}
+
+	root, err := repoRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect repo root: %v\n", err)
+		return exitNoRepo
+	}
+
+	// Check if ticks is initialized
+	if _, err := os.Stat(filepath.Join(root, ".tick")); os.IsNotExist(err) {
+		fmt.Fprintln(os.Stderr, "ticks not initialized. Run `tk init` first.")
+		return exitNoRepo
+	}
+
+	// Determine source file
+	var sourcePath string
+	if len(positionals) > 0 && positionals[0] != "beads" {
+		// Explicit file path provided
+		sourcePath = positionals[0]
+	} else {
+		// Auto-detect beads file
+		sourcePath = beads.FindBeadsFile(root)
+		if sourcePath == "" {
+			fmt.Fprintln(os.Stderr, "no beads file found. Looked for .beads/issues.jsonl")
+			return exitNotFound
+		}
+	}
+
+	// Parse beads file
+	issues, err := beads.ParseFile(sourcePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to parse beads file: %v\n", err)
+		return exitIO
+	}
+
+	// Get current git user for owner
+	owner, err := github.DetectOwner(nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to detect owner: %v\n", err)
+		return exitGitHub
+	}
+
+	// Import
+	store := tick.NewStore(filepath.Join(root, ".tick"))
+	result, err := beads.Import(issues, store, owner)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "import failed: %v\n", err)
+		return exitIO
+	}
+
+	if *jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		if err := enc.Encode(result); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to encode json: %v\n", err)
+			return exitIO
+		}
+		return exitSuccess
+	}
+
+	fmt.Printf("Imported %d issues (%d skipped)\n", result.Imported, result.Skipped)
 	return exitSuccess
 }
 

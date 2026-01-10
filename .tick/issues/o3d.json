@@ -1,7 +1,7 @@
 {
   "id": "o3d",
   "title": "Implement beads JSONL parser",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "type": "task",
   "owner": "peter@engelbrecht.dk",
@@ -11,5 +11,7 @@
   "parent": "ioa",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-10T10:58:09.542324Z",
-  "updated_at": "2026-01-10T10:58:22.990053Z"
+  "updated_at": "2026-01-10T11:31:38.112706Z",
+  "closed_at": "2026-01-10T11:31:38.112706Z",
+  "closed_reason": "Parser implemented"
 }
