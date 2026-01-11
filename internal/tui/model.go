@@ -31,21 +31,22 @@ type item struct {
 
 // keyMap defines all keybindings for the TUI.
 type keyMap struct {
-	Up       key.Binding
-	Down     key.Binding
-	ScrollUp key.Binding
-	ScrollDn key.Binding
-	Top      key.Binding
-	Bottom   key.Binding
-	Fold     key.Binding
-	Focus    key.Binding
-	Search   key.Binding
-	Quit     key.Binding
+	Up         key.Binding
+	Down       key.Binding
+	ScrollUp   key.Binding
+	ScrollDn   key.Binding
+	Top        key.Binding
+	Bottom     key.Binding
+	Fold       key.Binding
+	Focus      key.Binding
+	Search     key.Binding
+	HideClosed key.Binding
+	Quit       key.Binding
 }
 
 // ShortHelp returns bindings for the short help view (single line).
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.ScrollUp, k.Fold, k.Focus, k.Search, k.Quit}
+	return []key.Binding{k.Up, k.ScrollUp, k.Fold, k.Focus, k.Search, k.HideClosed, k.Quit}
 }
 
 // FullHelp returns bindings for the full help view (multiple columns).
@@ -53,7 +54,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down},
 		{k.ScrollUp, k.ScrollDn, k.Top, k.Bottom},
-		{k.Fold, k.Focus, k.Search, k.Quit},
+		{k.Fold, k.Focus, k.Search, k.HideClosed, k.Quit},
 	}
 }
 
@@ -94,6 +95,10 @@ var defaultKeyMap = keyMap{
 		key.WithKeys("/"),
 		key.WithHelp("/", "search"),
 	),
+	HideClosed: key.NewBinding(
+		key.WithKeys("c"),
+		key.WithHelp("c", "closed"),
+	),
 	Quit: key.NewBinding(
 		key.WithKeys("q", "ctrl+c"),
 		key.WithHelp("q", "quit"),
@@ -101,20 +106,22 @@ var defaultKeyMap = keyMap{
 }
 
 type Model struct {
-	allTicks    []tick.Tick
-	items       []item
-	collapsed   map[string]bool
-	selected    int
-	filter      string
-	searching   bool
-	searchInput textinput.Model
-	focusedEpic string
-	width       int
-	height      int
-	viewport    viewport.Model
-	ready       bool // viewport initialized
-	keys        keyMap
-	help        help.Model
+	allTicks     []tick.Tick
+	items        []item
+	collapsed    map[string]bool
+	selected     int
+	filter       string
+	searching    bool
+	searchInput  textinput.Model
+	focusedEpic  string
+	hideClosed   bool // filter out closed ticks (default true)
+	width        int
+	height       int
+	viewport     viewport.Model // right pane detail view
+	listViewport viewport.Model // left pane tick list
+	ready        bool           // viewport initialized
+	keys         keyMap
+	help         help.Model
 }
 
 var (
@@ -189,7 +196,8 @@ func renderType(tickType string) string {
 // NewModel builds a tree view model from ticks.
 func NewModel(ticks []tick.Tick) Model {
 	collapsed := make(map[string]bool)
-	items := buildItems(ticks, collapsed, "", "")
+	hideClosed := true // default to hiding closed ticks
+	items := buildItems(ticks, collapsed, "", "", hideClosed)
 
 	ti := textinput.New()
 	ti.Placeholder = "search..."
@@ -205,6 +213,7 @@ func NewModel(ticks []tick.Tick) Model {
 		allTicks:    ticks,
 		items:       items,
 		collapsed:   collapsed,
+		hideClosed:  hideClosed,
 		searchInput: ti,
 		keys:        defaultKeyMap,
 		help:        h,
@@ -242,13 +251,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.searching = false
 				m.searchInput.Reset()
 				m.searchInput.Blur()
-				m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic)
+				m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic, m.hideClosed)
 				if m.selected >= len(m.items) {
 					m.selected = len(m.items) - 1
 				}
 				if m.selected < 0 {
 					m.selected = 0
 				}
+				m.updateListViewportContent()
 				m.updateViewportContent()
 			default:
 				// Forward all other keys to textinput
@@ -270,8 +280,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "esc":
 			if m.focusedEpic != "" {
 				m.focusedEpic = ""
-				m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic)
+				m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic, m.hideClosed)
 				m.selected = 0
+				m.updateListViewportContent()
 				m.updateViewportContent()
 			} else {
 				return m, tea.Quit
@@ -303,10 +314,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				} else {
 					m.focusedEpic = current.Tick.ID
 				}
-				m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic)
+				m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic, m.hideClosed)
 				m.selected = 0
+				m.updateListViewportContent()
 				m.updateViewportContent()
 			}
+		case "c":
+			m.hideClosed = !m.hideClosed
+			m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic, m.hideClosed)
+			if m.selected >= len(m.items) {
+				m.selected = len(m.items) - 1
+			}
+			if m.selected < 0 {
+				m.selected = 0
+			}
+			m.updateListViewportContent()
+			m.updateViewportContent()
 		case " ", "enter":
 			if len(m.items) == 0 {
 				return m, nil
@@ -314,10 +337,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			current := m.items[m.selected]
 			if current.IsEpic && current.HasKids {
 				m.collapsed[current.Tick.ID] = !m.collapsed[current.Tick.ID]
-				m.items = buildItemsFromState(m.allTicks, m.collapsed, m.filter, m.focusedEpic)
+				m.items = buildItemsFromState(m.allTicks, m.collapsed, m.filter, m.focusedEpic, m.hideClosed)
 				if m.selected >= len(m.items) {
 					m.selected = len(m.items) - 1
 				}
+				m.updateListViewportContent()
 				m.updateViewportContent()
 			}
 		}
@@ -325,6 +349,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Update viewport content when selection changes
 	if prevSelected != m.selected {
+		m.updateListViewportContent()
 		m.updateViewportContent()
 	}
 
@@ -344,10 +369,6 @@ func (m Model) View() string {
 	if leftWidth < 36 {
 		leftWidth = 36
 	}
-	// Content width accounts for border (2) and padding (2)
-	listWidth := leftWidth - 4
-
-	list := buildListView(m, listWidth)
 
 	rightWidth := m.width - leftWidth
 	if rightWidth < 28 {
@@ -370,6 +391,10 @@ func (m Model) View() string {
 	} else if m.focusedEpic != "" {
 		leftHeader = fmt.Sprintf("Focus: %s", m.focusedEpic)
 	}
+	// Add indicator for hiding closed ticks
+	if m.hideClosed {
+		leftHeader += " [hiding closed]"
+	}
 
 	// Build right panel header with title and scroll indicator
 	rightHeader := "Details"
@@ -385,7 +410,7 @@ func (m Model) View() string {
 	leftPanel := panelStyle.
 		Width(leftWidth - 2).
 		Height(panelHeight).
-		Render(headerStyle.Render(leftHeader) + "\n" + list)
+		Render(headerStyle.Render(leftHeader) + "\n" + m.listViewport.View())
 	rightPanel := panelStyle.
 		Width(rightWidth - 2).
 		Height(panelHeight).
@@ -396,8 +421,9 @@ func (m Model) View() string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, rightPanel) + "\n" + helpView
 }
 
-func buildListView(m Model, width int) string {
-	var out string
+// buildListContent builds the tick list content string for the left pane viewport.
+func buildListContent(m Model, width int) string {
+	var lines []string
 	for i, item := range m.items {
 		cursor := " "
 		if i == m.selected {
@@ -418,12 +444,12 @@ func buildListView(m Model, width int) string {
 		line := fmt.Sprintf("%s %s%s %s  %s %s %s", cursor, indent, marker, item.Tick.ID, renderStatus(item.Tick.Status), renderPriority(item.Tick.Priority), item.Tick.Title)
 		line = truncate(line, width)
 		if i == m.selected {
-			out += selectedStyle.Render(line) + "\n"
+			lines = append(lines, selectedStyle.Render(line))
 		} else {
-			out += dimStyle.Render(line) + "\n"
+			lines = append(lines, dimStyle.Render(line))
 		}
 	}
-	return out
+	return strings.Join(lines, "\n")
 }
 
 func buildDetailContent(t tick.Tick) string {
@@ -470,11 +496,25 @@ func buildDetailContent(t tick.Tick) string {
 
 // updateViewportSize recalculates viewport dimensions based on terminal size.
 func (m *Model) updateViewportSize() {
-	rightWidth := m.width - m.width/2
+	// Left pane dimensions
+	leftWidth := m.width / 2
+	if leftWidth < 36 {
+		leftWidth = 36
+	}
+	// Subtract border (2), padding (2), and header line (1)
+	listContentWidth := leftWidth - 4
+	listContentHeight := m.height - 2 - 2 - 1
+	if listContentHeight < 1 {
+		listContentHeight = 1
+	}
+	m.listViewport.Width = listContentWidth
+	m.listViewport.Height = listContentHeight
+
+	// Right pane dimensions
+	rightWidth := m.width - leftWidth
 	if rightWidth < 28 {
 		rightWidth = 28
 	}
-	// Subtract border (2), padding (2), and header line (1)
 	contentWidth := rightWidth - 4
 	contentHeight := m.height - 2 - 2 - 1
 	if contentHeight < 1 {
@@ -482,7 +522,35 @@ func (m *Model) updateViewportSize() {
 	}
 	m.viewport.Width = contentWidth
 	m.viewport.Height = contentHeight
+
+	m.updateListViewportContent()
 	m.updateViewportContent()
+}
+
+// updateListViewportContent sets the list viewport content and ensures selected item is visible.
+func (m *Model) updateListViewportContent() {
+	if len(m.items) == 0 {
+		m.listViewport.SetContent("")
+		return
+	}
+	content := buildListContent(*m, m.listViewport.Width)
+	m.listViewport.SetContent(content)
+
+	// Ensure selected item is visible
+	// Each item is one line, so line number = selected index
+	visibleHeight := m.listViewport.Height
+	if visibleHeight > 0 && m.selected >= 0 {
+		topLine := m.listViewport.YOffset
+		bottomLine := topLine + visibleHeight - 1
+
+		if m.selected < topLine {
+			// Selected is above visible area - scroll up
+			m.listViewport.SetYOffset(m.selected)
+		} else if m.selected > bottomLine {
+			// Selected is below visible area - scroll down
+			m.listViewport.SetYOffset(m.selected - visibleHeight + 1)
+		}
+	}
 }
 
 // updateViewportContent sets the viewport content based on current selection.
@@ -496,8 +564,11 @@ func (m *Model) updateViewportContent() {
 	m.viewport.GotoTop()
 }
 
-func buildItems(ticks []tick.Tick, collapsed map[string]bool, filter string, focus string) []item {
+func buildItems(ticks []tick.Tick, collapsed map[string]bool, filter string, focus string, hideClosed bool) []item {
 	filtered := applyFilter(applyFocus(ticks, focus), filter)
+	if hideClosed {
+		filtered = applyHideClosed(filtered)
+	}
 	roots, children := splitRoots(filtered)
 	query.SortByPriorityCreatedAt(roots)
 
@@ -516,8 +587,47 @@ func buildItems(ticks []tick.Tick, collapsed map[string]bool, filter string, foc
 	return items
 }
 
-func buildItemsFromState(all []tick.Tick, collapsed map[string]bool, filter string, focus string) []item {
-	return buildItems(all, collapsed, filter, focus)
+func buildItemsFromState(all []tick.Tick, collapsed map[string]bool, filter string, focus string, hideClosed bool) []item {
+	return buildItems(all, collapsed, filter, focus, hideClosed)
+}
+
+// applyHideClosed filters out closed ticks following these rules:
+// - Filter out closed epics (and their children will become orphaned)
+// - Filter out orphaned closed ticks (closed with no parent or parent not in list)
+// - Keep closed children of open epics
+func applyHideClosed(ticks []tick.Tick) []tick.Tick {
+	// Build map for lookups
+	byID := make(map[string]tick.Tick)
+	for _, t := range ticks {
+		byID[t.ID] = t
+	}
+
+	var out []tick.Tick
+	for _, t := range ticks {
+		// Always filter closed epics
+		if t.Status == tick.StatusClosed && t.Type == tick.TypeEpic {
+			continue
+		}
+		// For closed non-epics: only keep if parent exists and is open
+		if t.Status == tick.StatusClosed {
+			if t.Parent == "" {
+				// Orphaned closed tick - filter out
+				continue
+			}
+			parent, exists := byID[t.Parent]
+			if !exists {
+				// Parent not in filtered list - orphaned closed tick
+				continue
+			}
+			if parent.Status == tick.StatusClosed {
+				// Parent is closed - filter out
+				continue
+			}
+			// Parent is open - keep this closed child
+		}
+		out = append(out, t)
+	}
+	return out
 }
 
 func splitRoots(ticks []tick.Tick) ([]tick.Tick, map[string][]tick.Tick) {
