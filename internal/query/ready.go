@@ -33,7 +33,9 @@ func Blocked(ticks []tick.Tick) []tick.Tick {
 }
 
 func isReady(t tick.Tick, index map[string]tick.Tick) bool {
-	if t.Status != tick.StatusOpen {
+	// Both 'open' and 'in_progress' ticks are considered ready.
+	// in_progress means "started but not finished" - should be resumed.
+	if t.Status != tick.StatusOpen && t.Status != tick.StatusInProgress {
 		return false
 	}
 	// Deferred tasks are not ready until the defer date passes

@@ -39,3 +39,22 @@ func TestSortByPriorityCreatedAt(t *testing.T) {
 		t.Fatalf("unexpected order: %v, %v, %v", items[0].ID, items[1].ID, items[2].ID)
 	}
 }
+
+func TestSortInProgressFirst(t *testing.T) {
+	base := time.Date(2025, 1, 8, 10, 0, 0, 0, time.UTC)
+	items := []tick.Tick{
+		{ID: "a", Status: tick.StatusOpen, Priority: 1, CreatedAt: base},
+		{ID: "b", Status: tick.StatusInProgress, Priority: 2, CreatedAt: base}, // lower priority but in_progress
+		{ID: "c", Status: tick.StatusOpen, Priority: 1, CreatedAt: base.Add(time.Minute)},
+	}
+
+	SortByPriorityCreatedAt(items)
+	// in_progress should come first, even though it has lower priority
+	if items[0].ID != "b" {
+		t.Fatalf("in_progress task should be first, got: %v", items[0].ID)
+	}
+	// then open tasks by priority, then created_at
+	if items[1].ID != "a" || items[2].ID != "c" {
+		t.Fatalf("unexpected order for open tasks: %v, %v", items[1].ID, items[2].ID)
+	}
+}

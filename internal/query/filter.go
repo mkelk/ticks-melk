@@ -60,9 +60,15 @@ func Apply(ticks []tick.Tick, f Filter) []tick.Tick {
 	return out
 }
 
-// SortByPriorityCreatedAt sorts ticks by priority, created_at, then id.
+// SortByPriorityCreatedAt sorts ticks by status (in_progress first), priority, created_at, then id.
 func SortByPriorityCreatedAt(ticks []tick.Tick) {
 	sort.Slice(ticks, func(i, j int) bool {
+		// in_progress tasks come before open tasks (resume incomplete work first)
+		iInProgress := ticks[i].Status == tick.StatusInProgress
+		jInProgress := ticks[j].Status == tick.StatusInProgress
+		if iInProgress != jInProgress {
+			return iInProgress
+		}
 		if ticks[i].Priority != ticks[j].Priority {
 			return ticks[i].Priority < ticks[j].Priority
 		}
