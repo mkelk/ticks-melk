@@ -1247,6 +1247,13 @@ func runNext(args []string) int {
 	fs.BoolVar(epicFlag, "e", false, "show next ready epic")
 	jsonOutput := fs.Bool("json", false, "output as json")
 	fs.SetOutput(os.Stderr)
+	fs.Usage = func() {
+		fmt.Fprintln(os.Stderr, "Usage: tk next [EPIC_ID] [flags]")
+		fmt.Fprintln(os.Stderr, "\nShow the next ready tick to work on.")
+		fmt.Fprintln(os.Stderr, "If EPIC_ID is provided, shows the next ready tick within that epic.")
+		fmt.Fprintln(os.Stderr, "\nFlags:")
+		fs.PrintDefaults()
+	}
 	positionals, err := parseInterleaved(fs, args)
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {

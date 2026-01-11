@@ -37,6 +37,7 @@ var (
 	selectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#89DCEB")).Bold(true)
 	dimStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("#A6ADC8"))
 	footerStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#7F849C"))
+	labelStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#7F849C")).Width(10)
 
 	// Priority color styles (Catppuccin Mocha palette)
 	priorityP1Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#F38BA8")) // Red
@@ -278,8 +279,16 @@ func buildDetailView(m Model) string {
 	}
 	current := m.items[m.selected].Tick
 	var out []string
-	out = append(out, fmt.Sprintf("%s  %s %s %s  @%s", current.ID, renderStatus(current.Status), renderPriority(current.Priority), renderType(current.Type), current.Owner))
-	out = append(out, current.Title)
+
+	// Labeled key-value fields
+	out = append(out, labelStyle.Render("ID:")+current.ID)
+	out = append(out, labelStyle.Render("Priority:")+renderPriority(current.Priority))
+	out = append(out, labelStyle.Render("Type:")+renderType(current.Type))
+	out = append(out, labelStyle.Render("Status:")+renderStatus(current.Status)+" "+current.Status)
+	out = append(out, labelStyle.Render("Owner:")+current.Owner)
+	out = append(out, "")
+	out = append(out, headerStyle.Render("Title:"))
+	out = append(out, "  "+current.Title)
 
 	if strings.TrimSpace(current.Description) != "" {
 		out = append(out, "")

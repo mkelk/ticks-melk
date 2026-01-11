@@ -2,12 +2,12 @@
   "id": "434",
   "title": "TUI view improvements",
   "description": "Refine the tk view TUI with better styling, color coding, layout fixes, and Bubbles/Lipgloss enhancements",
-  "notes": "2026-01-11 15:09 - Completed 7us: List items now truncate to panel width. The buildListView() function now takes a width param and uses the existing truncate() helper. Content width is calculated as leftWidth - 4 to account for border and padding.",
+  "notes": "2026-01-11 15:09 - Completed 7us: List items now truncate to panel width. The buildListView() function now takes a width param and uses the existing truncate() helper. Content width is calculated as leftWidth - 4 to account for border and padding.\n2026-01-11 16:21 - Completed 1p3: Added renderStatus() helper with color-coded status symbols (○ gray open, ● blue in_progress, ✓ green closed). Status is now displayed in both list and detail views. Follows existing pattern from renderPriority().\n2026-01-11 16:26 - Completed xfd: Added renderType() helper with color coding (epic=purple, bug=red, feature=teal, task/chore=default). Follows same pattern as renderStatus() and renderPriority(). Type is displayed in detail view only (list view kept compact). All colors use Catppuccin Mocha palette.",
   "status": "open",
   "priority": 2,
   "type": "epic",
   "owner": "peter@engelbrecht.dk",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-11T15:00:59.183143847Z",
-  "updated_at": "2026-01-11T15:22:10.043874601Z"
+  "updated_at": "2026-01-11T16:26:26.829825034Z"
 }
