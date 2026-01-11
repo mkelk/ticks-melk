@@ -1449,6 +1449,7 @@ func runDelete(args []string) int {
 		}
 	}
 
+	fmt.Printf("Deleted %s\n", id)
 	return exitSuccess
 }
 
