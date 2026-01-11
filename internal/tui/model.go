@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -26,7 +27,7 @@ type Model struct {
 	selected    int
 	filter      string
 	searching   bool
-	searchInput string
+	searchInput textinput.Model
 	focusedEpic string
 	width       int
 	height      int
@@ -107,7 +108,13 @@ func renderType(tickType string) string {
 func NewModel(ticks []tick.Tick) Model {
 	collapsed := make(map[string]bool)
 	items := buildItems(ticks, collapsed, "", "")
-	return Model{allTicks: ticks, items: items, collapsed: collapsed}
+
+	ti := textinput.New()
+	ti.Placeholder = "search..."
+	ti.CharLimit = 100
+	ti.Width = 30
+
+	return Model{allTicks: ticks, items: items, collapsed: collapsed, searchInput: ti}
 }
 
 func (m Model) Init() tea.Cmd {
@@ -116,6 +123,7 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+	var cmds []tea.Cmd
 	prevSelected := m.selected
 
 	switch msg := msg.(type) {
@@ -127,17 +135,45 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.ready = true
 		}
 	case tea.KeyMsg:
+		// Handle search mode input
+		if m.searching {
+			switch msg.String() {
+			case "esc":
+				m.searching = false
+				m.searchInput.Reset()
+				m.searchInput.Blur()
+			case "enter":
+				m.filter = m.searchInput.Value()
+				m.searching = false
+				m.searchInput.Reset()
+				m.searchInput.Blur()
+				m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic)
+				if m.selected >= len(m.items) {
+					m.selected = len(m.items) - 1
+				}
+				if m.selected < 0 {
+					m.selected = 0
+				}
+				m.updateViewportContent()
+			default:
+				// Forward all other keys to textinput
+				m.searchInput, cmd = m.searchInput.Update(msg)
+				cmds = append(cmds, cmd)
+			}
+			return m, tea.Batch(cmds...)
+		}
+
+		// Normal mode key handling
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
 		case "/":
 			m.searching = true
-			m.searchInput = ""
+			m.searchInput.Reset()
+			m.searchInput.Focus()
+			return m, m.searchInput.Cursor.BlinkCmd()
 		case "esc":
-			if m.searching {
-				m.searching = false
-				m.searchInput = ""
-			} else if m.focusedEpic != "" {
+			if m.focusedEpic != "" {
 				m.focusedEpic = ""
 				m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic)
 				m.selected = 0
@@ -175,20 +211,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.updateViewportContent()
 			}
 		case " ", "enter":
-			if m.searching {
-				m.filter = m.searchInput
-				m.searching = false
-				m.searchInput = ""
-				m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic)
-				if m.selected >= len(m.items) {
-					m.selected = len(m.items) - 1
-				}
-				if m.selected < 0 {
-					m.selected = 0
-				}
-				m.updateViewportContent()
-				return m, nil
-			}
 			if len(m.items) == 0 {
 				return m, nil
 			}
@@ -200,15 +222,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.selected = len(m.items) - 1
 				}
 				m.updateViewportContent()
-			}
-		default:
-			if m.searching && msg.Type == tea.KeyRunes {
-				m.searchInput += msg.String()
-			}
-		}
-		if m.searching && msg.Type == tea.KeyBackspace {
-			if len(m.searchInput) > 0 {
-				m.searchInput = m.searchInput[:len(m.searchInput)-1]
 			}
 		}
 	}
@@ -252,7 +265,7 @@ func (m Model) View() string {
 	// Build left panel header with indicators
 	leftHeader := "Ticks"
 	if m.searching {
-		leftHeader = fmt.Sprintf("Search: %s", m.searchInput)
+		leftHeader = fmt.Sprintf("Search: %s", m.searchInput.View())
 	} else if m.filter != "" {
 		leftHeader = fmt.Sprintf("Filter: %s", m.filter)
 	} else if m.focusedEpic != "" {
