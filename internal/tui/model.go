@@ -42,6 +42,11 @@ var (
 	priorityP1Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#F38BA8")) // Red
 	priorityP2Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#FAB387")) // Peach
 	priorityP3Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#A6E3A1")) // Green
+
+	// Status color styles (Catppuccin Mocha palette)
+	statusOpenStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("#6C7086")) // Gray (Overlay0)
+	statusInProgressStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#89B4FA")) // Blue
+	statusClosedStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#A6E3A1")) // Green
 )
 
 // renderPriority returns a color-coded priority string.
@@ -56,6 +61,21 @@ func renderPriority(priority int) string {
 		return priorityP3Style.Render(text)
 	default:
 		return text
+	}
+}
+
+// renderStatus returns a color-coded status symbol.
+// open: gray ○, in_progress: blue ●, closed: green ✓
+func renderStatus(status string) string {
+	switch status {
+	case tick.StatusOpen:
+		return statusOpenStyle.Render("○")
+	case tick.StatusInProgress:
+		return statusInProgressStyle.Render("●")
+	case tick.StatusClosed:
+		return statusClosedStyle.Render("✓")
+	default:
+		return status
 	}
 }
 
@@ -221,7 +241,7 @@ func buildListView(m Model, width int) string {
 				marker = "-"
 			}
 		}
-		line := fmt.Sprintf("%s %s%s %s  %s %s", cursor, indent, marker, item.Tick.ID, renderPriority(item.Tick.Priority), item.Tick.Title)
+		line := fmt.Sprintf("%s %s%s %s  %s %s %s", cursor, indent, marker, item.Tick.ID, renderStatus(item.Tick.Status), renderPriority(item.Tick.Priority), item.Tick.Title)
 		line = truncate(line, width)
 		if i == m.selected {
 			out += selectedStyle.Render(line) + "\n"
@@ -238,7 +258,7 @@ func buildDetailView(m Model) string {
 	}
 	current := m.items[m.selected].Tick
 	var out []string
-	out = append(out, fmt.Sprintf("%s  %s %s  %s  @%s", current.ID, renderPriority(current.Priority), current.Type, current.Status, current.Owner))
+	out = append(out, fmt.Sprintf("%s  %s %s %s  @%s", current.ID, renderStatus(current.Status), renderPriority(current.Priority), current.Type, current.Owner))
 	out = append(out, current.Title)
 
 	if strings.TrimSpace(current.Description) != "" {
