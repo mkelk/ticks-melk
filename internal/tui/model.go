@@ -452,7 +452,7 @@ func buildListContent(m Model, width int) string {
 	return strings.Join(lines, "\n")
 }
 
-func buildDetailContent(t tick.Tick) string {
+func buildDetailContent(t tick.Tick, width int) string {
 	var out []string
 
 	// Labeled key-value fields
@@ -465,13 +465,13 @@ func buildDetailContent(t tick.Tick) string {
 	if strings.TrimSpace(t.Description) != "" {
 		out = append(out, "")
 		out = append(out, headerStyle.Render("Description:"))
-		out = append(out, indentLines(t.Description, 2)...)
+		out = append(out, wrapAndIndent(t.Description, 2, width)...)
 	}
 
 	if strings.TrimSpace(t.Notes) != "" {
 		out = append(out, "")
 		out = append(out, headerStyle.Render("Notes:"))
-		out = append(out, indentLines(t.Notes, 2)...)
+		out = append(out, wrapAndIndent(t.Notes, 2, width)...)
 	}
 
 	if len(t.Labels) > 0 {
@@ -559,7 +559,7 @@ func (m *Model) updateViewportContent() {
 		m.viewport.SetContent("")
 		return
 	}
-	content := buildDetailContent(m.items[m.selected].Tick)
+	content := buildDetailContent(m.items[m.selected].Tick, m.viewport.Width)
 	m.viewport.SetContent(content)
 	m.viewport.GotoTop()
 }
@@ -696,6 +696,24 @@ func applyFocus(ticks []tick.Tick, focus string) []tick.Tick {
 func indentLines(value string, spaces int) []string {
 	prefix := strings.Repeat(" ", spaces)
 	lines := splitLines(value)
+	out := make([]string, 0, len(lines))
+	for _, line := range lines {
+		out = append(out, prefix+line)
+	}
+	return out
+}
+
+// wrapAndIndent wraps text to fit within width and indents each line.
+func wrapAndIndent(value string, spaces int, width int) []string {
+	prefix := strings.Repeat(" ", spaces)
+	wrapWidth := width - spaces
+	if wrapWidth < 10 {
+		wrapWidth = 10
+	}
+
+	// Use lipgloss to wrap text
+	wrapped := lipgloss.NewStyle().Width(wrapWidth).Render(value)
+	lines := splitLines(wrapped)
 	out := make([]string, 0, len(lines))
 	for _, line := range lines {
 		out = append(out, prefix+line)
