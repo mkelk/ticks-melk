@@ -48,3 +48,49 @@ func TestInProgressTicksAreReady(t *testing.T) {
 		t.Fatalf("expected both open (a) and in_progress (b) ticks, got %v", ids)
 	}
 }
+
+func TestReadyWithBlockersOutsideFilteredSet(t *testing.T) {
+	// This test simulates the bug where filtering by parent, then calling Ready(),
+	// fails to find blockers that exist outside the filtered set.
+	now := time.Date(2025, 1, 8, 10, 0, 0, 0, time.UTC)
+
+	// Setup:
+	// - epic1 (closed) - blocker epic, not a parent
+	// - epic2 (open) - parent epic we'll filter by
+	// - task1 under epic2, blocked by epic1 (closed) - should be ready
+	// - orphan1 (closed) - blocker with no parent
+	// - task2 under epic2, blocked by orphan1 (closed) - should be ready
+	// - epic3 (open) - another epic
+	// - task3 under epic3 (closed) - blocker under different epic
+	// - task4 under epic2, blocked by task3 (closed) - should be ready
+
+	allTicks := []tick.Tick{
+		{ID: "epic1", Type: tick.TypeEpic, Status: tick.StatusClosed, CreatedAt: now, UpdatedAt: now},
+		{ID: "epic2", Type: tick.TypeEpic, Status: tick.StatusOpen, CreatedAt: now, UpdatedAt: now},
+		{ID: "task1", Type: tick.TypeTask, Status: tick.StatusOpen, Parent: "epic2", BlockedBy: []string{"epic1"}, CreatedAt: now, UpdatedAt: now},
+		{ID: "orphan1", Type: tick.TypeTask, Status: tick.StatusClosed, CreatedAt: now, UpdatedAt: now},
+		{ID: "task2", Type: tick.TypeTask, Status: tick.StatusOpen, Parent: "epic2", BlockedBy: []string{"orphan1"}, CreatedAt: now, UpdatedAt: now},
+		{ID: "epic3", Type: tick.TypeEpic, Status: tick.StatusOpen, CreatedAt: now, UpdatedAt: now},
+		{ID: "task3", Type: tick.TypeTask, Status: tick.StatusClosed, Parent: "epic3", CreatedAt: now, UpdatedAt: now},
+		{ID: "task4", Type: tick.TypeTask, Status: tick.StatusOpen, Parent: "epic2", BlockedBy: []string{"task3"}, CreatedAt: now, UpdatedAt: now},
+	}
+
+	// Filter to only epic2's children (simulates tk next epic2)
+	filtered := Apply(allTicks, Filter{Parent: "epic2"})
+	if len(filtered) != 3 {
+		t.Fatalf("expected 3 ticks under epic2, got %d", len(filtered))
+	}
+
+	// Now check ready status - pass allTicks for blocker lookup
+	ready := Ready(filtered, allTicks)
+
+	// All 3 tasks should be ready (their blockers are all closed)
+	if len(ready) != 3 {
+		t.Errorf("expected 3 ready ticks, got %d", len(ready))
+		for _, r := range ready {
+			t.Logf("  ready: %s", r.ID)
+		}
+		t.Logf("blockers epic1=%s, orphan1=%s, task3=%s are all closed but not in filtered set",
+			tick.StatusClosed, tick.StatusClosed, tick.StatusClosed)
+	}
+}

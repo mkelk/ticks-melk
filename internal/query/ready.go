@@ -8,10 +8,16 @@ import (
 
 // Ready returns open ticks that are not blocked by open blockers.
 // Missing blockers are treated as open (not ready).
-func Ready(ticks []tick.Tick) []tick.Tick {
-	index := indexByID(ticks)
+// If allTicks is provided, it is used to look up blocker status (for when
+// candidates is a filtered subset and blockers may be outside that subset).
+func Ready(candidates []tick.Tick, allTicks ...[]tick.Tick) []tick.Tick {
+	lookup := candidates
+	if len(allTicks) > 0 {
+		lookup = allTicks[0]
+	}
+	index := indexByID(lookup)
 	var out []tick.Tick
-	for _, t := range ticks {
+	for _, t := range candidates {
 		if isReady(t, index) {
 			out = append(out, t)
 		}
@@ -21,10 +27,16 @@ func Ready(ticks []tick.Tick) []tick.Tick {
 
 // Blocked returns ticks that are open or in_progress with open blockers.
 // Missing blockers are treated as open (blocked).
-func Blocked(ticks []tick.Tick) []tick.Tick {
-	index := indexByID(ticks)
+// If allTicks is provided, it is used to look up blocker status (for when
+// candidates is a filtered subset and blockers may be outside that subset).
+func Blocked(candidates []tick.Tick, allTicks ...[]tick.Tick) []tick.Tick {
+	lookup := candidates
+	if len(allTicks) > 0 {
+		lookup = allTicks[0]
+	}
+	index := indexByID(lookup)
 	var out []tick.Tick
-	for _, t := range ticks {
+	for _, t := range candidates {
 		if isBlocked(t, index) {
 			out = append(out, t)
 		}

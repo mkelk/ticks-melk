@@ -1230,7 +1230,7 @@ func runReady(args []string) int {
 		NotesContains: strings.TrimSpace(*notesContainsFlag),
 	}
 	filtered := query.Apply(ticks, filter)
-	ready := query.Ready(filtered)
+	ready := query.Ready(filtered, ticks)
 
 	// Exclude manual tasks by default
 	if !*includeManual {
@@ -1345,7 +1345,7 @@ func runNext(args []string) int {
 	}
 
 	filtered := query.Apply(ticks, filter)
-	ready := query.Ready(filtered)
+	ready := query.Ready(filtered, ticks)
 
 	// Exclude manual tasks by default
 	if !*includeManual {
@@ -1419,7 +1419,7 @@ func runBlocked(args []string) int {
 	}
 
 	filtered := query.Apply(ticks, query.Filter{Owner: owner})
-	blocked := query.Blocked(filtered)
+	blocked := query.Blocked(filtered, ticks)
 	query.SortByPriorityCreatedAt(blocked)
 
 	if *jsonOutput {
@@ -1914,8 +1914,8 @@ func runStats(args []string) int {
 		typeCounts[t.Type]++
 	}
 
-	ready := query.Ready(filtered)
-	blocked := query.Blocked(filtered)
+	ready := query.Ready(filtered, ticks)
+	blocked := query.Blocked(filtered, ticks)
 
 	if *jsonOutput {
 		payload := map[string]any{
