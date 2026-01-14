@@ -319,6 +319,34 @@ func runCreate(args []string) int {
 	fs.StringVar(awaitingFlag, "a", "", "wait state (work|approval|input|review|content|escalation|checkpoint)")
 	jsonOutput := fs.Bool("json", false, "output as json")
 	fs.SetOutput(os.Stderr)
+	fs.Usage = func() {
+		fmt.Fprintln(os.Stderr, "Usage: tk create <title> [flags]")
+		fmt.Fprintln(os.Stderr, "\nCreate a new tick (task or epic).")
+		fmt.Fprintln(os.Stderr, "\nFlags:")
+		fs.PrintDefaults()
+		fmt.Fprintln(os.Stderr, "\nAgent-Human Workflow Flags:")
+		fmt.Fprintln(os.Stderr, "  --requires value    Pre-declared approval gate (approval|review|content)")
+		fmt.Fprintln(os.Stderr, "                      When set, tick routes to human even if agent signals COMPLETE.")
+		fmt.Fprintln(os.Stderr, "                      The 'requires' value persists through rejection cycles.")
+		fmt.Fprintln(os.Stderr, "  --awaiting value    Immediate human assignment (work|approval|input|review|content|escalation|checkpoint)")
+		fmt.Fprintln(os.Stderr, "                      Tick is skipped by agent until human responds.")
+		fmt.Fprintln(os.Stderr, "  --manual            [DEPRECATED] Use --awaiting=work instead")
+		fmt.Fprintln(os.Stderr, "\nExamples:")
+		fmt.Fprintln(os.Stderr, "  # Simple task")
+		fmt.Fprintln(os.Stderr, "  tk create \"Fix login bug\" -d \"Users can't login with SSO\"")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "  # Task requiring approval before closing (even after agent completes)")
+		fmt.Fprintln(os.Stderr, "  tk create \"Update auth flow\" --requires approval")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "  # Task requiring content/design review")
+		fmt.Fprintln(os.Stderr, "  tk create \"Redesign error messages\" --requires content")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "  # Task assigned directly to human (skipped by agent)")
+		fmt.Fprintln(os.Stderr, "  tk create \"Configure AWS credentials\" --awaiting work")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "  # Task under an epic with PR review required")
+		fmt.Fprintln(os.Stderr, "  tk create \"Implement payment API\" --parent abc123 --requires review")
+	}
 
 	positionals, err := parseInterleaved(fs, args)
 	if err != nil {
@@ -681,8 +709,33 @@ func runUpdate(args []string) int {
 	var requires optionalString
 	fs.Var(&requires, "requires", "approval gate (approval|review|content, empty to clear)")
 	fs.Var(&requires, "r", "approval gate (approval|review|content, empty to clear)")
+	var awaiting optionalString
+	fs.Var(&awaiting, "awaiting", "wait state (work|approval|input|review|content|escalation|checkpoint, empty to clear)")
+	fs.Var(&awaiting, "a", "wait state (work|approval|input|review|content|escalation|checkpoint, empty to clear)")
 
 	fs.SetOutput(os.Stderr)
+	fs.Usage = func() {
+		fmt.Fprintln(os.Stderr, "Usage: tk update <id> [flags]")
+		fmt.Fprintln(os.Stderr, "\nUpdate tick fields. All flags are optional.")
+		fmt.Fprintln(os.Stderr, "\nFlags:")
+		fs.PrintDefaults()
+		fmt.Fprintln(os.Stderr, "\nAgent-Human Workflow Flags:")
+		fmt.Fprintln(os.Stderr, "  --requires value    Pre-declared approval gate (approval|review|content, empty to clear)")
+		fmt.Fprintln(os.Stderr, "  --awaiting value    Wait state (work|approval|input|review|content|escalation|checkpoint, empty to clear)")
+		fmt.Fprintln(os.Stderr, "  --manual            [DEPRECATED] Use --awaiting=work instead")
+		fmt.Fprintln(os.Stderr, "\nExamples:")
+		fmt.Fprintln(os.Stderr, "  # Route task to human for approval")
+		fmt.Fprintln(os.Stderr, "  tk update abc123 --awaiting approval")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "  # Clear awaiting (return to agent queue)")
+		fmt.Fprintln(os.Stderr, "  tk update abc123 --awaiting=")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "  # Add pre-declared approval gate")
+		fmt.Fprintln(os.Stderr, "  tk update abc123 --requires approval")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "  # Mark task as needing human work (replaces --manual)")
+		fmt.Fprintln(os.Stderr, "  tk update abc123 --awaiting work")
+	}
 	positionals, err := parseInterleaved(fs, args)
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -790,6 +843,19 @@ func runUpdate(args []string) int {
 				t.Requires = &requires.value
 			default:
 				fmt.Fprintf(os.Stderr, "invalid requires value: %s (must be approval, review, or content)\n", requires.value)
+				return exitUsage
+			}
+		}
+	}
+	if awaiting.set {
+		if awaiting.value == "" {
+			t.Awaiting = nil
+		} else {
+			switch awaiting.value {
+			case tick.AwaitingWork, tick.AwaitingApproval, tick.AwaitingInput, tick.AwaitingReview, tick.AwaitingContent, tick.AwaitingEscalation, tick.AwaitingCheckpoint:
+				t.Awaiting = &awaiting.value
+			default:
+				fmt.Fprintf(os.Stderr, "invalid awaiting value: %s (must be work, approval, input, review, content, escalation, or checkpoint)\n", awaiting.value)
 				return exitUsage
 			}
 		}
