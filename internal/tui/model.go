@@ -147,6 +147,10 @@ var (
 	typeEpicStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#CBA6F7")) // Purple (Mauve)
 	typeBugStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#F38BA8")) // Red
 	typeFeatureStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#94E2D5")) // Teal
+
+	// Verdict color styles (Catppuccin Mocha palette)
+	verdictApprovedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#A6E3A1")) // Green
+	verdictRejectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#F38BA8")) // Red
 )
 
 // renderPriority returns a color-coded priority string.
@@ -200,6 +204,19 @@ func renderType(tickType string) string {
 		return typeFeatureStyle.Render(tickType)
 	default:
 		return tickType
+	}
+}
+
+// renderVerdict returns a color-coded verdict string.
+// approved: green, rejected: red
+func renderVerdict(verdict string) string {
+	switch verdict {
+	case tick.VerdictApproved:
+		return verdictApprovedStyle.Render(verdict)
+	case tick.VerdictRejected:
+		return verdictRejectedStyle.Render(verdict)
+	default:
+		return verdict
 	}
 }
 
@@ -470,10 +487,23 @@ func buildDetailContent(t tick.Tick, width int) string {
 	out = append(out, labelStyle.Render("Priority:")+renderPriority(t.Priority))
 	out = append(out, labelStyle.Render("Type:")+renderType(t.Type))
 	out = append(out, labelStyle.Render("Status:")+renderStatus(t.Status)+" "+t.Status)
-	if t.IsAwaitingHuman() {
-		out = append(out, labelStyle.Render("Awaiting:")+statusAwaitingStyle.Render(t.GetAwaitingType()))
-	}
 	out = append(out, labelStyle.Render("Owner:")+t.Owner)
+
+	// Workflow section - only show if at least one workflow field is set
+	hasWorkflowFields := t.Requires != nil || t.IsAwaitingHuman() || t.Verdict != nil
+	if hasWorkflowFields {
+		out = append(out, "")
+		out = append(out, headerStyle.Render("Workflow:"))
+		if t.Requires != nil {
+			out = append(out, "  "+labelStyle.Render("Requires:")+*t.Requires)
+		}
+		if t.IsAwaitingHuman() {
+			out = append(out, "  "+labelStyle.Render("Awaiting:")+statusAwaitingStyle.Render(t.GetAwaitingType()))
+		}
+		if t.Verdict != nil {
+			out = append(out, "  "+labelStyle.Render("Verdict:")+renderVerdict(*t.Verdict))
+		}
+	}
 
 	if strings.TrimSpace(t.Description) != "" {
 		out = append(out, "")
