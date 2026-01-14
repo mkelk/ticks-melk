@@ -208,3 +208,89 @@ func TestCreateProjectFlag(t *testing.T) {
 		t.Fatalf("expected project different-proj, got %v", result5["project"])
 	}
 }
+
+func TestUpdateProjectFlag(t *testing.T) {
+	repo := t.TempDir()
+	if err := runGit(repo, "init"); err != nil {
+		t.Fatalf("git init: %v", err)
+	}
+	if err := runGit(repo, "remote", "add", "origin", "https://github.com/petere/chefswiz.git"); err != nil {
+		t.Fatalf("git remote add: %v", err)
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(repo); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+
+	if err := os.Setenv("TICK_OWNER", "tester"); err != nil {
+		t.Fatalf("set env: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Unsetenv("TICK_OWNER") })
+
+	if code := run([]string{"tk", "init"}); code != exitSuccess {
+		t.Fatalf("expected init exit %d, got %d", exitSuccess, code)
+	}
+
+	// Create a tick without a project
+	out, code := captureStdout(func() int {
+		return run([]string{"tk", "create", "Task without project", "--json"})
+	})
+	if code != exitSuccess {
+		t.Fatalf("expected create exit %d, got %d", exitSuccess, code)
+	}
+	var created map[string]any
+	if err := json.Unmarshal([]byte(out), &created); err != nil {
+		t.Fatalf("parse create json: %v", err)
+	}
+	id := created["id"].(string)
+
+	// Test 1: Set project on tick without project
+	out, code = captureStdout(func() int {
+		return run([]string{"tk", "update", id, "--project", "new-proj", "--json"})
+	})
+	if code != exitSuccess {
+		t.Fatalf("expected update exit %d, got %d", exitSuccess, code)
+	}
+	var result1 map[string]any
+	if err := json.Unmarshal([]byte(out), &result1); err != nil {
+		t.Fatalf("parse update json: %v", err)
+	}
+	if result1["project"] != "new-proj" {
+		t.Fatalf("expected project new-proj, got %v", result1["project"])
+	}
+
+	// Test 2: Change project on tick with project
+	out, code = captureStdout(func() int {
+		return run([]string{"tk", "update", id, "--project", "changed-proj", "--json"})
+	})
+	if code != exitSuccess {
+		t.Fatalf("expected update exit %d, got %d", exitSuccess, code)
+	}
+	var result2 map[string]any
+	if err := json.Unmarshal([]byte(out), &result2); err != nil {
+		t.Fatalf("parse update json: %v", err)
+	}
+	if result2["project"] != "changed-proj" {
+		t.Fatalf("expected project changed-proj, got %v", result2["project"])
+	}
+
+	// Test 3: Clear project with empty string
+	out, code = captureStdout(func() int {
+		return run([]string{"tk", "update", id, "--project", "", "--json"})
+	})
+	if code != exitSuccess {
+		t.Fatalf("expected update exit %d, got %d", exitSuccess, code)
+	}
+	var result3 map[string]any
+	if err := json.Unmarshal([]byte(out), &result3); err != nil {
+		t.Fatalf("parse update json: %v", err)
+	}
+	if result3["project"] != nil && result3["project"] != "" {
+		t.Fatalf("expected empty project, got %v", result3["project"])
+	}
+}

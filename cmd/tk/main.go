@@ -644,6 +644,8 @@ func runUpdate(args []string) int {
 	fs.Var(&parent, "parent", "parent epic id (use empty string to clear)")
 	var manual optionalBool
 	fs.Var(&manual, "manual", "mark as requiring human intervention (true/false)")
+	var projectCode optionalString
+	fs.Var(&projectCode, "project", "project code (use empty string to clear)")
 
 	fs.SetOutput(os.Stderr)
 	positionals, err := parseInterleaved(fs, args)
@@ -743,6 +745,9 @@ func runUpdate(args []string) int {
 	}
 	if parent.set {
 		t.Parent = parent.value
+	}
+	if projectCode.set {
+		t.Project = projectCode.value
 	}
 
 	t.UpdatedAt = time.Now().UTC()
