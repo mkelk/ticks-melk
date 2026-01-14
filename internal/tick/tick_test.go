@@ -1,6 +1,7 @@
 package tick
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -431,4 +432,318 @@ func TestIsTerminalAwaiting(t *testing.T) {
 	if base.IsTerminalAwaiting() {
 		t.Error("expected IsTerminalAwaiting() to be false when not awaiting")
 	}
+}
+
+func TestWorkflowFieldsJSONSerialization(t *testing.T) {
+	now := time.Date(2025, 1, 8, 10, 30, 0, 0, time.UTC)
+
+	t.Run("all_workflow_fields_set", func(t *testing.T) {
+		requires := RequiresApproval
+		awaiting := AwaitingReview
+		verdict := VerdictApproved
+		tick := Tick{
+			ID:        "a1b",
+			Title:     "Fix auth",
+			Status:    StatusOpen,
+			Priority:  2,
+			Type:      TypeBug,
+			Owner:     "petere",
+			CreatedBy: "petere",
+			CreatedAt: now,
+			UpdatedAt: now,
+			Requires:  &requires,
+			Awaiting:  &awaiting,
+			Verdict:   &verdict,
+		}
+
+		// Marshal to JSON
+		data, err := json.Marshal(tick)
+		if err != nil {
+			t.Fatalf("failed to marshal tick: %v", err)
+		}
+
+		// Verify JSON contains expected fields
+		jsonStr := string(data)
+		if !strings.Contains(jsonStr, `"requires":"approval"`) {
+			t.Errorf("JSON missing requires field: %s", jsonStr)
+		}
+		if !strings.Contains(jsonStr, `"awaiting":"review"`) {
+			t.Errorf("JSON missing awaiting field: %s", jsonStr)
+		}
+		if !strings.Contains(jsonStr, `"verdict":"approved"`) {
+			t.Errorf("JSON missing verdict field: %s", jsonStr)
+		}
+
+		// Unmarshal back
+		var decoded Tick
+		if err := json.Unmarshal(data, &decoded); err != nil {
+			t.Fatalf("failed to unmarshal tick: %v", err)
+		}
+
+		// Verify round-trip
+		if decoded.Requires == nil || *decoded.Requires != RequiresApproval {
+			t.Errorf("Requires mismatch: got %v, want %q", decoded.Requires, RequiresApproval)
+		}
+		if decoded.Awaiting == nil || *decoded.Awaiting != AwaitingReview {
+			t.Errorf("Awaiting mismatch: got %v, want %q", decoded.Awaiting, AwaitingReview)
+		}
+		if decoded.Verdict == nil || *decoded.Verdict != VerdictApproved {
+			t.Errorf("Verdict mismatch: got %v, want %q", decoded.Verdict, VerdictApproved)
+		}
+	})
+
+	t.Run("workflow_fields_nil_omitted", func(t *testing.T) {
+		tick := Tick{
+			ID:        "a1b",
+			Title:     "Fix auth",
+			Status:    StatusOpen,
+			Priority:  2,
+			Type:      TypeBug,
+			Owner:     "petere",
+			CreatedBy: "petere",
+			CreatedAt: now,
+			UpdatedAt: now,
+			// Requires, Awaiting, Verdict all nil
+		}
+
+		data, err := json.Marshal(tick)
+		if err != nil {
+			t.Fatalf("failed to marshal tick: %v", err)
+		}
+
+		// Verify JSON omits nil fields
+		jsonStr := string(data)
+		if strings.Contains(jsonStr, `"requires"`) {
+			t.Errorf("JSON should omit nil requires: %s", jsonStr)
+		}
+		if strings.Contains(jsonStr, `"awaiting"`) {
+			t.Errorf("JSON should omit nil awaiting: %s", jsonStr)
+		}
+		if strings.Contains(jsonStr, `"verdict"`) {
+			t.Errorf("JSON should omit nil verdict: %s", jsonStr)
+		}
+
+		// Unmarshal and verify still nil
+		var decoded Tick
+		if err := json.Unmarshal(data, &decoded); err != nil {
+			t.Fatalf("failed to unmarshal tick: %v", err)
+		}
+		if decoded.Requires != nil {
+			t.Errorf("decoded Requires should be nil, got %v", decoded.Requires)
+		}
+		if decoded.Awaiting != nil {
+			t.Errorf("decoded Awaiting should be nil, got %v", decoded.Awaiting)
+		}
+		if decoded.Verdict != nil {
+			t.Errorf("decoded Verdict should be nil, got %v", decoded.Verdict)
+		}
+	})
+
+	t.Run("requires_values_roundtrip", func(t *testing.T) {
+		for _, reqVal := range ValidRequiresValues {
+			t.Run(reqVal, func(t *testing.T) {
+				req := reqVal
+				tick := Tick{
+					ID:        "a1b",
+					Title:     "Fix auth",
+					Status:    StatusOpen,
+					Priority:  2,
+					Type:      TypeBug,
+					Owner:     "petere",
+					CreatedBy: "petere",
+					CreatedAt: now,
+					UpdatedAt: now,
+					Requires:  &req,
+				}
+
+				data, err := json.Marshal(tick)
+				if err != nil {
+					t.Fatalf("marshal failed: %v", err)
+				}
+
+				var decoded Tick
+				if err := json.Unmarshal(data, &decoded); err != nil {
+					t.Fatalf("unmarshal failed: %v", err)
+				}
+
+				if decoded.Requires == nil || *decoded.Requires != reqVal {
+					t.Errorf("round-trip failed: got %v, want %q", decoded.Requires, reqVal)
+				}
+			})
+		}
+	})
+
+	t.Run("awaiting_values_roundtrip", func(t *testing.T) {
+		for _, awVal := range ValidAwaitingValues {
+			t.Run(awVal, func(t *testing.T) {
+				aw := awVal
+				tick := Tick{
+					ID:        "a1b",
+					Title:     "Fix auth",
+					Status:    StatusOpen,
+					Priority:  2,
+					Type:      TypeBug,
+					Owner:     "petere",
+					CreatedBy: "petere",
+					CreatedAt: now,
+					UpdatedAt: now,
+					Awaiting:  &aw,
+				}
+
+				data, err := json.Marshal(tick)
+				if err != nil {
+					t.Fatalf("marshal failed: %v", err)
+				}
+
+				var decoded Tick
+				if err := json.Unmarshal(data, &decoded); err != nil {
+					t.Fatalf("unmarshal failed: %v", err)
+				}
+
+				if decoded.Awaiting == nil || *decoded.Awaiting != awVal {
+					t.Errorf("round-trip failed: got %v, want %q", decoded.Awaiting, awVal)
+				}
+			})
+		}
+	})
+
+	t.Run("verdict_values_roundtrip", func(t *testing.T) {
+		for _, vVal := range ValidVerdictValues {
+			t.Run(vVal, func(t *testing.T) {
+				v := vVal
+				tick := Tick{
+					ID:        "a1b",
+					Title:     "Fix auth",
+					Status:    StatusOpen,
+					Priority:  2,
+					Type:      TypeBug,
+					Owner:     "petere",
+					CreatedBy: "petere",
+					CreatedAt: now,
+					UpdatedAt: now,
+					Verdict:   &v,
+				}
+
+				data, err := json.Marshal(tick)
+				if err != nil {
+					t.Fatalf("marshal failed: %v", err)
+				}
+
+				var decoded Tick
+				if err := json.Unmarshal(data, &decoded); err != nil {
+					t.Fatalf("unmarshal failed: %v", err)
+				}
+
+				if decoded.Verdict == nil || *decoded.Verdict != vVal {
+					t.Errorf("round-trip failed: got %v, want %q", decoded.Verdict, vVal)
+				}
+			})
+		}
+	})
+
+	t.Run("unmarshal_from_json_string", func(t *testing.T) {
+		// Test parsing JSON that might come from external source
+		jsonStr := `{
+			"id": "xyz",
+			"title": "Test ticket",
+			"status": "open",
+			"priority": 1,
+			"type": "task",
+			"owner": "agent",
+			"created_by": "human",
+			"created_at": "2025-01-08T10:30:00Z",
+			"updated_at": "2025-01-08T10:30:00Z",
+			"requires": "review",
+			"awaiting": "approval",
+			"verdict": "rejected"
+		}`
+
+		var tick Tick
+		if err := json.Unmarshal([]byte(jsonStr), &tick); err != nil {
+			t.Fatalf("failed to unmarshal: %v", err)
+		}
+
+		if tick.Requires == nil || *tick.Requires != RequiresReview {
+			t.Errorf("Requires: got %v, want %q", tick.Requires, RequiresReview)
+		}
+		if tick.Awaiting == nil || *tick.Awaiting != AwaitingApproval {
+			t.Errorf("Awaiting: got %v, want %q", tick.Awaiting, AwaitingApproval)
+		}
+		if tick.Verdict == nil || *tick.Verdict != VerdictRejected {
+			t.Errorf("Verdict: got %v, want %q", tick.Verdict, VerdictRejected)
+		}
+	})
+
+	t.Run("unmarshal_without_workflow_fields", func(t *testing.T) {
+		// Test parsing JSON without workflow fields (backwards compat)
+		jsonStr := `{
+			"id": "xyz",
+			"title": "Test ticket",
+			"status": "open",
+			"priority": 1,
+			"type": "task",
+			"owner": "agent",
+			"created_by": "human",
+			"created_at": "2025-01-08T10:30:00Z",
+			"updated_at": "2025-01-08T10:30:00Z"
+		}`
+
+		var tick Tick
+		if err := json.Unmarshal([]byte(jsonStr), &tick); err != nil {
+			t.Fatalf("failed to unmarshal: %v", err)
+		}
+
+		if tick.Requires != nil {
+			t.Errorf("Requires should be nil, got %v", tick.Requires)
+		}
+		if tick.Awaiting != nil {
+			t.Errorf("Awaiting should be nil, got %v", tick.Awaiting)
+		}
+		if tick.Verdict != nil {
+			t.Errorf("Verdict should be nil, got %v", tick.Verdict)
+		}
+	})
+
+	t.Run("workflow_fields_with_manual_flag", func(t *testing.T) {
+		// Test that workflow fields work alongside legacy Manual flag
+		awaiting := AwaitingContent
+		tick := Tick{
+			ID:        "a1b",
+			Title:     "Fix auth",
+			Status:    StatusOpen,
+			Priority:  2,
+			Type:      TypeBug,
+			Owner:     "petere",
+			CreatedBy: "petere",
+			CreatedAt: now,
+			UpdatedAt: now,
+			Manual:    true,
+			Awaiting:  &awaiting,
+		}
+
+		data, err := json.Marshal(tick)
+		if err != nil {
+			t.Fatalf("marshal failed: %v", err)
+		}
+
+		jsonStr := string(data)
+		if !strings.Contains(jsonStr, `"manual":true`) {
+			t.Errorf("JSON missing manual field: %s", jsonStr)
+		}
+		if !strings.Contains(jsonStr, `"awaiting":"content"`) {
+			t.Errorf("JSON missing awaiting field: %s", jsonStr)
+		}
+
+		var decoded Tick
+		if err := json.Unmarshal(data, &decoded); err != nil {
+			t.Fatalf("unmarshal failed: %v", err)
+		}
+
+		if !decoded.Manual {
+			t.Error("decoded Manual should be true")
+		}
+		if decoded.Awaiting == nil || *decoded.Awaiting != AwaitingContent {
+			t.Errorf("decoded Awaiting: got %v, want %q", decoded.Awaiting, AwaitingContent)
+		}
+	})
 }

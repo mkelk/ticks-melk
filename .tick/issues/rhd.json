@@ -2,7 +2,7 @@
   "id": "rhd",
   "title": "Write unit tests for new schema fields",
   "description": "Add comprehensive unit tests for the new workflow fields in internal/tick/tick_test.go\n\nTest categories:\n1. Validation tests for requires/awaiting/verdict\n2. Serialization tests (JSON round-trip)\n3. Helper method tests (IsAwaitingHuman, GetAwaitingType, etc.)\n\nUse table-driven tests following existing patterns.",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "type": "task",
   "owner": "peter@engelbrecht.dk",
@@ -17,5 +17,7 @@
   "acceptance_criteria": "- [ ] Validation tests cover all valid/invalid values for requires\n- [ ] Validation tests cover all valid/invalid values for awaiting\n- [ ] Validation tests cover all valid/invalid values for verdict\n- [ ] Serialization tests verify JSON round-trip\n- [ ] Helper method tests cover all cases including backwards compat\n- [ ] All tests pass",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-14T16:15:54.570501Z",
-  "updated_at": "2026-01-14T16:20:34.354338Z"
+  "updated_at": "2026-01-14T16:34:34.116086Z",
+  "closed_at": "2026-01-14T16:34:34.116086Z",
+  "closed_reason": "Added TestWorkflowFieldsJSONSerialization with 8 subtests: all_workflow_fields_set, workflow_fields_nil_omitted, requires_values_roundtrip (all 3 values), awaiting_values_roundtrip (all 7 values), verdict_values_roundtrip (both values), unmarshal_from_json_string, unmarshal_without_workflow_fields (backwards compat), workflow_fields_with_manual_flag (legacy compat). Tests verify JSON marshal/unmarshal round-trips, omitempty behavior, and parsing from raw JSON strings."
 }
