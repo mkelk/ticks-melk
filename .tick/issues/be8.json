@@ -2,7 +2,7 @@
   "id": "be8",
   "title": "Add --project filter to tk list",
   "description": "Add --project filter flag to list command in cmd/list.go.\n\nImplementation:\n- Add --project string flag\n- Filter ticks where project matches exactly\n- Ticks with empty project excluded when filter set\n- Combine with existing filters (type, status, parent, etc.)\n\nTest cases:\n- List with project filter returns only matching\n- List with project excludes empty-project ticks\n- Combine with other filters",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "type": "task",
   "owner": "morten@elk.dk",
@@ -13,5 +13,7 @@
   "acceptance_criteria": "Filter works correctly, combines with existing filters, tests pass",
   "created_by": "morten@elk.dk",
   "created_at": "2026-01-14T18:50:59.5731047Z",
-  "updated_at": "2026-01-14T18:50:59.5731047Z"
+  "updated_at": "2026-01-14T19:08:55.6935392Z",
+  "closed_at": "2026-01-14T19:08:55.6935392Z",
+  "closed_reason": "Added --project flag to tk list command. Added Project field to query.Filter struct and filtering logic in Apply function (internal/query/filter.go). Added --project flag to runList (cmd/tk/main.go:1100). Added unit tests for project filter in filter_test.go and CLI integration test TestListProjectFilter in main_test.go."
 }

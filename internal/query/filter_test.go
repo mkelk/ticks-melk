@@ -58,3 +58,68 @@ func TestSortInProgressFirst(t *testing.T) {
 		t.Fatalf("unexpected order for open tasks: %v, %v", items[1].ID, items[2].ID)
 	}
 }
+
+func TestApplyFilterByProject(t *testing.T) {
+	base := time.Date(2025, 1, 8, 10, 0, 0, 0, time.UTC)
+	items := []tick.Tick{
+		{ID: "a", Project: "proj-a", CreatedAt: base},
+		{ID: "b", Project: "proj-b", CreatedAt: base.Add(time.Minute)},
+		{ID: "c", Project: "", CreatedAt: base.Add(2 * time.Minute)}, // no project
+	}
+
+	// Filter by project should return only matching ticks
+	filtered := Apply(items, Filter{Project: "proj-a"})
+	if len(filtered) != 1 || filtered[0].ID != "a" {
+		t.Fatalf("expected only tick 'a', got: %+v", filtered)
+	}
+
+	// Ticks with empty project should be excluded when filter is set
+	filtered = Apply(items, Filter{Project: "proj-b"})
+	if len(filtered) != 1 || filtered[0].ID != "b" {
+		t.Fatalf("expected only tick 'b', got: %+v", filtered)
+	}
+
+	// No project filter should return all
+	filtered = Apply(items, Filter{})
+	if len(filtered) != 3 {
+		t.Fatalf("expected 3 ticks, got: %d", len(filtered))
+	}
+
+	// Non-matching project should return empty
+	filtered = Apply(items, Filter{Project: "nonexistent"})
+	if len(filtered) != 0 {
+		t.Fatalf("expected 0 ticks, got: %d", len(filtered))
+	}
+}
+
+func TestApplyFilterProjectCombinedWithOtherFilters(t *testing.T) {
+	base := time.Date(2025, 1, 8, 10, 0, 0, 0, time.UTC)
+	items := []tick.Tick{
+		{ID: "a", Project: "proj-a", Type: tick.TypeBug, Status: tick.StatusOpen, CreatedAt: base},
+		{ID: "b", Project: "proj-a", Type: tick.TypeTask, Status: tick.StatusOpen, CreatedAt: base.Add(time.Minute)},
+		{ID: "c", Project: "proj-b", Type: tick.TypeBug, Status: tick.StatusOpen, CreatedAt: base.Add(2 * time.Minute)},
+		{ID: "d", Project: "proj-a", Type: tick.TypeBug, Status: tick.StatusClosed, CreatedAt: base.Add(3 * time.Minute)},
+	}
+
+	// Combine project filter with type filter
+	filtered := Apply(items, Filter{Project: "proj-a", Type: tick.TypeBug})
+	if len(filtered) != 2 {
+		t.Fatalf("expected 2 ticks (bugs in proj-a), got: %d", len(filtered))
+	}
+	for _, tick := range filtered {
+		if tick.Project != "proj-a" || tick.Type != "bug" {
+			t.Fatalf("unexpected tick: %+v", tick)
+		}
+	}
+
+	// Combine project filter with status filter
+	filtered = Apply(items, Filter{Project: "proj-a", Status: tick.StatusOpen})
+	if len(filtered) != 2 {
+		t.Fatalf("expected 2 ticks (open in proj-a), got: %d", len(filtered))
+	}
+	for _, tick := range filtered {
+		if tick.Project != "proj-a" || tick.Status != "open" {
+			t.Fatalf("unexpected tick: %+v", tick)
+		}
+	}
+}

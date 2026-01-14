@@ -209,6 +209,164 @@ func TestCreateProjectFlag(t *testing.T) {
 	}
 }
 
+func TestListProjectFilter(t *testing.T) {
+	repo := t.TempDir()
+	if err := runGit(repo, "init"); err != nil {
+		t.Fatalf("git init: %v", err)
+	}
+	if err := runGit(repo, "remote", "add", "origin", "https://github.com/petere/chefswiz.git"); err != nil {
+		t.Fatalf("git remote add: %v", err)
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(repo); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+
+	if err := os.Setenv("TICK_OWNER", "tester"); err != nil {
+		t.Fatalf("set env: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Unsetenv("TICK_OWNER") })
+
+	if code := run([]string{"tk", "init"}); code != exitSuccess {
+		t.Fatalf("expected init exit %d, got %d", exitSuccess, code)
+	}
+
+	// Create ticks with different projects
+	out, code := captureStdout(func() int {
+		return run([]string{"tk", "create", "Task A", "-project", "proj-a", "--json"})
+	})
+	if code != exitSuccess {
+		t.Fatalf("expected create exit %d, got %d", exitSuccess, code)
+	}
+	var taskA map[string]any
+	if err := json.Unmarshal([]byte(out), &taskA); err != nil {
+		t.Fatalf("parse create json: %v", err)
+	}
+	idA := taskA["id"].(string)
+
+	out, code = captureStdout(func() int {
+		return run([]string{"tk", "create", "Task B", "-project", "proj-b", "--json"})
+	})
+	if code != exitSuccess {
+		t.Fatalf("expected create exit %d, got %d", exitSuccess, code)
+	}
+	var taskB map[string]any
+	if err := json.Unmarshal([]byte(out), &taskB); err != nil {
+		t.Fatalf("parse create json: %v", err)
+	}
+	idB := taskB["id"].(string)
+
+	out, code = captureStdout(func() int {
+		return run([]string{"tk", "create", "Task C no project", "--json"})
+	})
+	if code != exitSuccess {
+		t.Fatalf("expected create exit %d, got %d", exitSuccess, code)
+	}
+	var taskC map[string]any
+	if err := json.Unmarshal([]byte(out), &taskC); err != nil {
+		t.Fatalf("parse create json: %v", err)
+	}
+	idC := taskC["id"].(string)
+
+	// Test 1: List with project filter returns only matching
+	out, code = captureStdout(func() int {
+		return run([]string{"tk", "list", "--project", "proj-a", "--json"})
+	})
+	if code != exitSuccess {
+		t.Fatalf("expected list exit %d, got %d", exitSuccess, code)
+	}
+	var result1 struct {
+		Ticks []map[string]any `json:"ticks"`
+	}
+	if err := json.Unmarshal([]byte(out), &result1); err != nil {
+		t.Fatalf("parse list json: %v", err)
+	}
+	if len(result1.Ticks) != 1 {
+		t.Fatalf("expected 1 tick, got %d", len(result1.Ticks))
+	}
+	if result1.Ticks[0]["id"] != idA {
+		t.Fatalf("expected tick id %s, got %v", idA, result1.Ticks[0]["id"])
+	}
+
+	// Test 2: List with project excludes empty-project ticks
+	out, code = captureStdout(func() int {
+		return run([]string{"tk", "list", "--project", "proj-b", "--json"})
+	})
+	if code != exitSuccess {
+		t.Fatalf("expected list exit %d, got %d", exitSuccess, code)
+	}
+	var result2 struct {
+		Ticks []map[string]any `json:"ticks"`
+	}
+	if err := json.Unmarshal([]byte(out), &result2); err != nil {
+		t.Fatalf("parse list json: %v", err)
+	}
+	if len(result2.Ticks) != 1 {
+		t.Fatalf("expected 1 tick, got %d", len(result2.Ticks))
+	}
+	if result2.Ticks[0]["id"] != idB {
+		t.Fatalf("expected tick id %s, got %v", idB, result2.Ticks[0]["id"])
+	}
+
+	// Test 3: List without project filter returns all
+	out, code = captureStdout(func() int {
+		return run([]string{"tk", "list", "--json"})
+	})
+	if code != exitSuccess {
+		t.Fatalf("expected list exit %d, got %d", exitSuccess, code)
+	}
+	var result3 struct {
+		Ticks []map[string]any `json:"ticks"`
+	}
+	if err := json.Unmarshal([]byte(out), &result3); err != nil {
+		t.Fatalf("parse list json: %v", err)
+	}
+	if len(result3.Ticks) != 3 {
+		t.Fatalf("expected 3 ticks, got %d", len(result3.Ticks))
+	}
+
+	// Test 4: Combine with other filters (type)
+	// First create a bug in proj-a
+	out, code = captureStdout(func() int {
+		return run([]string{"tk", "create", "Bug in proj-a", "-project", "proj-a", "-t", "bug", "--json"})
+	})
+	if code != exitSuccess {
+		t.Fatalf("expected create exit %d, got %d", exitSuccess, code)
+	}
+	var bugA map[string]any
+	if err := json.Unmarshal([]byte(out), &bugA); err != nil {
+		t.Fatalf("parse create json: %v", err)
+	}
+	bugID := bugA["id"].(string)
+
+	out, code = captureStdout(func() int {
+		return run([]string{"tk", "list", "--project", "proj-a", "-t", "bug", "--json"})
+	})
+	if code != exitSuccess {
+		t.Fatalf("expected list exit %d, got %d", exitSuccess, code)
+	}
+	var result4 struct {
+		Ticks []map[string]any `json:"ticks"`
+	}
+	if err := json.Unmarshal([]byte(out), &result4); err != nil {
+		t.Fatalf("parse list json: %v", err)
+	}
+	if len(result4.Ticks) != 1 {
+		t.Fatalf("expected 1 tick, got %d", len(result4.Ticks))
+	}
+	if result4.Ticks[0]["id"] != bugID {
+		t.Fatalf("expected tick id %s, got %v", bugID, result4.Ticks[0]["id"])
+	}
+
+	// Suppress unused variable warnings
+	_ = idC
+}
+
 func TestUpdateProjectFlag(t *testing.T) {
 	repo := t.TempDir()
 	if err := runGit(repo, "init"); err != nil {

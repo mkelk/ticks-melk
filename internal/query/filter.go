@@ -16,6 +16,7 @@ type Filter struct {
 	Label   string
 	LabelAny []string
 	Parent  string
+	Project string
 	TitleContains string
 	DescContains  string
 	NotesContains string
@@ -44,6 +45,9 @@ func Apply(ticks []tick.Tick, f Filter) []tick.Tick {
 			continue
 		}
 		if f.Parent != "" && t.Parent != f.Parent {
+			continue
+		}
+		if f.Project != "" && t.Project != f.Project {
 			continue
 		}
 		if f.TitleContains != "" && !containsFold(t.Title, f.TitleContains) {

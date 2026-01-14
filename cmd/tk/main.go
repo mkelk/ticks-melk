@@ -1097,6 +1097,7 @@ func runList(args []string) int {
 	fs.StringVar(labelFlag, "l", "", "label")
 	labelAnyFlag := fs.String("label-any", "", "label-any (comma-separated)")
 	parentFlag := fs.String("parent", "", "parent epic id")
+	projectFlag := fs.String("project", "", "project code")
 	titleContainsFlag := fs.String("title-contains", "", "title contains (case-insensitive)")
 	descContainsFlag := fs.String("desc-contains", "", "description contains (case-insensitive)")
 	notesContainsFlag := fs.String("notes-contains", "", "notes contains (case-insensitive)")
@@ -1148,6 +1149,7 @@ func runList(args []string) int {
 		Label:         strings.TrimSpace(*labelFlag),
 		LabelAny:      splitCSV(*labelAnyFlag),
 		Parent:        strings.TrimSpace(*parentFlag),
+		Project:       strings.TrimSpace(*projectFlag),
 		TitleContains: strings.TrimSpace(*titleContainsFlag),
 		DescContains:  strings.TrimSpace(*descContainsFlag),
 		NotesContains: strings.TrimSpace(*notesContainsFlag),
