@@ -497,6 +497,9 @@ func runShow(args []string) int {
 	if len(t.Labels) > 0 {
 		fmt.Printf("Labels: %s\n", strings.Join(t.Labels, ", "))
 	}
+	if strings.TrimSpace(t.Project) != "" {
+		fmt.Printf("Project: %s\n", t.Project)
+	}
 	if len(t.BlockedBy) > 0 {
 		var blocked []string
 		for _, blocker := range t.BlockedBy {
@@ -1211,6 +1214,7 @@ func runReady(args []string) int {
 	titleContainsFlag := fs.String("title-contains", "", "title contains (case-insensitive)")
 	descContainsFlag := fs.String("desc-contains", "", "description contains (case-insensitive)")
 	notesContainsFlag := fs.String("notes-contains", "", "notes contains (case-insensitive)")
+	projectFlag := fs.String("project", "", "project code")
 	includeManual := fs.Bool("include-manual", false, "include tasks marked as manual (excluded by default)")
 	jsonOutput := fs.Bool("json", false, "output as json")
 	fs.SetOutput(os.Stderr)
@@ -1247,6 +1251,7 @@ func runReady(args []string) int {
 		TitleContains: strings.TrimSpace(*titleContainsFlag),
 		DescContains:  strings.TrimSpace(*descContainsFlag),
 		NotesContains: strings.TrimSpace(*notesContainsFlag),
+		Project:       strings.TrimSpace(*projectFlag),
 	}
 	filtered := query.Apply(ticks, filter)
 	ready := query.Ready(filtered, ticks)
@@ -1303,6 +1308,7 @@ func runNext(args []string) int {
 	fs.StringVar(ownerFlag, "o", "", "owner")
 	epicFlag := fs.Bool("epic", false, "show next ready epic")
 	fs.BoolVar(epicFlag, "e", false, "show next ready epic")
+	projectFlag := fs.String("project", "", "project code")
 	includeManual := fs.Bool("include-manual", false, "include tasks marked as manual (excluded by default)")
 	jsonOutput := fs.Bool("json", false, "output as json")
 	fs.SetOutput(os.Stderr)
@@ -1348,7 +1354,7 @@ func runNext(args []string) int {
 	}
 
 	// Determine filter based on flags and positional args
-	filter := query.Filter{Owner: owner}
+	filter := query.Filter{Owner: owner, Project: strings.TrimSpace(*projectFlag)}
 
 	if *epicFlag {
 		// Next ready epic

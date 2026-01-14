@@ -115,6 +115,7 @@ Each tick is a single JSON file: `.tick/issues/<id>.json`
   "labels": ["backend", "auth"],
   "blocked_by": ["f1c"],
   "parent": "e1a",
+  "project": "auth-v2",
   "discovered_from": null,
   "created_by": "petere",
   "created_at": "2025-01-08T10:30:00Z",
@@ -139,6 +140,7 @@ Each tick is a single JSON file: `.tick/issues/<id>.json`
 | `labels` | []string | no | Arbitrary tags |
 | `blocked_by` | []string | no | IDs of blocking ticks |
 | `parent` | string | no | ID of parent epic |
+| `project` | string | no | Project code for grouping related ticks |
 | `discovered_from` | string | no | ID of tick this was discovered while working on |
 | `created_by` | string | yes | GitHub username of creator |
 | `created_at` | datetime | yes | ISO 8601 timestamp |
@@ -298,6 +300,7 @@ tk create <title> [flags]
 | `--labels` | `-l` | Comma-separated labels |
 | `--blocked-by` | `-b` | Comma-separated blocker IDs |
 | `--parent` | | Parent epic ID |
+| `--project` | | Project code (inherits from parent if not specified) |
 | `--discovered-from` | | Source tick ID |
 | `--json` | | Output created tick as JSON |
 
@@ -318,6 +321,9 @@ tk create "Deploy to prod" --blocked-by a1b,f1c
 
 # Child of epic
 tk create "Implement OAuth" --parent e1a
+
+# With project code
+tk create "Add OAuth provider" --project auth-v2
 
 # For agents: capture discovered work
 tk create "Edge case in validation" --discovered-from a1b -p 3
@@ -409,6 +415,7 @@ tk list [flags]
 | `--desc-contains` | | Case-insensitive description substring match |
 | `--notes-contains` | | Case-insensitive notes substring match |
 | `--parent` | | Filter by parent epic |
+| `--project` | | Filter by project code |
 | `--json` | | Output as JSON array |
 
 **Default behavior:** Shows own open ticks, sorted by priority then created_at.
@@ -441,6 +448,9 @@ tk list -a -p 1
 
 # Everything in an epic
 tk list --parent e1a --all
+
+# Filter by project
+tk list --project auth-v2 --all
 
 # Search by title/description/notes
 tk list --title-contains "auth" --all
@@ -541,6 +551,7 @@ tk update <id> [flags]
 | `--add-labels` | Add labels (comma-separated) |
 | `--remove-labels` | Remove labels (comma-separated) |
 | `--parent` | Change parent epic (empty string to clear) |
+| `--project` | Project code (empty string to clear) |
 | `--json` | Output updated tick |
 
 **Examples:**
@@ -670,6 +681,7 @@ tk ready [flags]
 | `--title-contains` | | Case-insensitive title substring match |
 | `--desc-contains` | | Case-insensitive description substring match |
 | `--notes-contains` | | Case-insensitive notes substring match |
+| `--project` | | Filter by project code |
 | `--limit` | `-n` | Max results (default: 10) |
 | `--json` | | Output as JSON |
 
@@ -686,6 +698,41 @@ tk ready --all
 
 # Top 5 for Alice
 tk ready -o alice -n 5
+```
+
+#### `tk next`
+
+Show the single next tick to work on.
+
+```
+tk next [EPIC_ID] [flags]
+```
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--all` | `-a` | All owners |
+| `--owner` | `-o` | Specific owner |
+| `--epic` | `-e` | Show next ready epic instead of task |
+| `--project` | | Filter by project code |
+| `--include-manual` | | Include tasks marked as manual (excluded by default) |
+| `--json` | | Output as JSON |
+
+If `EPIC_ID` is provided, shows the next ready tick within that epic.
+
+**Examples:**
+
+```bash
+# Next task for me
+tk next
+
+# Next task in a specific epic
+tk next e1a
+
+# Next ready epic
+tk next --epic
+
+# Next task in a project
+tk next --project auth-v2
 ```
 
 #### `tk blocked`

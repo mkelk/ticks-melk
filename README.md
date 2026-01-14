@@ -177,8 +177,23 @@ tk view
 tk list --label-any backend,auth --all
 tk list --title-contains "auth" --all
 tk list --status in_progress
+tk list --project myproject           # Filter by project code
 tk ready --owner alice
+tk next --project myproject           # Next task in a specific project
 ```
+
+## Projects
+
+Ticks can be tagged with a project code for organizing work across multiple initiatives:
+
+```bash
+tk create "Add login" --project auth  # Create with project
+tk list --project auth                # Filter by project
+tk ready --project auth               # Ready tasks in project
+tk next --project auth                # Next task in project
+```
+
+Child ticks automatically inherit their parent epic's project when created with `--parent`.
 
 ## Multiplayer
 

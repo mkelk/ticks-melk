@@ -1,0 +1,14 @@
+{
+  "id": "xm3",
+  "title": "Document --project flag in README and SPEC",
+  "description": "Add documentation for the new --project flag and Project field that were added in the project-dim feature branch.",
+  "status": "closed",
+  "priority": 2,
+  "type": "epic",
+  "owner": "morten@elk.dk",
+  "created_by": "morten@elk.dk",
+  "created_at": "2026-01-14T19:23:24.3523308Z",
+  "updated_at": "2026-01-14T19:25:35.3863581Z",
+  "closed_at": "2026-01-14T19:25:35.3863581Z",
+  "closed_reason": "README and SPEC updated with --project documentation"
+}

@@ -2,7 +2,7 @@
   "id": "v7b",
   "title": "Add --project filter to tk next",
   "description": "Add --project filter flag to next command in cmd/next.go.\n\nImplementation:\n- Add --project string flag\n- When --project specified without epic: find next task across all epics matching project\n- When --project specified with epic: find next task in epic matching project\n- Combine with existing next logic (priority, blockers)\n\nTest cases:\n- Next with project finds next matching task\n- Next with project and epic ID\n- Next excludes non-matching projects",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "type": "task",
   "owner": "morten@elk.dk",
@@ -13,5 +13,7 @@
   "acceptance_criteria": "Filter works, combines with next logic, tests pass",
   "created_by": "morten@elk.dk",
   "created_at": "2026-01-14T18:51:13.6896473Z",
-  "updated_at": "2026-01-14T18:51:13.6896473Z"
+  "updated_at": "2026-01-14T19:18:36.10513Z",
+  "closed_at": "2026-01-14T19:18:36.10513Z",
+  "closed_reason": "Implemented --project flag in runNext function"
 }

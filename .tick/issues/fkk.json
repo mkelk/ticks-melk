@@ -2,7 +2,7 @@
   "id": "fkk",
   "title": "Add --project filter to tk ready",
   "description": "Add --project filter flag to ready command in cmd/ready.go.\n\nImplementation:\n- Add --project string flag\n- Filter ready (unblocked) ticks to those matching project\n- Combine with existing ready logic\n\nTest cases:\n- Ready with project filter returns only matching unblocked ticks\n- Ticks without project excluded",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "type": "task",
   "owner": "morten@elk.dk",
@@ -13,5 +13,7 @@
   "acceptance_criteria": "Filter works, combines with ready logic, tests pass",
   "created_by": "morten@elk.dk",
   "created_at": "2026-01-14T18:51:12.5448046Z",
-  "updated_at": "2026-01-14T18:51:12.5448046Z"
+  "updated_at": "2026-01-14T19:18:34.9535057Z",
+  "closed_at": "2026-01-14T19:18:34.9535057Z",
+  "closed_reason": "Implemented --project flag in runReady function"
 }

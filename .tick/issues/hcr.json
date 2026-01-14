@@ -1,0 +1,15 @@
+{
+  "id": "hcr",
+  "title": "Update SPEC.md with project field and --project flags",
+  "description": "Add project field to tick schema and --project to all relevant CLI commands",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "morten@elk.dk",
+  "parent": "xm3",
+  "created_by": "morten@elk.dk",
+  "created_at": "2026-01-14T19:23:31.5146348Z",
+  "updated_at": "2026-01-14T19:25:34.0686023Z",
+  "closed_at": "2026-01-14T19:25:34.0686023Z",
+  "closed_reason": "Added project field to schema, --project to create/update/list/ready, and new tk next section"
+}

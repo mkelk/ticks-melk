@@ -5,7 +5,23 @@
       "Bash(ls:*)",
       "Bash(tk create:*)",
       "Bash(tk list:*)",
-      "Bash(tk show:*)"
+      "Bash(tk show:*)",
+      "Bash(git -C \"C:/git/ticks-melk\" log --oneline -20)",
+      "Bash(grep:*)",
+      "Bash(wc:*)",
+      "Bash(git -C \"C:/git/ticks-melk\" status --short)",
+      "Bash(go build:*)",
+      "Bash(go test:*)",
+      "Bash(./tk.exe list:*)",
+      "Bash(./tk.exe whoami)",
+      "Bash(./tk.exe show:*)",
+      "Bash(./tk.exe ready:*)",
+      "Bash(./tk.exe next:*)",
+      "Bash(./tk.exe create:*)",
+      "Bash(./tk.exe delete:*)",
+      "Bash(./tk.exe close:*)",
+      "Bash(./tk.exe stats:*)",
+      "Bash(./tk.exe version:*)"
     ]
   }
 }

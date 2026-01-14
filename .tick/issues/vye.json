@@ -1,0 +1,15 @@
+{
+  "id": "vye",
+  "title": "Update README.md with --project flag documentation",
+  "description": "Add --project to Search and Filtering section",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "morten@elk.dk",
+  "parent": "xm3",
+  "created_by": "morten@elk.dk",
+  "created_at": "2026-01-14T19:23:30.8394085Z",
+  "updated_at": "2026-01-14T19:23:56.6077944Z",
+  "closed_at": "2026-01-14T19:23:56.6077944Z",
+  "closed_reason": "Added --project to Search and Filtering section and new Projects section"
+}
