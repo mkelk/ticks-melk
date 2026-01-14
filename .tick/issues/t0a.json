@@ -2,7 +2,7 @@
   "id": "t0a",
   "title": "Implement verdict processing function",
   "description": "Create ProcessVerdict function in internal/tick/verdict.go\n\nThis is the core state machine for agent-human workflow.\n\nFunction signature:\n  func ProcessVerdict(t *Tick) (closed bool, err error)\n\nLogic (from design doc):\n\nfunc ProcessVerdict(t *Tick) (bool, error) {\n    if t.Verdict == nil || t.Awaiting == nil {\n        return false, nil  // No-op\n    }\n\n    shouldClose := false\n\n    switch *t.Awaiting {\n    case AwaitingWork:\n        // Human completed work\n        shouldClose = (*t.Verdict == VerdictApproved)\n    case AwaitingApproval, AwaitingReview, AwaitingContent:\n        // Terminal states - approved means done\n        shouldClose = (*t.Verdict == VerdictApproved)\n    case AwaitingInput:\n        // Approved = answer provided, continue; Rejected = can't proceed\n        shouldClose = (*t.Verdict == VerdictRejected)\n    case AwaitingEscalation:\n        // Approved = direction given, continue; Rejected = won't do\n        shouldClose = (*t.Verdict == VerdictRejected)\n    case AwaitingCheckpoint:\n        // Never closes - always back to agent\n        shouldClose = false\n    }\n\n    // Clear transient state\n    t.Awaiting = nil\n    t.Verdict = nil\n\n    if shouldClose {\n        t.Status = StatusClosed\n        now := time.Now()\n        t.ClosedAt = \u0026now\n    }\n\n    return shouldClose, nil\n}\n\nThis function is called by:\n- tk approve / tk reject commands\n- tk update --verdict flag",
-  "status": "open",
+  "status": "closed",
   "priority": 0,
   "type": "task",
   "owner": "peter@engelbrecht.dk",
@@ -15,5 +15,7 @@
   "acceptance_criteria": "- [ ] Function handles all awaiting types correctly\n- [ ] Terminal states (work, approval, review, content) close on approved\n- [ ] Non-terminal states (input, escalation) close on rejected\n- [ ] Checkpoint never closes\n- [ ] Awaiting and Verdict cleared after processing\n- [ ] ClosedAt set when closing\n- [ ] No-op when Verdict or Awaiting is nil",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-14T16:18:36.241793Z",
-  "updated_at": "2026-01-14T16:21:20.292076Z"
+  "updated_at": "2026-01-14T16:36:20.878697Z",
+  "closed_at": "2026-01-14T16:36:20.878697Z",
+  "closed_reason": "Created ProcessVerdict function in internal/tick/verdict.go implementing the state machine for agent-human workflow. Terminal states (work, approval, review, content) close on approved; non-terminal states (input, escalation) close on rejected; checkpoint never closes. Function clears Awaiting/Verdict after processing and sets ClosedAt when closing. Added comprehensive tests in verdict_test.go covering all state combinations."
 }
