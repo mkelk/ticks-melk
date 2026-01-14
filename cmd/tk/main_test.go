@@ -960,3 +960,145 @@ func TestRejectCommand(t *testing.T) {
 		}
 	})
 }
+
+func TestNoteFromFlag(t *testing.T) {
+	repo := t.TempDir()
+	if err := runGit(repo, "init"); err != nil {
+		t.Fatalf("git init: %v", err)
+	}
+	if err := runGit(repo, "remote", "add", "origin", "https://github.com/petere/chefswiz.git"); err != nil {
+		t.Fatalf("git remote add: %v", err)
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(repo); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+
+	if err := os.Setenv("TICK_OWNER", "tester"); err != nil {
+		t.Fatalf("set env: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Unsetenv("TICK_OWNER") })
+
+	if code := run([]string{"tk", "init"}); code != exitSuccess {
+		t.Fatalf("expected init exit %d, got %d", exitSuccess, code)
+	}
+
+	t.Run("note_default_no_prefix", func(t *testing.T) {
+		out, code := captureStdout(func() int {
+			return run([]string{"tk", "create", "Note test tick", "--json"})
+		})
+		if code != exitSuccess {
+			t.Fatalf("failed to create tick: exit %d", code)
+		}
+		var created map[string]any
+		json.Unmarshal([]byte(out), &created)
+		id := created["id"].(string)
+
+		// Add note with default --from (agent)
+		code = run([]string{"tk", "note", id, "Agent note here"})
+		if code != exitSuccess {
+			t.Fatalf("expected note exit %d, got %d", exitSuccess, code)
+		}
+
+		// Read tick and check notes
+		tickPath := filepath.Join(repo, ".tick", "issues", id+".json")
+		data, _ := os.ReadFile(tickPath)
+		var tickData map[string]any
+		json.Unmarshal(data, &tickData)
+		notes := tickData["notes"].(string)
+
+		if bytes.Contains([]byte(notes), []byte("[human]")) {
+			t.Errorf("expected no [human] prefix for default --from, got: %s", notes)
+		}
+		if !bytes.Contains([]byte(notes), []byte("Agent note here")) {
+			t.Errorf("expected note text in notes, got: %s", notes)
+		}
+	})
+
+	t.Run("note_from_agent_no_prefix", func(t *testing.T) {
+		out, code := captureStdout(func() int {
+			return run([]string{"tk", "create", "Agent note tick", "--json"})
+		})
+		if code != exitSuccess {
+			t.Fatalf("failed to create tick: exit %d", code)
+		}
+		var created map[string]any
+		json.Unmarshal([]byte(out), &created)
+		id := created["id"].(string)
+
+		// Add note with explicit --from agent
+		code = run([]string{"tk", "note", id, "Explicit agent note", "--from", "agent"})
+		if code != exitSuccess {
+			t.Fatalf("expected note exit %d, got %d", exitSuccess, code)
+		}
+
+		// Read tick and check notes
+		tickPath := filepath.Join(repo, ".tick", "issues", id+".json")
+		data, _ := os.ReadFile(tickPath)
+		var tickData map[string]any
+		json.Unmarshal(data, &tickData)
+		notes := tickData["notes"].(string)
+
+		if bytes.Contains([]byte(notes), []byte("[human]")) {
+			t.Errorf("expected no [human] prefix for --from agent, got: %s", notes)
+		}
+		if !bytes.Contains([]byte(notes), []byte("Explicit agent note")) {
+			t.Errorf("expected note text in notes, got: %s", notes)
+		}
+	})
+
+	t.Run("note_from_human_adds_prefix", func(t *testing.T) {
+		out, code := captureStdout(func() int {
+			return run([]string{"tk", "create", "Human note tick", "--json"})
+		})
+		if code != exitSuccess {
+			t.Fatalf("failed to create tick: exit %d", code)
+		}
+		var created map[string]any
+		json.Unmarshal([]byte(out), &created)
+		id := created["id"].(string)
+
+		// Add note with --from human
+		code = run([]string{"tk", "note", id, "Human feedback here", "--from", "human"})
+		if code != exitSuccess {
+			t.Fatalf("expected note exit %d, got %d", exitSuccess, code)
+		}
+
+		// Read tick and check notes
+		tickPath := filepath.Join(repo, ".tick", "issues", id+".json")
+		data, _ := os.ReadFile(tickPath)
+		var tickData map[string]any
+		json.Unmarshal(data, &tickData)
+		notes := tickData["notes"].(string)
+
+		if !bytes.Contains([]byte(notes), []byte("[human]")) {
+			t.Errorf("expected [human] prefix for --from human, got: %s", notes)
+		}
+		if !bytes.Contains([]byte(notes), []byte("Human feedback here")) {
+			t.Errorf("expected note text in notes, got: %s", notes)
+		}
+	})
+
+	t.Run("note_from_invalid_fails", func(t *testing.T) {
+		out, code := captureStdout(func() int {
+			return run([]string{"tk", "create", "Invalid from tick", "--json"})
+		})
+		if code != exitSuccess {
+			t.Fatalf("failed to create tick: exit %d", code)
+		}
+		var created map[string]any
+		json.Unmarshal([]byte(out), &created)
+		id := created["id"].(string)
+
+		// Add note with invalid --from value
+		code = run([]string{"tk", "note", id, "Some note", "--from", "invalid"})
+		if code != exitUsage {
+			t.Errorf("expected exit %d for invalid --from, got %d", exitUsage, code)
+		}
+	})
+}

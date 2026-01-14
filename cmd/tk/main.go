@@ -916,7 +916,14 @@ func runReopen(args []string) int {
 func runNote(args []string) int {
 	fs := flag.NewFlagSet("note", flag.ContinueOnError)
 	edit := fs.Bool("edit", false, "edit notes in $EDITOR")
+	from := fs.String("from", "agent", "note author: agent or human")
 	fs.SetOutput(os.Stderr)
+	fs.Usage = func() {
+		fmt.Fprintln(os.Stderr, "Usage: tk note <id> \"message\" [--from agent|human]")
+		fmt.Fprintln(os.Stderr, "\nAdd a timestamped note to a tick.")
+		fmt.Fprintln(os.Stderr, "\nFlags:")
+		fs.PrintDefaults()
+	}
 	positionals, err := parseInterleaved(fs, args)
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -1009,8 +1016,19 @@ func runNote(args []string) int {
 		return exitUsage
 	}
 
+	// Validate --from flag
+	if *from != "agent" && *from != "human" {
+		fmt.Fprintf(os.Stderr, "invalid --from value: %s (must be agent or human)\n", *from)
+		return exitUsage
+	}
+
 	timestamp := time.Now().Format("2006-01-02 15:04")
-	line := fmt.Sprintf("%s - %s", timestamp, note)
+	var line string
+	if *from == "human" {
+		line = fmt.Sprintf("%s - [human] %s", timestamp, note)
+	} else {
+		line = fmt.Sprintf("%s - %s", timestamp, note)
+	}
 	if strings.TrimSpace(t.Notes) == "" {
 		t.Notes = line
 	} else {
