@@ -313,6 +313,8 @@ func runCreate(args []string) int {
 	deferFlag := fs.String("defer", "", "defer until date (YYYY-MM-DD)")
 	externalFlag := fs.String("external-ref", "", "external reference (e.g. gh-42)")
 	manualFlag := fs.Bool("manual", false, "mark as requiring human intervention (skipped by tk next)")
+	requiresFlag := fs.String("requires", "", "approval gate (approval|review|content) - tick routes to human even if agent signals COMPLETE")
+	fs.StringVar(requiresFlag, "r", "", "approval gate (approval|review|content)")
 	jsonOutput := fs.Bool("json", false, "output as json")
 	fs.SetOutput(os.Stderr)
 
@@ -328,6 +330,18 @@ func runCreate(args []string) int {
 	if title == "" {
 		fmt.Fprintln(os.Stderr, "title is required")
 		return exitUsage
+	}
+
+	// Validate requires flag if provided
+	requiresVal := strings.TrimSpace(*requiresFlag)
+	if requiresVal != "" {
+		switch requiresVal {
+		case tick.RequiresApproval, tick.RequiresReview, tick.RequiresContent:
+			// valid
+		default:
+			fmt.Fprintf(os.Stderr, "invalid requires value: %s (must be approval, review, or content)\n", requiresVal)
+			return exitUsage
+		}
 	}
 
 	root, err := repoRoot()
@@ -374,6 +388,12 @@ func runCreate(args []string) int {
 		deferUntil = &parsed
 	}
 
+	// Set requires pointer only if value provided
+	var requires *string
+	if requiresVal != "" {
+		requires = &requiresVal
+	}
+
 	t := tick.Tick{
 		ID:                 id,
 		Title:              title,
@@ -390,6 +410,7 @@ func runCreate(args []string) int {
 		DeferUntil:         deferUntil,
 		ExternalRef:        strings.TrimSpace(*externalFlag),
 		Manual:             *manualFlag,
+		Requires:           requires,
 		CreatedBy:          creator,
 		CreatedAt:          now,
 		UpdatedAt:          now,
