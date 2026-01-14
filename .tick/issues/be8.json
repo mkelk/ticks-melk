@@ -1,0 +1,17 @@
+{
+  "id": "be8",
+  "title": "Add --project filter to tk list",
+  "description": "Add --project filter flag to list command in cmd/list.go.\n\nImplementation:\n- Add --project string flag\n- Filter ticks where project matches exactly\n- Ticks with empty project excluded when filter set\n- Combine with existing filters (type, status, parent, etc.)\n\nTest cases:\n- List with project filter returns only matching\n- List with project excludes empty-project ticks\n- Combine with other filters",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "morten@elk.dk",
+  "blocked_by": [
+    "8t9"
+  ],
+  "parent": "ejb",
+  "acceptance_criteria": "Filter works correctly, combines with existing filters, tests pass",
+  "created_by": "morten@elk.dk",
+  "created_at": "2026-01-14T18:50:59.5731047Z",
+  "updated_at": "2026-01-14T18:50:59.5731047Z"
+}

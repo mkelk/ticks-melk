@@ -1,0 +1,17 @@
+{
+  "id": "hj3",
+  "title": "Display project field in tk show",
+  "description": "Update show command to display project field in cmd/show.go.\n\nImplementation:\n- Add Project line to text output (after Priority, before Parent)\n- Include project in JSON output (already handled by struct tag)\n\nOutput format:\nID:          abc123\nTitle:       Task title\nType:        task\nStatus:      open\nPriority:    2 (Medium)\nProject:     2026-01-14-6453-auth    # NEW LINE\nParent:      def456\n\nTest cases:\n- Show tick with project displays it\n- Show tick without project (empty or omitted)",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "morten@elk.dk",
+  "blocked_by": [
+    "8t9"
+  ],
+  "parent": "ejb",
+  "acceptance_criteria": "Project displayed in output, JSON includes field, tests pass",
+  "created_by": "morten@elk.dk",
+  "created_at": "2026-01-14T18:51:14.9963241Z",
+  "updated_at": "2026-01-14T18:51:14.9963241Z"
+}

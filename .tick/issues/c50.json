@@ -1,0 +1,17 @@
+{
+  "id": "c50",
+  "title": "Add --project flag to tk update",
+  "description": "Add --project flag to update command in cmd/update.go.\n\nImplementation:\n- Add --project string flag\n- tk update \u003cid\u003e --project \"code\" sets project\n- tk update \u003cid\u003e --project \"\" clears project\n\nTest cases:\n- Set project on tick without project\n- Change project on tick with project\n- Clear project with empty string",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "morten@elk.dk",
+  "blocked_by": [
+    "8t9"
+  ],
+  "parent": "ejb",
+  "acceptance_criteria": "Flag works, can set/clear project, tests pass",
+  "created_by": "morten@elk.dk",
+  "created_at": "2026-01-14T18:50:58.4433193Z",
+  "updated_at": "2026-01-14T18:50:58.4433193Z"
+}

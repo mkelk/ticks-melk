@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(ticker)",
+      "Bash(ls:*)",
+      "Bash(tk create:*)",
+      "Bash(tk list:*)",
+      "Bash(tk show:*)"
+    ]
+  }
+}
