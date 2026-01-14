@@ -2,6 +2,7 @@
   "id": "771",
   "title": "Backwards Compatibility",
   "description": "Maintain compatibility with existing manual field:\n- Read: If manual=true and awaiting=null, treat as awaiting=work\n- Write: Always write to awaiting, clear manual field\n- CLI: --manual shows deprecation warning, maps to --awaiting work\n- Queries: Check both awaiting and manual fields when filtering\n\nMigration path: v2.0 supports both, v3.0 removes manual.",
+  "notes": "2026-01-14 18:42 - Completed task 3vk: Manual to Awaiting read compatibility is fully implemented. Key details: (1) tick.IsAwaitingHuman() returns true for Manual=true OR Awaiting\\!=nil (2) tick.GetAwaitingType() returns 'work' for Manual=true when Awaiting=nil (3) Query layer uses helpers consistently (4) Approve/reject commands normalize Manual=true to Awaiting='work' before ProcessVerdict. All backwards compat tests pass.",
   "status": "open",
   "priority": 2,
   "type": "epic",
@@ -9,5 +10,5 @@
   "parent": "7sn",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-14T16:14:32.998773Z",
-  "updated_at": "2026-01-14T16:14:32.998773Z"
+  "updated_at": "2026-01-14T17:42:05.990777Z"
 }
