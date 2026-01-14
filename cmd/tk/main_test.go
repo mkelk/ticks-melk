@@ -1780,6 +1780,111 @@ func TestUpdateVerdictFlag(t *testing.T) {
 	})
 }
 
+func TestCreateRequiresFlag(t *testing.T) {
+	repo := t.TempDir()
+	if err := runGit(repo, "init"); err != nil {
+		t.Fatalf("git init: %v", err)
+	}
+	if err := runGit(repo, "remote", "add", "origin", "https://github.com/petere/chefswiz.git"); err != nil {
+		t.Fatalf("git remote add: %v", err)
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(repo); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+
+	if err := os.Setenv("TICK_OWNER", "tester"); err != nil {
+		t.Fatalf("set env: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Unsetenv("TICK_OWNER") })
+
+	if code := run([]string{"tk", "init"}); code != exitSuccess {
+		t.Fatalf("expected init exit %d, got %d", exitSuccess, code)
+	}
+
+	t.Run("create_with_requires_approval", func(t *testing.T) {
+		out, code := captureStdout(func() int {
+			return run([]string{"tk", "create", "Test requires approval", "--requires", "approval", "--json"})
+		})
+		if code != exitSuccess {
+			t.Fatalf("failed to create tick: exit %d", code)
+		}
+		var created map[string]any
+		json.Unmarshal([]byte(out), &created)
+		if created["requires"] != "approval" {
+			t.Errorf("expected requires=approval, got %v", created["requires"])
+		}
+	})
+
+	t.Run("create_with_requires_review", func(t *testing.T) {
+		out, code := captureStdout(func() int {
+			return run([]string{"tk", "create", "Test requires review", "--requires", "review", "--json"})
+		})
+		if code != exitSuccess {
+			t.Fatalf("failed to create tick: exit %d", code)
+		}
+		var created map[string]any
+		json.Unmarshal([]byte(out), &created)
+		if created["requires"] != "review" {
+			t.Errorf("expected requires=review, got %v", created["requires"])
+		}
+	})
+
+	t.Run("create_with_requires_content", func(t *testing.T) {
+		out, code := captureStdout(func() int {
+			return run([]string{"tk", "create", "Test requires content", "--requires", "content", "--json"})
+		})
+		if code != exitSuccess {
+			t.Fatalf("failed to create tick: exit %d", code)
+		}
+		var created map[string]any
+		json.Unmarshal([]byte(out), &created)
+		if created["requires"] != "content" {
+			t.Errorf("expected requires=content, got %v", created["requires"])
+		}
+	})
+
+	t.Run("create_without_requires", func(t *testing.T) {
+		out, code := captureStdout(func() int {
+			return run([]string{"tk", "create", "Test no requires", "--json"})
+		})
+		if code != exitSuccess {
+			t.Fatalf("failed to create tick: exit %d", code)
+		}
+		var created map[string]any
+		json.Unmarshal([]byte(out), &created)
+		if created["requires"] != nil {
+			t.Errorf("expected requires=nil, got %v", created["requires"])
+		}
+	})
+
+	t.Run("invalid_requires_value_fails", func(t *testing.T) {
+		code := run([]string{"tk", "create", "Test invalid requires", "--requires", "invalid"})
+		if code != exitUsage {
+			t.Errorf("expected exit %d for invalid requires value, got %d", exitUsage, code)
+		}
+	})
+
+	t.Run("short_flag_r_works", func(t *testing.T) {
+		out, code := captureStdout(func() int {
+			return run([]string{"tk", "create", "Test short flag", "-r", "approval", "--json"})
+		})
+		if code != exitSuccess {
+			t.Fatalf("failed to create tick: exit %d", code)
+		}
+		var created map[string]any
+		json.Unmarshal([]byte(out), &created)
+		if created["requires"] != "approval" {
+			t.Errorf("expected requires=approval with -r flag, got %v", created["requires"])
+		}
+	})
+}
+
 func TestCreateAwaitingFlag(t *testing.T) {
 	repo := t.TempDir()
 	if err := runGit(repo, "init"); err != nil {
