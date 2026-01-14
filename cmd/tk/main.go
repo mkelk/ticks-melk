@@ -309,6 +309,7 @@ func runCreate(args []string) int {
 	deferFlag := fs.String("defer", "", "defer until date (YYYY-MM-DD)")
 	externalFlag := fs.String("external-ref", "", "external reference (e.g. gh-42)")
 	manualFlag := fs.Bool("manual", false, "mark as requiring human intervention (skipped by tk next)")
+	projectFlag := fs.String("project", "", "project code")
 	jsonOutput := fs.Bool("json", false, "output as json")
 	fs.SetOutput(os.Stderr)
 
@@ -370,6 +371,16 @@ func runCreate(args []string) int {
 		deferUntil = &parsed
 	}
 
+	// Determine project: explicit flag > inherit from parent > empty
+	project := strings.TrimSpace(*projectFlag)
+	if project == "" && strings.TrimSpace(*parentFlag) != "" {
+		// Try to inherit project from parent
+		parentTick, err := store.Read(strings.TrimSpace(*parentFlag))
+		if err == nil && parentTick.Project != "" {
+			project = parentTick.Project
+		}
+	}
+
 	t := tick.Tick{
 		ID:                 id,
 		Title:              title,
@@ -381,6 +392,7 @@ func runCreate(args []string) int {
 		Labels:             splitCSV(*labelsFlag),
 		BlockedBy:          splitCSV(*blockedFlag),
 		Parent:             strings.TrimSpace(*parentFlag),
+		Project:            project,
 		DiscoveredFrom:     strings.TrimSpace(*discoveredFlag),
 		AcceptanceCriteria: strings.TrimSpace(*acceptanceFlag),
 		DeferUntil:         deferUntil,

@@ -104,3 +104,107 @@ func runGit(dir string, args ...string) error {
 	cmd.Dir = dir
 	return cmd.Run()
 }
+
+func TestCreateProjectFlag(t *testing.T) {
+	repo := t.TempDir()
+	if err := runGit(repo, "init"); err != nil {
+		t.Fatalf("git init: %v", err)
+	}
+	if err := runGit(repo, "remote", "add", "origin", "https://github.com/petere/chefswiz.git"); err != nil {
+		t.Fatalf("git remote add: %v", err)
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(repo); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+
+	if err := os.Setenv("TICK_OWNER", "tester"); err != nil {
+		t.Fatalf("set env: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Unsetenv("TICK_OWNER") })
+
+	if code := run([]string{"tk", "init"}); code != exitSuccess {
+		t.Fatalf("expected init exit %d, got %d", exitSuccess, code)
+	}
+
+	// Test 1: Create with explicit project
+	out, code := captureStdout(func() int {
+		return run([]string{"tk", "create", "Task with project", "-project", "test-proj-123", "--json"})
+	})
+	if code != exitSuccess {
+		t.Fatalf("expected create exit %d, got %d", exitSuccess, code)
+	}
+	var result1 map[string]any
+	if err := json.Unmarshal([]byte(out), &result1); err != nil {
+		t.Fatalf("parse create json: %v", err)
+	}
+	if result1["project"] != "test-proj-123" {
+		t.Fatalf("expected project test-proj-123, got %v", result1["project"])
+	}
+
+	// Test 2: Create without project
+	out, code = captureStdout(func() int {
+		return run([]string{"tk", "create", "Task without project", "--json"})
+	})
+	if code != exitSuccess {
+		t.Fatalf("expected create exit %d, got %d", exitSuccess, code)
+	}
+	var result2 map[string]any
+	if err := json.Unmarshal([]byte(out), &result2); err != nil {
+		t.Fatalf("parse create json: %v", err)
+	}
+	if result2["project"] != nil && result2["project"] != "" {
+		t.Fatalf("expected empty project, got %v", result2["project"])
+	}
+
+	// Test 3: Create parent epic with project, then child inherits it
+	out, code = captureStdout(func() int {
+		return run([]string{"tk", "create", "Parent epic", "-t", "epic", "-project", "epic-proj", "--json"})
+	})
+	if code != exitSuccess {
+		t.Fatalf("expected create exit %d, got %d", exitSuccess, code)
+	}
+	var result3 map[string]any
+	if err := json.Unmarshal([]byte(out), &result3); err != nil {
+		t.Fatalf("parse create json: %v", err)
+	}
+	epicID := result3["id"].(string)
+	if result3["project"] != "epic-proj" {
+		t.Fatalf("expected project epic-proj, got %v", result3["project"])
+	}
+
+	// Child without explicit project should inherit from parent
+	out, code = captureStdout(func() int {
+		return run([]string{"tk", "create", "Child task", "-parent", epicID, "--json"})
+	})
+	if code != exitSuccess {
+		t.Fatalf("expected create exit %d, got %d", exitSuccess, code)
+	}
+	var result4 map[string]any
+	if err := json.Unmarshal([]byte(out), &result4); err != nil {
+		t.Fatalf("parse create json: %v", err)
+	}
+	if result4["project"] != "epic-proj" {
+		t.Fatalf("expected inherited project epic-proj, got %v", result4["project"])
+	}
+
+	// Test 4: Child that overrides parent project
+	out, code = captureStdout(func() int {
+		return run([]string{"tk", "create", "Child with override", "-parent", epicID, "-project", "different-proj", "--json"})
+	})
+	if code != exitSuccess {
+		t.Fatalf("expected create exit %d, got %d", exitSuccess, code)
+	}
+	var result5 map[string]any
+	if err := json.Unmarshal([]byte(out), &result5); err != nil {
+		t.Fatalf("parse create json: %v", err)
+	}
+	if result5["project"] != "different-proj" {
+		t.Fatalf("expected project different-proj, got %v", result5["project"])
+	}
+}

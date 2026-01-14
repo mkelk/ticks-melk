@@ -2,7 +2,7 @@
   "id": "ds8",
   "title": "Add -project flag to tk create with inheritance",
   "description": "Add -project flag to create command in cmd/create.go.\n\nImplementation:\n1. Add -project string flag\n2. If -project specified, use it\n3. If -project NOT specified AND -parent specified:\n   - Load parent tick\n   - Inherit parent's project if set\n4. If neither, no project\n\nTest cases:\n- Create with explicit project\n- Create without project  \n- Create child that inherits parent project\n- Create child that overrides parent project",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "type": "task",
   "owner": "morten@elk.dk",
@@ -13,5 +13,7 @@
   "acceptance_criteria": "Flag works, inheritance logic correct, tests pass",
   "created_by": "morten@elk.dk",
   "created_at": "2026-01-14T18:50:57.309695Z",
-  "updated_at": "2026-01-14T18:50:57.309695Z"
+  "updated_at": "2026-01-14T19:01:08.686034Z",
+  "closed_at": "2026-01-14T19:01:08.686034Z",
+  "closed_reason": "Added -project flag to create command in cmd/tk/main.go with parent inheritance logic. When -project is specified it is used directly; when not specified but -parent is specified, project is inherited from parent tick. Added TestCreateProjectFlag with 4 test cases covering explicit project, no project, inheritance, and override scenarios."
 }
