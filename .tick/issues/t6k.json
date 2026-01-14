@@ -2,7 +2,7 @@
   "id": "t6k",
   "title": "Write tests for approve/reject commands",
   "description": "Add integration tests for the new approve and reject commands in cmd/tk/main_test.go\n\nTest cases for tk approve:\n1. Approve tick awaiting approval → tick closes\n2. Approve tick awaiting review → tick closes\n3. Approve tick awaiting content → tick closes\n4. Approve tick awaiting work → tick closes\n5. Approve tick awaiting input → tick returns to agent (not closed)\n6. Approve tick awaiting escalation → tick returns to agent\n7. Approve tick awaiting checkpoint → tick returns to agent\n8. Approve tick not awaiting → error\n9. Approve non-existent tick → error (exit 4)\n10. Approve with --json → JSON output\n\nTest cases for tk reject:\n1. Reject tick awaiting approval → tick returns to agent\n2. Reject tick awaiting input → tick closes (can't proceed)\n3. Reject tick awaiting escalation → tick closes (won't do)\n4. Reject with feedback → note added before state change\n5. Reject tick not awaiting → error\n6. Reject with --json → JSON output\n\nFollow existing test patterns (temp dir, create tick, run command, verify state).",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "type": "task",
   "owner": "peter@engelbrecht.dk",
@@ -14,5 +14,7 @@
   "acceptance_criteria": "- [ ] Tests cover all awaiting types for approve\n- [ ] Tests cover all awaiting types for reject\n- [ ] Tests verify state transitions match spec\n- [ ] Tests verify feedback note is added (reject)\n- [ ] Tests verify error cases\n- [ ] All tests pass",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-14T16:16:34.033243Z",
-  "updated_at": "2026-01-14T16:20:34.419458Z"
+  "updated_at": "2026-01-14T16:52:21.030002Z",
+  "closed_at": "2026-01-14T16:52:21.030002Z",
+  "closed_reason": "Added comprehensive integration tests for approve/reject commands in cmd/tk/main_test.go. Tests cover: all awaiting states (work/approval/review/content/input/escalation/checkpoint) for both approve and reject; error cases (no id, not found, not awaiting); manual tick backwards compatibility; feedback note addition with [human] prefix; JSON output format validation. Total 24 test cases across both command test suites."
 }
