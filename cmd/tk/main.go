@@ -2352,6 +2352,7 @@ func runView(args []string) int {
 
 	storePath := filepath.Join(root, ".tick")
 	model := tui.NewModel(filtered, storePath)
+	defer model.Close() // Clean up filesystem watcher
 	if _, err := tea.NewProgram(model, tea.WithAltScreen()).Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to run view: %v\n", err)
 		return exitIO

@@ -3,12 +3,13 @@
   "title": "TUI Updates",
   "description": "Update the TUI (tk view) to display and interact with workflow state:\n- Display awaiting status in tick list\n- Display requires field in detail view\n- Display verdict pending state\n- Color coding for awaiting states\n- Keyboard shortcuts for approve/reject",
   "notes": "2026-01-14 18:59 - wa7 complete: TUI list shows yellow ◐ for awaiting ticks via renderTickStatus(). Detail view shows awaiting type. Uses Catppuccin Yellow #F9E2AF. Next tasks may want to add keyboard shortcuts for approve/reject.\n2026-01-14 19:01 - wjl complete: TUI detail pane now has dedicated Workflow section showing requires, awaiting, verdict fields. Uses Catppuccin colors (yellow awaiting, green approved, red rejected). Section hidden when no workflow fields set. renderVerdict() helper added for verdict coloring.\n2026-01-14 19:07 - w5g complete: TUI now has 'a' (approve) and 'r' (reject) keyboard shortcuts. Approve processes immediately. Reject opens text input for optional feedback. Status messages shown in footer (green success, red error). Same logic as CLI commands. May want confirmation dialogs in future to prevent accidental actions.\n2026-01-14 19:13 - ihh complete: TUI now has awaiting filter via 'h' key (cycles off-\u003ehuman-\u003eagent-\u003eoff) and 'H' key (cycles through specific awaiting types: work, approval, input, review, content, escalation, checkpoint). Status bar shows [human queue], [agent queue], or [awaiting:type] indicator. Uses same filter pipeline pattern as hideClosed. Added model_test.go with unit tests for applyAwaitingFilter(). Epic's TUI features are now complete: list display, detail view workflow section, keyboard shortcuts, and filtering.",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "type": "epic",
   "owner": "peter@engelbrecht.dk",
   "parent": "7sn",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-14T16:19:30.789246Z",
-  "updated_at": "2026-01-14T18:13:50.992496Z"
+  "updated_at": "2026-01-14T22:21:18.699629Z",
+  "closed_at": "2026-01-14T22:21:18.699629Z"
 }

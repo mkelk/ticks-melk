@@ -2,11 +2,12 @@
   "id": "7sn",
   "title": "Agent-Human Workflow System",
   "description": "Implement collaborative workflow between AI agents (via ticker) and humans for task completion. This replaces the simple 'manual' boolean with a richer model where agents can hand off tasks to humans for specific reasons (approval, input, review, etc.) and humans can respond with structured verdicts.\n\nKey components:\n- Three new enum fields: requires, awaiting, verdict\n- New CLI commands: approve, reject\n- New CLI flags for create/update/list/next\n- Verdict processing state machine\n- Backwards compatibility with manual field\n\nReference: ../ticker/docs/AGENT_HUMAN_WORKFLOW.md",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "type": "epic",
   "owner": "peter@engelbrecht.dk",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-14T16:14:03.848815Z",
-  "updated_at": "2026-01-14T16:14:03.848815Z"
+  "updated_at": "2026-01-14T22:21:18.738253Z",
+  "closed_at": "2026-01-14T22:21:18.738253Z"
 }

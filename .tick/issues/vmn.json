@@ -1,0 +1,14 @@
+{
+  "id": "vmn",
+  "title": "Watch .tick directory for realtime TUI updates",
+  "description": "tk view should use filesystem watching (fsnotify) to detect changes to .tick/issues/*.json and update the display in realtime. Currently the TUI only shows the state at startup and doesn't reflect changes made by other processes (like ticker in watch mode).",
+  "status": "closed",
+  "priority": 1,
+  "type": "bug",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "434",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T22:05:13.53861Z",
+  "updated_at": "2026-01-14T22:26:15.843083Z",
+  "closed_at": "2026-01-14T22:26:15.843083Z"
+}

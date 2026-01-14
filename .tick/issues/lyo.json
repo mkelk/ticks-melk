@@ -1,0 +1,14 @@
+{
+  "id": "lyo",
+  "title": "Test Agent-Human Workflow",
+  "description": "Test epic to exercise the agent-human workflow system with various handoff scenarios",
+  "notes": "2026-01-14 23:03 - Completed y1m: Added debug logging to auth module. Debug logging is controlled by TICK_DEBUG environment variable. The debugLog helper function is defined in owner.go and used across both owner.go and project.go. Test with: TICK_DEBUG=1 tk whoami\n2026-01-14 23:05 - fx9: Proposed password error message options for human approval. Following the project's error message patterns (simple strings for required fields, fmt.Errorf with values for validation failures). Options range from simple to detailed guidance.\n2026-01-14 23:07 - Completed tdv: Added TestWhoamiCommand in cmd/tk/main_test.go. The whoami command is the closest thing to a 'login' function - it detects owner from TICK_OWNER env var or git config, and project from git remote. Test pattern follows existing CLI tests using captureStdout helper and t.TempDir for isolated git repos.\n2026-01-14 23:08 - y1m: Added timestamps to debug logging per human feedback. Format is 'YYYY-MM-DD HH:MM:SS.mmm [DEBUG] message'. Uses fmt.Fprintf to stderr instead of log.Printf for direct control over timestamp format with millisecond precision.\n2026-01-14 23:09 - lg7: Task requests 'Refactor database connection pooling' but this codebase has no database - it's a file-based system by design (SPEC.md: 'No daemon, no SQLite, no background processes. Just files'). Storage uses flat JSON files in .tick/issues/. Escalating for human direction since there's nothing to refactor.\n2026-01-14 23:17 - Closed lg7: Database connection pooling task was intentionally a test task with no applicable work. Previous iteration correctly escalated since the codebase is file-based by design. This task successfully tested the escalation-and-review workflow pattern.",
+  "status": "closed",
+  "priority": 2,
+  "type": "epic",
+  "owner": "peter@engelbrecht.dk",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T18:16:20.654548Z",
+  "updated_at": "2026-01-14T22:17:52.569502Z",
+  "closed_at": "2026-01-14T22:17:52.569502Z"
+}

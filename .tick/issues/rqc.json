@@ -1,0 +1,17 @@
+{
+  "id": "rqc",
+  "title": "Bug: Tasks not appearing ready when blockers are closed",
+  "description": "## Observed Behavior\n\nWhen a blocker task is closed, tasks that were blocked by it do not automatically appear in `tk ready` output. Users must manually run `tk unblock \u003ctask\u003e \u003cblocker\u003e` to make the task ready.\n\n## Expected Behavior\n\nTasks should automatically appear ready when all their blockers are closed. The `isReadyWithOptions()` function in `internal/query/ready.go` checks blocker status correctly, but empirically tasks remain blocked.\n\n## Steps to Reproduce\n\n1. Create two tasks: A and B\n2. Block B by A: `tk block B A`\n3. Close A: `tk close A \"done\"`\n4. Run `tk ready` - B should appear but doesn't\n5. Run `tk show B` - blocked_by still shows A even though A is closed\n\n## Investigation Notes\n\nThe code in `isReadyWithOptions()` correctly checks:\n```go\nif blockedTick.Status != tick.StatusClosed {\n    return false\n}\n```\n\nThis suggests the issue may be:\n- Index not being refreshed when checking ready status\n- Caching issue in the query system\n- The index lookup failing to find the closed blocker\n\n## Impact\n\nThis affects automation workflows (like ticker) that rely on `tk ready` and `tk next` to find available work.",
+  "notes": "2026-01-14 22:06 - ## Update: Root Cause Found\n\nAfter investigation, the auto-unblock logic IS working correctly. The actual issue was:\n\n1. Tasks had INVALID blocker IDs (typos like 'mpt', '9fr', 'qw1', 'jmb')\n2. When a blocker doesn't exist in the index, `isReadyWithOptions()` returns false (blocked)\n3. This is intentional safety behavior - unknown blockers are treated as open\n\nThe code correctly handles tasks blocked by CLOSED blockers:\n```go\nif blockedTick.Status != tick.StatusClosed {\n    return false\n}\n```\n\n**Tested and verified**: `tk next 8x8 --all` correctly returns task vzt even though it has `blocked_by: [dnk]` where dnk is closed.\n\n**Recommendation**: Consider changing this from a bug to a documentation issue - clarify that invalid/unknown blocker IDs cause tasks to be treated as blocked.",
+  "status": "closed",
+  "priority": 1,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "labels": [
+    "bug"
+  ],
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T21:03:51.909348Z",
+  "updated_at": "2026-01-14T21:07:06.067672Z",
+  "closed_at": "2026-01-14T21:07:06.067672Z"
+}

@@ -1,0 +1,15 @@
+{
+  "id": "u46",
+  "title": "Configure production API keys",
+  "description": "This task requires human to configure secrets - agent can't do it.",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "lyo",
+  "awaiting": "work",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T18:16:32.721663Z",
+  "updated_at": "2026-01-14T22:17:21.256297Z",
+  "closed_at": "2026-01-14T22:17:21.256297Z"
+}

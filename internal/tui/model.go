@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/fsnotify/fsnotify"
 
 	"github.com/pengelbrecht/ticks/internal/query"
 	"github.com/pengelbrecht/ticks/internal/tick"
@@ -46,12 +48,13 @@ type keyMap struct {
 	Reject        key.Binding
 	HumanQueue    key.Binding
 	CycleAwaiting key.Binding
+	SwitchPane    key.Binding
 	Quit          key.Binding
 }
 
 // ShortHelp returns bindings for the short help view (single line).
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.ScrollUp, k.Fold, k.Focus, k.Search, k.HideClosed, k.HumanQueue, k.Approve, k.Quit}
+	return []key.Binding{k.Up, k.ScrollUp, k.Fold, k.Focus, k.Search, k.HideClosed, k.HumanQueue, k.Approve, k.SwitchPane, k.Quit}
 }
 
 // FullHelp returns bindings for the full help view (multiple columns).
@@ -61,7 +64,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 		{k.ScrollUp, k.ScrollDn, k.Top, k.Bottom},
 		{k.Fold, k.Focus, k.Search, k.HideClosed},
 		{k.HumanQueue, k.CycleAwaiting},
-		{k.Approve, k.Reject, k.Quit},
+		{k.Approve, k.Reject, k.SwitchPane, k.Quit},
 	}
 }
 
@@ -122,6 +125,10 @@ var defaultKeyMap = keyMap{
 		key.WithKeys("H"),
 		key.WithHelp("h/H", "human/cycle"),
 	),
+	SwitchPane: key.NewBinding(
+		key.WithKeys("tab"),
+		key.WithHelp("tab", "pane"),
+	),
 	Quit: key.NewBinding(
 		key.WithKeys("q", "ctrl+c"),
 		key.WithHelp("q", "quit"),
@@ -137,6 +144,12 @@ const (
 	awaitingFilterAgentOnly                           // Show only non-awaiting tasks
 	awaitingFilterByType                              // Filter by specific awaiting type
 )
+
+// ticksReloadedMsg is sent when the filesystem watcher detects changes.
+type ticksReloadedMsg struct {
+	ticks []tick.Tick
+	err   error
+}
 
 // awaitingTypes lists all awaiting types for cycling.
 var awaitingTypes = []string{
@@ -183,11 +196,18 @@ type Model struct {
 	rejecting     bool
 	rejectInput   textinput.Model
 	rejectTickIdx int // Index of tick being rejected
+
+	// Filesystem watcher for live updates
+	watcher *fsnotify.Watcher
+
+	// Pane focus: false = left (list), true = right (details)
+	rightPaneFocused bool
 }
 
 var (
-	headerStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#F5C2E7"))
-	panelStyle    = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#6C7086")).Padding(0, 1)
+	headerStyle        = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#F5C2E7"))
+	panelStyle         = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#6C7086")).Padding(0, 1)
+	panelFocusedStyle  = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#89DCEB")).Padding(0, 1)
 	selectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#89DCEB")).Bold(true)
 	dimStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("#A6ADC8"))
 	footerStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#7F849C"))
@@ -303,6 +323,20 @@ func NewModel(ticks []tick.Tick, storePath string) Model {
 	h.Styles.ShortDesc = footerStyle
 	h.Styles.ShortSeparator = footerStyle
 
+	// Set up filesystem watcher
+	var watcher *fsnotify.Watcher
+	if storePath != "" {
+		w, err := fsnotify.NewWatcher()
+		if err == nil {
+			issuesDir := filepath.Join(storePath, "issues")
+			if err := w.Add(issuesDir); err == nil {
+				watcher = w
+			} else {
+				w.Close()
+			}
+		}
+	}
+
 	return Model{
 		allTicks:    ticks,
 		items:       items,
@@ -313,11 +347,72 @@ func NewModel(ticks []tick.Tick, storePath string) Model {
 		keys:        defaultKeyMap,
 		help:        h,
 		storePath:   storePath,
+		watcher:     watcher,
 	}
 }
 
 func (m Model) Init() tea.Cmd {
+	if m.watcher != nil {
+		return m.watchForChanges()
+	}
 	return nil
+}
+
+// watchForChanges returns a command that waits for filesystem events and reloads ticks.
+func (m Model) watchForChanges() tea.Cmd {
+	return func() tea.Msg {
+		if m.watcher == nil {
+			return nil
+		}
+
+		for {
+			select {
+			case event, ok := <-m.watcher.Events:
+				if !ok {
+					return nil
+				}
+				// Only react to write/create/remove events on .json files
+				if !strings.HasSuffix(event.Name, ".json") {
+					continue
+				}
+				if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Remove) == 0 {
+					continue
+				}
+				// Debounce: wait a bit for multiple rapid changes to settle
+				time.Sleep(50 * time.Millisecond)
+				// Drain any additional events that arrived during the wait
+				drainEvents(m.watcher)
+				// Reload ticks from disk
+				store := tick.NewStore(m.storePath)
+				ticks, err := store.List()
+				return ticksReloadedMsg{ticks: ticks, err: err}
+			case err, ok := <-m.watcher.Errors:
+				if !ok {
+					return nil
+				}
+				return ticksReloadedMsg{err: err}
+			}
+		}
+	}
+}
+
+// drainEvents removes any pending events from the watcher channel.
+func drainEvents(w *fsnotify.Watcher) {
+	for {
+		select {
+		case <-w.Events:
+		default:
+			return
+		}
+	}
+}
+
+// Close cleans up the filesystem watcher.
+func (m *Model) Close() {
+	if m.watcher != nil {
+		m.watcher.Close()
+		m.watcher = nil
+	}
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -326,6 +421,38 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	prevSelected := m.selected
 
 	switch msg := msg.(type) {
+	case ticksReloadedMsg:
+		if msg.err == nil && msg.ticks != nil {
+			// Preserve selection by ID if possible
+			var selectedID string
+			if m.selected >= 0 && m.selected < len(m.items) {
+				selectedID = m.items[m.selected].Tick.ID
+			}
+			m.allTicks = msg.ticks
+			m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic, m.hideClosed, m.awaitingFilter, m.awaitingTypeFilter)
+			// Restore selection
+			m.selected = 0
+			for i, item := range m.items {
+				if item.Tick.ID == selectedID {
+					m.selected = i
+					break
+				}
+			}
+			if m.selected >= len(m.items) {
+				m.selected = len(m.items) - 1
+			}
+			if m.selected < 0 {
+				m.selected = 0
+			}
+			m.updateListViewportContent()
+			m.updateViewportContent()
+		}
+		// Continue watching for more changes
+		if m.watcher != nil {
+			cmds = append(cmds, m.watchForChanges())
+		}
+		return m, tea.Batch(cmds...)
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -413,12 +540,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				return m, tea.Quit
 			}
+		case "tab":
+			m.rightPaneFocused = !m.rightPaneFocused
 		case "j", "down":
-			if m.selected < len(m.items)-1 {
+			if m.rightPaneFocused {
+				m.viewport.LineDown(1)
+			} else if m.selected < len(m.items)-1 {
 				m.selected++
 			}
 		case "k", "up":
-			if m.selected > 0 {
+			if m.rightPaneFocused {
+				m.viewport.LineUp(1)
+			} else if m.selected > 0 {
 				m.selected--
 			}
 		case "ctrl+d":
@@ -426,9 +559,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+u":
 			m.viewport.HalfViewUp()
 		case "g":
-			m.viewport.GotoTop()
+			if m.rightPaneFocused {
+				m.viewport.GotoTop()
+			}
 		case "G":
-			m.viewport.GotoBottom()
+			if m.rightPaneFocused {
+				m.viewport.GotoBottom()
+			}
 		case "z":
 			if len(m.items) == 0 {
 				return m, nil
@@ -748,11 +885,19 @@ func (m Model) View() string {
 	}
 
 	// Panel content width = total width - border (2); padding is inside width
-	leftPanel := panelStyle.
+	// Use focused style for the active pane
+	leftStyle := panelStyle
+	rightStyle := panelStyle
+	if m.rightPaneFocused {
+		rightStyle = panelFocusedStyle
+	} else {
+		leftStyle = panelFocusedStyle
+	}
+	leftPanel := leftStyle.
 		Width(leftWidth - 2).
 		Height(panelHeight).
 		Render(headerStyle.Render(leftHeader) + "\n" + m.listViewport.View())
-	rightPanel := panelStyle.
+	rightPanel := rightStyle.
 		Width(rightWidth - 2).
 		Height(panelHeight).
 		Render(headerStyle.Render(rightHeader) + "\n" + m.viewport.View())
