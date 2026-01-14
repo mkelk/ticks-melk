@@ -2,7 +2,7 @@
   "id": "ws7",
   "title": "Write backwards compatibility tests",
   "description": "Add tests verifying backwards compatibility with Manual field\n\nTest categories:\n\n1. Helper method tests:\n   - IsAwaitingHuman() with Manual=true, Awaiting=nil → true\n   - IsAwaitingHuman() with Manual=false, Awaiting=\"work\" → true\n   - IsAwaitingHuman() with Manual=true, Awaiting=\"approval\" → true (awaiting wins)\n   - GetAwaitingType() with Manual=true → \"work\"\n   - GetAwaitingType() with Awaiting=\"approval\" → \"approval\"\n\n2. Query tests:\n   - Ready() excludes Manual=true ticks\n   - tk list --awaiting includes Manual=true ticks\n   - tk next --awaiting returns Manual=true ticks\n\n3. Migration tests:\n   - Setting awaiting clears manual\n   - --manual flag sets awaiting, not manual\n   - Deprecation warning printed\n\n4. Round-trip tests:\n   - Load Manual=true tick, update other field, save → Manual preserved\n   - Load Manual=true tick, set awaiting, save → Manual cleared",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "type": "task",
   "owner": "peter@engelbrecht.dk",
@@ -10,5 +10,7 @@
   "acceptance_criteria": "- [ ] Helper method tests cover Manual backwards compat\n- [ ] Query tests verify Manual ticks included/excluded correctly\n- [ ] Migration tests verify clean transition\n- [ ] Round-trip tests verify no data corruption\n- [ ] All tests pass",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-14T16:19:21.483234Z",
-  "updated_at": "2026-01-14T16:19:21.483234Z"
+  "updated_at": "2026-01-14T17:52:07.900848Z",
+  "closed_at": "2026-01-14T17:52:07.900848Z",
+  "closed_reason": "Added comprehensive backwards compatibility tests in backcompat_test.go files. Tests cover: (1) Helper methods (IsAwaitingHuman, GetAwaitingType) with Manual/Awaiting combinations, (2) Query layer (Ready, Filter) excluding/including Manual ticks correctly, (3) Migration behavior (SetAwaiting/ClearAwaiting clears Manual), (4) Round-trip JSON serialization preserving Manual when appropriate"
 }
