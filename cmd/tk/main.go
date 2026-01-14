@@ -442,6 +442,16 @@ func runCreate(args []string) int {
 		awaiting = &awaitingVal
 	}
 
+	// Handle deprecated --manual flag
+	if *manualFlag {
+		fmt.Fprintln(os.Stderr, "Warning: --manual is deprecated, use --awaiting work instead")
+		// Map manual to awaiting=work if awaiting not already set
+		if awaiting == nil {
+			awaitingWork := tick.AwaitingWork
+			awaiting = &awaitingWork
+		}
+	}
+
 	t := tick.Tick{
 		ID:                 id,
 		Title:              title,
@@ -836,6 +846,13 @@ func runUpdate(args []string) int {
 		t.ExternalRef = externalRef.value
 	}
 	if manual.set {
+		fmt.Fprintln(os.Stderr, "Warning: --manual is deprecated, use --awaiting work instead")
+		// Map manual=true to awaiting=work if awaiting not explicitly set
+		if manual.value && !awaiting.set {
+			awaitingWork := tick.AwaitingWork
+			t.Awaiting = &awaitingWork
+		}
+		// Still set Manual for backwards compatibility with old code
 		t.Manual = manual.value
 	}
 	if parent.set {
