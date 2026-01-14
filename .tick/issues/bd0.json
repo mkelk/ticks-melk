@@ -2,8 +2,8 @@
   "id": "bd0",
   "title": "Handle orphaned blocked_by references when ticks are deleted",
   "description": "## Problem\n\nWhen a tick is deleted, tasks that were blocked by it become orphaned with invalid blocker IDs. These orphaned tasks are treated as permanently blocked because `isReadyWithOptions()` returns false for unknown blockers.\n\n## Root Cause\n\nDeleting a tick doesn't clean up `blocked_by` references in other ticks.\n\n## Proposed Solutions\n\n### Option A: Cascade cleanup on delete\nWhen `tk delete \u003cid\u003e` runs, scan all ticks and remove `\u003cid\u003e` from their `blocked_by` arrays.\n\nPros:\n- Data stays clean\n- Explicit cleanup at mutation time\n\nCons:\n- More expensive delete operation\n- Need to handle edge cases (partial failures)\n\n### Option B: Treat non-existent blockers as closed\nIn `isReadyWithOptions()`, change:\n```go\nif !ok {\n    return false  // Current: unknown = blocked\n}\n```\nTo:\n```go\nif !ok {\n    continue  // Proposed: unknown = unblocked (like closed)\n}\n```\n\nPros:\n- Simple change\n- Handles orphaned data gracefully\n- Non-existence is semantically equivalent to closed\n\nCons:\n- Typos in blocker IDs silently ignored\n- Stale data accumulates\n\n### Recommendation\n\nDo both:\n1. Option B for graceful handling (non-existent = closed)\n2. Add warning when blocking by non-existent ID (preventive)\n3. Consider `tk gc` or `tk rebuild` command to clean orphaned references",
-  "status": "open",
-  "priority": 3,
+  "status": "closed",
+  "priority": 2,
   "type": "task",
   "owner": "peter@engelbrecht.dk",
   "labels": [
@@ -11,5 +11,6 @@
   ],
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-14T21:07:15.767133Z",
-  "updated_at": "2026-01-14T21:09:52.830268Z"
+  "updated_at": "2026-01-14T22:31:32.225765Z",
+  "closed_at": "2026-01-14T22:31:32.225765Z"
 }

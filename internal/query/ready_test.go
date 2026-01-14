@@ -10,20 +10,24 @@ import (
 func TestReadyAndBlocked(t *testing.T) {
 	now := time.Date(2025, 1, 8, 10, 0, 0, 0, time.UTC)
 	items := []tick.Tick{
-		{ID: "a", Status: tick.StatusOpen, BlockedBy: []string{"b"}, CreatedAt: now, UpdatedAt: now},
-		{ID: "b", Status: tick.StatusClosed, CreatedAt: now, UpdatedAt: now},
-		{ID: "c", Status: tick.StatusOpen, BlockedBy: []string{"missing"}, CreatedAt: now, UpdatedAt: now},
-		{ID: "d", Status: tick.StatusOpen, BlockedBy: nil, CreatedAt: now, UpdatedAt: now},
+		{ID: "a", Status: tick.StatusOpen, BlockedBy: []string{"b"}, CreatedAt: now, UpdatedAt: now},       // ready (b is closed)
+		{ID: "b", Status: tick.StatusClosed, CreatedAt: now, UpdatedAt: now},                               // not ready (closed)
+		{ID: "c", Status: tick.StatusOpen, BlockedBy: []string{"missing"}, CreatedAt: now, UpdatedAt: now}, // ready (missing treated as closed)
+		{ID: "d", Status: tick.StatusOpen, BlockedBy: nil, CreatedAt: now, UpdatedAt: now},                 // ready
+		{ID: "e", Status: tick.StatusOpen, BlockedBy: []string{"d"}, CreatedAt: now, UpdatedAt: now},       // blocked (d is open)
 	}
 
 	ready := Ready(items)
-	if len(ready) != 2 {
-		t.Fatalf("expected 2 ready ticks, got %d", len(ready))
+	if len(ready) != 3 {
+		t.Fatalf("expected 3 ready ticks (a, c, d), got %d: %v", len(ready), ready)
 	}
 
 	blocked := Blocked(items)
 	if len(blocked) != 1 {
-		t.Fatalf("expected 1 blocked tick, got %d", len(blocked))
+		t.Fatalf("expected 1 blocked tick (e), got %d", len(blocked))
+	}
+	if blocked[0].ID != "e" {
+		t.Fatalf("expected blocked tick 'e', got %s", blocked[0].ID)
 	}
 }
 
@@ -282,19 +286,80 @@ func TestReadyIncludeAwaitingRespectsOtherFilters(t *testing.T) {
 	future := now.Add(24 * time.Hour)
 	awaiting := "approval"
 	items := []tick.Tick{
-		{ID: "a", Status: tick.StatusOpen, Awaiting: &awaiting, CreatedAt: now, UpdatedAt: now},           // awaiting, included
-		{ID: "b", Status: tick.StatusOpen, Awaiting: &awaiting, DeferUntil: &future, CreatedAt: now, UpdatedAt: now}, // awaiting but deferred, excluded
-		{ID: "c", Status: tick.StatusOpen, Awaiting: &awaiting, BlockedBy: []string{"missing"}, CreatedAt: now, UpdatedAt: now}, // awaiting but blocked by missing, excluded
+		{ID: "a", Status: tick.StatusOpen, Awaiting: &awaiting, CreatedAt: now, UpdatedAt: now},                                  // awaiting, included
+		{ID: "b", Status: tick.StatusOpen, Awaiting: &awaiting, DeferUntil: &future, CreatedAt: now, UpdatedAt: now},             // awaiting but deferred, excluded
+		{ID: "c", Status: tick.StatusOpen, Awaiting: &awaiting, BlockedBy: []string{"missing"}, CreatedAt: now, UpdatedAt: now},  // awaiting, included (missing blocker treated as closed)
+		{ID: "d", Status: tick.StatusOpen, Awaiting: &awaiting, BlockedBy: []string{"a"}, CreatedAt: now, UpdatedAt: now},        // awaiting but blocked by open tick, excluded
 	}
 
 	ready := ReadyIncludeAwaiting(items)
 
-	// Should include only a (awaiting but not blocked/deferred)
-	if len(ready) != 1 {
-		t.Fatalf("expected 1 ready tick, got %d", len(ready))
+	// Should include a and c (not blocked/deferred), exclude b (deferred) and d (blocked by open tick)
+	if len(ready) != 2 {
+		t.Fatalf("expected 2 ready ticks, got %d", len(ready))
 	}
 
-	if ready[0].ID != "a" {
-		t.Fatalf("expected tick a, got %s", ready[0].ID)
+	ids := map[string]bool{}
+	for _, r := range ready {
+		ids[r.ID] = true
+	}
+	if !ids["a"] || !ids["c"] {
+		t.Fatalf("expected ticks a and c, got %v", ids)
+	}
+}
+
+func TestOrphanedBlockersAreTreatedAsClosed(t *testing.T) {
+	// This test verifies that when a blocker is deleted, tasks that reference it
+	// are no longer blocked. Non-existent blockers should be treated as closed.
+	now := time.Date(2025, 1, 8, 10, 0, 0, 0, time.UTC)
+	items := []tick.Tick{
+		{ID: "a", Status: tick.StatusOpen, BlockedBy: []string{"deleted-task"}, CreatedAt: now, UpdatedAt: now},
+		{ID: "b", Status: tick.StatusOpen, BlockedBy: []string{"typo-id"}, CreatedAt: now, UpdatedAt: now},
+		{ID: "c", Status: tick.StatusOpen, BlockedBy: []string{"deleted-task", "typo-id"}, CreatedAt: now, UpdatedAt: now},
+	}
+
+	// All should be ready since non-existent blockers are treated as closed
+	ready := Ready(items)
+	if len(ready) != 3 {
+		t.Fatalf("expected 3 ready ticks (all orphaned blockers treated as closed), got %d", len(ready))
+	}
+
+	// None should be blocked
+	blocked := Blocked(items)
+	if len(blocked) != 0 {
+		t.Fatalf("expected 0 blocked ticks, got %d", len(blocked))
+	}
+}
+
+func TestMixedOrphanedAndRealBlockers(t *testing.T) {
+	// Test that a tick with both orphaned and real blockers is still blocked
+	// if any real blocker is open
+	now := time.Date(2025, 1, 8, 10, 0, 0, 0, time.UTC)
+	items := []tick.Tick{
+		{ID: "open-blocker", Status: tick.StatusOpen, CreatedAt: now, UpdatedAt: now},                                             // ready (open, no blockers)
+		{ID: "closed-blocker", Status: tick.StatusClosed, CreatedAt: now, UpdatedAt: now},                                         // NOT ready (closed status)
+		{ID: "a", Status: tick.StatusOpen, BlockedBy: []string{"deleted-task", "open-blocker"}, CreatedAt: now, UpdatedAt: now},   // blocked (open-blocker is open)
+		{ID: "b", Status: tick.StatusOpen, BlockedBy: []string{"deleted-task", "closed-blocker"}, CreatedAt: now, UpdatedAt: now}, // ready (both treated as closed)
+	}
+
+	ready := Ready(items)
+	// Expected: open-blocker (open), b (blockers resolved)
+	// Not ready: closed-blocker (closed status), a (blocked by open-blocker)
+	if len(ready) != 2 {
+		t.Fatalf("expected 2 ready ticks (open-blocker, b), got %d", len(ready))
+	}
+
+	ids := map[string]bool{}
+	for _, r := range ready {
+		ids[r.ID] = true
+	}
+	if !ids["open-blocker"] || !ids["b"] {
+		t.Fatalf("expected open-blocker and b to be ready, got %v", ids)
+	}
+	if ids["a"] {
+		t.Fatalf("tick a should be blocked by open-blocker")
+	}
+	if ids["closed-blocker"] {
+		t.Fatalf("closed-blocker should not be ready (it's closed)")
 	}
 }

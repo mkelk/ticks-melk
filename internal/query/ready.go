@@ -7,7 +7,8 @@ import (
 )
 
 // Ready returns open ticks that are not blocked by open blockers.
-// Missing blockers are treated as open (not ready).
+// Missing blockers are treated as closed (ready) - this handles orphaned references
+// when blockers are deleted.
 // Tasks awaiting human action are excluded (use ReadyIncludeAwaiting to include them).
 // If allTicks is provided, it is used to look up blocker status (for when
 // candidates is a filtered subset and blockers may be outside that subset).
@@ -37,7 +38,8 @@ func readyWithOptions(candidates []tick.Tick, includeAwaiting bool, allTicks ...
 }
 
 // Blocked returns ticks that are open or in_progress with open blockers.
-// Missing blockers are treated as open (blocked).
+// Missing blockers are treated as closed (not blocked) - this handles orphaned
+// references when blockers are deleted.
 // If allTicks is provided, it is used to look up blocker status (for when
 // candidates is a filtered subset and blockers may be outside that subset).
 func Blocked(candidates []tick.Tick, allTicks ...[]tick.Tick) []tick.Tick {
@@ -76,7 +78,8 @@ func isReadyWithOptions(t tick.Tick, index map[string]tick.Tick, includeAwaiting
 	for _, blocker := range t.BlockedBy {
 		blockedTick, ok := index[blocker]
 		if !ok {
-			return false
+			// Missing blocker treated as closed (handles orphaned references)
+			continue
 		}
 		if blockedTick.Status != tick.StatusClosed {
 			return false
@@ -95,7 +98,8 @@ func isBlocked(t tick.Tick, index map[string]tick.Tick) bool {
 	for _, blocker := range t.BlockedBy {
 		blockedTick, ok := index[blocker]
 		if !ok {
-			return true
+			// Missing blocker treated as closed (handles orphaned references)
+			continue
 		}
 		if blockedTick.Status != tick.StatusClosed {
 			return true
