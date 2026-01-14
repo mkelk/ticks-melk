@@ -2,6 +2,7 @@
   "id": "boh",
   "title": "Verdict Processing",
   "description": "Implement verdict processing state machine:\n- When verdict is set, process based on awaiting type\n- Terminal states (approval, review, content, work) → close on approved\n- Non-terminal states (input, escalation, checkpoint) → back to agent\n- Clear awaiting and verdict after processing\n- Handle requires field on tick close\n\nThis is the core state machine for agent-human handoffs.",
+  "notes": "2026-01-14 17:36 - t0a completed: ProcessVerdict function implemented in internal/tick/verdict.go. Key design: function is a pure state machine that modifies the Tick in place. Returns (closed bool, err error) to allow callers to know if the tick was closed. Error return is for future extensibility (currently always nil). The function handles all 7 awaiting types with clear switch statement. Next tasks can call this function from tk approve/reject commands.\n2026-01-14 17:39 - d11 completed: HandleClose function in internal/tick/close.go handles the requires gate. Key design: function checks HasRequiredGate() before closing - if set, it routes to human by setting Awaiting=Requires and adding a note. The requires field persists (not cleared), so subsequent close attempts still route to human until approval. The runClose command now uses HandleClose for both main tick and force-closed epic children.",
   "status": "open",
   "priority": 1,
   "type": "epic",
@@ -9,5 +10,5 @@
   "parent": "7sn",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-14T16:14:32.166588Z",
-  "updated_at": "2026-01-14T16:14:32.166588Z"
+  "updated_at": "2026-01-14T16:39:29.535391Z"
 }
