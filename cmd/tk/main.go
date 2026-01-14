@@ -2350,7 +2350,8 @@ func runView(args []string) int {
 
 	filtered := query.Apply(ticks, filter)
 
-	model := tui.NewModel(filtered)
+	storePath := filepath.Join(root, ".tick")
+	model := tui.NewModel(filtered, storePath)
 	if _, err := tea.NewProgram(model, tea.WithAltScreen()).Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to run view: %v\n", err)
 		return exitIO

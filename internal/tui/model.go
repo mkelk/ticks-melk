@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -41,12 +42,14 @@ type keyMap struct {
 	Focus      key.Binding
 	Search     key.Binding
 	HideClosed key.Binding
+	Approve    key.Binding
+	Reject     key.Binding
 	Quit       key.Binding
 }
 
 // ShortHelp returns bindings for the short help view (single line).
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.ScrollUp, k.Fold, k.Focus, k.Search, k.HideClosed, k.Quit}
+	return []key.Binding{k.Up, k.ScrollUp, k.Fold, k.Focus, k.Search, k.HideClosed, k.Approve, k.Quit}
 }
 
 // FullHelp returns bindings for the full help view (multiple columns).
@@ -54,7 +57,8 @@ func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down},
 		{k.ScrollUp, k.ScrollDn, k.Top, k.Bottom},
-		{k.Fold, k.Focus, k.Search, k.HideClosed, k.Quit},
+		{k.Fold, k.Focus, k.Search, k.HideClosed},
+		{k.Approve, k.Reject, k.Quit},
 	}
 }
 
@@ -99,6 +103,14 @@ var defaultKeyMap = keyMap{
 		key.WithKeys("c"),
 		key.WithHelp("c", "closed"),
 	),
+	Approve: key.NewBinding(
+		key.WithKeys("a"),
+		key.WithHelp("a/r", "approve/reject"),
+	),
+	Reject: key.NewBinding(
+		key.WithKeys("r"),
+		key.WithHelp("a/r", "approve/reject"),
+	),
 	Quit: key.NewBinding(
 		key.WithKeys("q", "ctrl+c"),
 		key.WithHelp("q", "quit"),
@@ -122,6 +134,18 @@ type Model struct {
 	ready        bool           // viewport initialized
 	keys         keyMap
 	help         help.Model
+
+	// Store path for approve/reject operations
+	storePath string
+
+	// Status message (shown briefly after actions)
+	statusMsg     string
+	statusIsError bool
+
+	// Reject feedback input mode
+	rejecting     bool
+	rejectInput   textinput.Model
+	rejectTickIdx int // Index of tick being rejected
 }
 
 var (
@@ -221,7 +245,7 @@ func renderVerdict(verdict string) string {
 }
 
 // NewModel builds a tree view model from ticks.
-func NewModel(ticks []tick.Tick) Model {
+func NewModel(ticks []tick.Tick, storePath string) Model {
 	collapsed := make(map[string]bool)
 	hideClosed := true // default to hiding closed ticks
 	items := buildItems(ticks, collapsed, "", "", hideClosed)
@@ -230,6 +254,12 @@ func NewModel(ticks []tick.Tick) Model {
 	ti.Placeholder = "search..."
 	ti.CharLimit = 100
 	ti.Width = 30
+
+	// Reject feedback input
+	ri := textinput.New()
+	ri.Placeholder = "feedback (optional, enter to submit, esc to cancel)"
+	ri.CharLimit = 500
+	ri.Width = 50
 
 	h := help.New()
 	h.Styles.ShortKey = footerStyle.Bold(true)
@@ -242,8 +272,10 @@ func NewModel(ticks []tick.Tick) Model {
 		collapsed:   collapsed,
 		hideClosed:  hideClosed,
 		searchInput: ti,
+		rejectInput: ri,
 		keys:        defaultKeyMap,
 		help:        h,
+		storePath:   storePath,
 	}
 }
 
@@ -266,6 +298,36 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.ready = true
 		}
 	case tea.KeyMsg:
+		// Clear status message on any keypress
+		m.statusMsg = ""
+		m.statusIsError = false
+
+		// Handle reject feedback input mode
+		if m.rejecting {
+			switch msg.String() {
+			case "esc":
+				m.rejecting = false
+				m.rejectInput.Reset()
+				m.rejectInput.Blur()
+			case "enter":
+				// Execute reject with feedback
+				feedback := m.rejectInput.Value()
+				m.rejecting = false
+				m.rejectInput.Reset()
+				m.rejectInput.Blur()
+				if m.rejectTickIdx >= 0 && m.rejectTickIdx < len(m.items) {
+					m.doReject(m.rejectTickIdx, feedback)
+				}
+				m.updateListViewportContent()
+				m.updateViewportContent()
+			default:
+				// Forward all other keys to textinput
+				m.rejectInput, cmd = m.rejectInput.Update(msg)
+				cmds = append(cmds, cmd)
+			}
+			return m, tea.Batch(cmds...)
+		}
+
 		// Handle search mode input
 		if m.searching {
 			switch msg.String() {
@@ -371,6 +433,30 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.updateListViewportContent()
 				m.updateViewportContent()
 			}
+		case "a":
+			// Approve selected tick if awaiting
+			if len(m.items) == 0 {
+				return m, nil
+			}
+			m.doApprove(m.selected)
+			m.updateListViewportContent()
+			m.updateViewportContent()
+		case "r":
+			// Reject selected tick - enter feedback mode
+			if len(m.items) == 0 {
+				return m, nil
+			}
+			current := m.items[m.selected]
+			if !current.Tick.IsAwaitingHuman() {
+				m.statusMsg = "tick is not awaiting human decision"
+				m.statusIsError = true
+				return m, nil
+			}
+			m.rejecting = true
+			m.rejectTickIdx = m.selected
+			m.rejectInput.Reset()
+			m.rejectInput.Focus()
+			return m, m.rejectInput.Cursor.BlinkCmd()
 		}
 	}
 
@@ -381,6 +467,152 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, cmd
+}
+
+// doApprove approves the tick at the given index.
+func (m *Model) doApprove(idx int) {
+	if idx < 0 || idx >= len(m.items) {
+		return
+	}
+
+	current := m.items[idx]
+	if !current.Tick.IsAwaitingHuman() {
+		m.statusMsg = "tick is not awaiting human decision"
+		m.statusIsError = true
+		return
+	}
+
+	if m.storePath == "" {
+		m.statusMsg = "no store path configured"
+		m.statusIsError = true
+		return
+	}
+
+	store := tick.NewStore(m.storePath)
+	t, err := store.Read(current.Tick.ID)
+	if err != nil {
+		m.statusMsg = fmt.Sprintf("failed to read tick: %v", err)
+		m.statusIsError = true
+		return
+	}
+
+	// Handle legacy manual flag
+	if t.Awaiting == nil && t.Manual {
+		t.SetAwaiting(tick.AwaitingWork)
+	}
+
+	// Set verdict and process
+	verdict := tick.VerdictApproved
+	t.Verdict = &verdict
+	t.UpdatedAt = time.Now().UTC()
+
+	closed, err := tick.ProcessVerdict(&t)
+	if err != nil {
+		m.statusMsg = fmt.Sprintf("failed to process verdict: %v", err)
+		m.statusIsError = true
+		return
+	}
+
+	if err := store.Write(t); err != nil {
+		m.statusMsg = fmt.Sprintf("failed to save tick: %v", err)
+		m.statusIsError = true
+		return
+	}
+
+	// Update the tick in our model
+	m.items[idx].Tick = t
+	for i := range m.allTicks {
+		if m.allTicks[i].ID == t.ID {
+			m.allTicks[i] = t
+			break
+		}
+	}
+
+	if closed {
+		m.statusMsg = fmt.Sprintf("approved %s (closed)", t.ID)
+	} else {
+		m.statusMsg = fmt.Sprintf("approved %s (returned to agent)", t.ID)
+	}
+	m.statusIsError = false
+}
+
+// doReject rejects the tick at the given index with optional feedback.
+func (m *Model) doReject(idx int, feedback string) {
+	if idx < 0 || idx >= len(m.items) {
+		return
+	}
+
+	current := m.items[idx]
+	if !current.Tick.IsAwaitingHuman() {
+		m.statusMsg = "tick is not awaiting human decision"
+		m.statusIsError = true
+		return
+	}
+
+	if m.storePath == "" {
+		m.statusMsg = "no store path configured"
+		m.statusIsError = true
+		return
+	}
+
+	store := tick.NewStore(m.storePath)
+	t, err := store.Read(current.Tick.ID)
+	if err != nil {
+		m.statusMsg = fmt.Sprintf("failed to read tick: %v", err)
+		m.statusIsError = true
+		return
+	}
+
+	// Handle legacy manual flag
+	if t.Awaiting == nil && t.Manual {
+		t.SetAwaiting(tick.AwaitingWork)
+	}
+
+	// Add feedback note if provided
+	feedback = strings.TrimSpace(feedback)
+	if feedback != "" {
+		timestamp := time.Now().Format("2006-01-02 15:04")
+		line := fmt.Sprintf("%s - [human] %s", timestamp, feedback)
+		if strings.TrimSpace(t.Notes) == "" {
+			t.Notes = line
+		} else {
+			t.Notes = strings.TrimRight(t.Notes, "\n") + "\n" + line
+		}
+	}
+
+	// Set verdict and process
+	verdict := tick.VerdictRejected
+	t.Verdict = &verdict
+	t.UpdatedAt = time.Now().UTC()
+
+	closed, err := tick.ProcessVerdict(&t)
+	if err != nil {
+		m.statusMsg = fmt.Sprintf("failed to process verdict: %v", err)
+		m.statusIsError = true
+		return
+	}
+
+	if err := store.Write(t); err != nil {
+		m.statusMsg = fmt.Sprintf("failed to save tick: %v", err)
+		m.statusIsError = true
+		return
+	}
+
+	// Update the tick in our model
+	m.items[idx].Tick = t
+	for i := range m.allTicks {
+		if m.allTicks[i].ID == t.ID {
+			m.allTicks[i] = t
+			break
+		}
+	}
+
+	if closed {
+		m.statusMsg = fmt.Sprintf("rejected %s (closed)", t.ID)
+	} else {
+		m.statusMsg = fmt.Sprintf("rejected %s (returned to agent)", t.ID)
+	}
+	m.statusIsError = false
 }
 
 func (m Model) View() string {
@@ -411,7 +643,9 @@ func (m Model) View() string {
 
 	// Build left panel header with indicators
 	leftHeader := "Ticks"
-	if m.searching {
+	if m.rejecting {
+		leftHeader = fmt.Sprintf("Reject: %s", m.rejectInput.View())
+	} else if m.searching {
 		leftHeader = fmt.Sprintf("Search: %s", m.searchInput.View())
 	} else if m.filter != "" {
 		leftHeader = fmt.Sprintf("Filter: %s", m.filter)
@@ -443,9 +677,19 @@ func (m Model) View() string {
 		Height(panelHeight).
 		Render(headerStyle.Render(rightHeader) + "\n" + m.viewport.View())
 
-	helpView := m.help.View(m.keys)
+	// Build footer with help or status message
+	var footerView string
+	if m.statusMsg != "" {
+		if m.statusIsError {
+			footerView = lipgloss.NewStyle().Foreground(lipgloss.Color("#F38BA8")).Render(m.statusMsg)
+		} else {
+			footerView = lipgloss.NewStyle().Foreground(lipgloss.Color("#A6E3A1")).Render(m.statusMsg)
+		}
+	} else {
+		footerView = m.help.View(m.keys)
+	}
 
-	return lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, rightPanel) + "\n" + helpView
+	return lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, rightPanel) + "\n" + footerView
 }
 
 // buildListContent builds the tick list content string for the left pane viewport.

@@ -2,7 +2,7 @@
   "id": "w5g",
   "title": "Add TUI keyboard shortcuts for approve/reject",
   "description": "Add keyboard shortcuts in TUI for quick approve/reject actions\n\nProposed shortcuts:\n- 'a' - Approve selected tick (if awaiting)\n- 'r' - Reject selected tick (opens input for feedback)\n- Or use 'A'/'R' (shift) to avoid conflicts\n\nBehavior:\n- Only active when selected tick has awaiting set\n- Show feedback in status bar\n- Refresh tick state after action\n- Reject opens mini input for feedback message\n\nImplementation:\n- Add key handlers in Update() function\n- Call same logic as tk approve/tk reject\n- Show confirmation/result in status bar\n\nConsider: May want to confirm before approve/reject to prevent accidental actions.",
-  "status": "open",
+  "status": "closed",
   "priority": 3,
   "type": "task",
   "owner": "peter@engelbrecht.dk",
@@ -10,5 +10,7 @@
   "acceptance_criteria": "- [ ] Keyboard shortcut for approve works\n- [ ] Keyboard shortcut for reject works\n- [ ] Only active for awaiting ticks\n- [ ] Feedback shown in status bar\n- [ ] List refreshes after action",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-14T16:19:54.376421Z",
-  "updated_at": "2026-01-14T16:19:54.376421Z"
+  "updated_at": "2026-01-14T18:07:17.703944Z",
+  "closed_at": "2026-01-14T18:07:17.703944Z",
+  "closed_reason": "Added keyboard shortcuts 'a' (approve) and 'r' (reject) to TUI. Approve directly processes the verdict. Reject opens text input for optional feedback. Status messages shown in footer (green success, red error). Uses same logic as tk approve/reject commands."
 }
