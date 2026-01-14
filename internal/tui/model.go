@@ -32,24 +32,26 @@ type item struct {
 
 // keyMap defines all keybindings for the TUI.
 type keyMap struct {
-	Up         key.Binding
-	Down       key.Binding
-	ScrollUp   key.Binding
-	ScrollDn   key.Binding
-	Top        key.Binding
-	Bottom     key.Binding
-	Fold       key.Binding
-	Focus      key.Binding
-	Search     key.Binding
-	HideClosed key.Binding
-	Approve    key.Binding
-	Reject     key.Binding
-	Quit       key.Binding
+	Up            key.Binding
+	Down          key.Binding
+	ScrollUp      key.Binding
+	ScrollDn      key.Binding
+	Top           key.Binding
+	Bottom        key.Binding
+	Fold          key.Binding
+	Focus         key.Binding
+	Search        key.Binding
+	HideClosed    key.Binding
+	Approve       key.Binding
+	Reject        key.Binding
+	HumanQueue    key.Binding
+	CycleAwaiting key.Binding
+	Quit          key.Binding
 }
 
 // ShortHelp returns bindings for the short help view (single line).
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.ScrollUp, k.Fold, k.Focus, k.Search, k.HideClosed, k.Approve, k.Quit}
+	return []key.Binding{k.Up, k.ScrollUp, k.Fold, k.Focus, k.Search, k.HideClosed, k.HumanQueue, k.Approve, k.Quit}
 }
 
 // FullHelp returns bindings for the full help view (multiple columns).
@@ -58,6 +60,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 		{k.Up, k.Down},
 		{k.ScrollUp, k.ScrollDn, k.Top, k.Bottom},
 		{k.Fold, k.Focus, k.Search, k.HideClosed},
+		{k.HumanQueue, k.CycleAwaiting},
 		{k.Approve, k.Reject, k.Quit},
 	}
 }
@@ -111,10 +114,39 @@ var defaultKeyMap = keyMap{
 		key.WithKeys("r"),
 		key.WithHelp("a/r", "approve/reject"),
 	),
+	HumanQueue: key.NewBinding(
+		key.WithKeys("h"),
+		key.WithHelp("h/H", "human/cycle"),
+	),
+	CycleAwaiting: key.NewBinding(
+		key.WithKeys("H"),
+		key.WithHelp("h/H", "human/cycle"),
+	),
 	Quit: key.NewBinding(
 		key.WithKeys("q", "ctrl+c"),
 		key.WithHelp("q", "quit"),
 	),
+}
+
+// awaitingFilterMode represents the current awaiting filter state.
+type awaitingFilterMode int
+
+const (
+	awaitingFilterOff       awaitingFilterMode = iota // No filter (show all)
+	awaitingFilterHumanOnly                           // Show only awaiting human tasks
+	awaitingFilterAgentOnly                           // Show only non-awaiting tasks
+	awaitingFilterByType                              // Filter by specific awaiting type
+)
+
+// awaitingTypes lists all awaiting types for cycling.
+var awaitingTypes = []string{
+	tick.AwaitingWork,
+	tick.AwaitingApproval,
+	tick.AwaitingInput,
+	tick.AwaitingReview,
+	tick.AwaitingContent,
+	tick.AwaitingEscalation,
+	tick.AwaitingCheckpoint,
 }
 
 type Model struct {
@@ -134,6 +166,11 @@ type Model struct {
 	ready        bool           // viewport initialized
 	keys         keyMap
 	help         help.Model
+
+	// Awaiting filter state
+	awaitingFilter     awaitingFilterMode // Current filter mode
+	awaitingTypeFilter string             // Specific type when mode is awaitingFilterByType
+	awaitingTypeIdx    int                // Index in awaitingTypes for cycling
 
 	// Store path for approve/reject operations
 	storePath string
@@ -248,7 +285,7 @@ func renderVerdict(verdict string) string {
 func NewModel(ticks []tick.Tick, storePath string) Model {
 	collapsed := make(map[string]bool)
 	hideClosed := true // default to hiding closed ticks
-	items := buildItems(ticks, collapsed, "", "", hideClosed)
+	items := buildItems(ticks, collapsed, "", "", hideClosed, awaitingFilterOff, "")
 
 	ti := textinput.New()
 	ti.Placeholder = "search..."
@@ -340,7 +377,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.searching = false
 				m.searchInput.Reset()
 				m.searchInput.Blur()
-				m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic, m.hideClosed)
+				m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic, m.hideClosed, m.awaitingFilter, m.awaitingTypeFilter)
 				if m.selected >= len(m.items) {
 					m.selected = len(m.items) - 1
 				}
@@ -369,7 +406,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "esc":
 			if m.focusedEpic != "" {
 				m.focusedEpic = ""
-				m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic, m.hideClosed)
+				m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic, m.hideClosed, m.awaitingFilter, m.awaitingTypeFilter)
 				m.selected = 0
 				m.updateListViewportContent()
 				m.updateViewportContent()
@@ -403,14 +440,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				} else {
 					m.focusedEpic = current.Tick.ID
 				}
-				m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic, m.hideClosed)
+				m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic, m.hideClosed, m.awaitingFilter, m.awaitingTypeFilter)
 				m.selected = 0
 				m.updateListViewportContent()
 				m.updateViewportContent()
 			}
 		case "c":
 			m.hideClosed = !m.hideClosed
-			m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic, m.hideClosed)
+			m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic, m.hideClosed, m.awaitingFilter, m.awaitingTypeFilter)
 			if m.selected >= len(m.items) {
 				m.selected = len(m.items) - 1
 			}
@@ -426,7 +463,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			current := m.items[m.selected]
 			if current.IsEpic && current.HasKids {
 				m.collapsed[current.Tick.ID] = !m.collapsed[current.Tick.ID]
-				m.items = buildItemsFromState(m.allTicks, m.collapsed, m.filter, m.focusedEpic, m.hideClosed)
+				m.items = buildItemsFromState(m.allTicks, m.collapsed, m.filter, m.focusedEpic, m.hideClosed, m.awaitingFilter, m.awaitingTypeFilter)
 				if m.selected >= len(m.items) {
 					m.selected = len(m.items) - 1
 				}
@@ -457,6 +494,40 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.rejectInput.Reset()
 			m.rejectInput.Focus()
 			return m, m.rejectInput.Cursor.BlinkCmd()
+		case "h":
+			// Toggle human queue filter: off -> human only -> agent only -> off
+			switch m.awaitingFilter {
+			case awaitingFilterOff:
+				m.awaitingFilter = awaitingFilterHumanOnly
+			case awaitingFilterHumanOnly:
+				m.awaitingFilter = awaitingFilterAgentOnly
+			case awaitingFilterAgentOnly, awaitingFilterByType:
+				m.awaitingFilter = awaitingFilterOff
+				m.awaitingTypeFilter = ""
+			}
+			m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic, m.hideClosed, m.awaitingFilter, m.awaitingTypeFilter)
+			if m.selected >= len(m.items) {
+				m.selected = len(m.items) - 1
+			}
+			if m.selected < 0 {
+				m.selected = 0
+			}
+			m.updateListViewportContent()
+			m.updateViewportContent()
+		case "H":
+			// Cycle through specific awaiting types
+			m.awaitingFilter = awaitingFilterByType
+			m.awaitingTypeIdx = (m.awaitingTypeIdx + 1) % len(awaitingTypes)
+			m.awaitingTypeFilter = awaitingTypes[m.awaitingTypeIdx]
+			m.items = buildItems(m.allTicks, m.collapsed, m.filter, m.focusedEpic, m.hideClosed, m.awaitingFilter, m.awaitingTypeFilter)
+			if m.selected >= len(m.items) {
+				m.selected = len(m.items) - 1
+			}
+			if m.selected < 0 {
+				m.selected = 0
+			}
+			m.updateListViewportContent()
+			m.updateViewportContent()
 		}
 	}
 
@@ -655,6 +726,15 @@ func (m Model) View() string {
 	// Add indicator for hiding closed ticks
 	if m.hideClosed {
 		leftHeader += " [hiding closed]"
+	}
+	// Add indicator for awaiting filter
+	switch m.awaitingFilter {
+	case awaitingFilterHumanOnly:
+		leftHeader += " [human queue]"
+	case awaitingFilterAgentOnly:
+		leftHeader += " [agent queue]"
+	case awaitingFilterByType:
+		leftHeader += fmt.Sprintf(" [awaiting:%s]", m.awaitingTypeFilter)
 	}
 
 	// Build right panel header with title and scroll indicator
@@ -857,11 +937,12 @@ func (m *Model) updateViewportContent() {
 	m.viewport.GotoTop()
 }
 
-func buildItems(ticks []tick.Tick, collapsed map[string]bool, filter string, focus string, hideClosed bool) []item {
+func buildItems(ticks []tick.Tick, collapsed map[string]bool, filter string, focus string, hideClosed bool, awaitingMode awaitingFilterMode, awaitingType string) []item {
 	filtered := applyFilter(applyFocus(ticks, focus), filter)
 	if hideClosed {
 		filtered = applyHideClosed(filtered)
 	}
+	filtered = applyAwaitingFilter(filtered, awaitingMode, awaitingType)
 	roots, children := splitRoots(filtered)
 	query.SortByPriorityCreatedAt(roots)
 
@@ -880,8 +961,8 @@ func buildItems(ticks []tick.Tick, collapsed map[string]bool, filter string, foc
 	return items
 }
 
-func buildItemsFromState(all []tick.Tick, collapsed map[string]bool, filter string, focus string, hideClosed bool) []item {
-	return buildItems(all, collapsed, filter, focus, hideClosed)
+func buildItemsFromState(all []tick.Tick, collapsed map[string]bool, filter string, focus string, hideClosed bool, awaitingMode awaitingFilterMode, awaitingType string) []item {
+	return buildItems(all, collapsed, filter, focus, hideClosed, awaitingMode, awaitingType)
 }
 
 // applyHideClosed filters out closed ticks following these rules:
@@ -981,6 +1062,35 @@ func applyFocus(ticks []tick.Tick, focus string) []tick.Tick {
 	for _, t := range ticks {
 		if t.ID == focus || t.Parent == focus {
 			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// applyAwaitingFilter filters ticks based on awaiting state.
+func applyAwaitingFilter(ticks []tick.Tick, mode awaitingFilterMode, typeFilter string) []tick.Tick {
+	if mode == awaitingFilterOff {
+		return ticks
+	}
+
+	var out []tick.Tick
+	for _, t := range ticks {
+		switch mode {
+		case awaitingFilterHumanOnly:
+			// Show only ticks awaiting human action
+			if t.IsAwaitingHuman() {
+				out = append(out, t)
+			}
+		case awaitingFilterAgentOnly:
+			// Show only ticks NOT awaiting human action
+			if !t.IsAwaitingHuman() {
+				out = append(out, t)
+			}
+		case awaitingFilterByType:
+			// Show only ticks with specific awaiting type
+			if t.GetAwaitingType() == typeFilter {
+				out = append(out, t)
+			}
 		}
 	}
 	return out

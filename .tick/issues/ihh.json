@@ -1,0 +1,16 @@
+{
+  "id": "ihh",
+  "title": "Add awaiting filter to tk view",
+  "description": "Add filter capability in the TUI (tk view) for awaiting status\n\nShould support:\n- Filter to show only awaiting tasks (human queue)\n- Filter to show only non-awaiting tasks (agent queue)\n- Filter by specific awaiting type (approval, review, etc.)\n\nPossible UX:\n- 'h' key to toggle 'human tasks only' filter\n- 'H' key (shift) to cycle through awaiting types\n- Status bar shows current filter\n\nThis complements the existing filters (owner, labels, search) to help humans manage their review queue.",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "1g0",
+  "acceptance_criteria": "- [ ] Can filter to show only awaiting tasks\n- [ ] Can filter to show only agent tasks\n- [ ] Can filter by specific awaiting type\n- [ ] Filter state shown in status bar",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T18:07:08.371717Z",
+  "updated_at": "2026-01-14T18:13:23.151271Z",
+  "closed_at": "2026-01-14T18:13:23.151271Z",
+  "closed_reason": "Added awaiting filter to TUI with 'h' key (cycles off-\u003ehuman-\u003eagent) and 'H' key (cycles specific awaiting types). Implemented applyAwaitingFilter(), updated buildItems() pipeline, added status bar indicators, and created unit tests. Files: internal/tui/model.go, internal/tui/model_test.go"
+}
