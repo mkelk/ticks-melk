@@ -36,8 +36,8 @@ func ProcessVerdict(t *Tick) (closed bool, err error) {
 		shouldClose = false
 	}
 
-	// Clear transient state
-	t.Awaiting = nil
+	// Clear transient state (also clears legacy Manual field)
+	t.ClearAwaiting()
 	t.Verdict = nil
 
 	if shouldClose {

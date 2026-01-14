@@ -210,3 +210,21 @@ func (t *Tick) IsTerminalAwaiting() bool {
 		return false
 	}
 }
+
+// SetAwaiting sets the awaiting state and clears the legacy Manual field.
+// Pass empty string to clear the awaiting state.
+// This ensures migration from Manual to Awaiting field.
+func (t *Tick) SetAwaiting(value string) {
+	if value == "" {
+		t.Awaiting = nil
+	} else {
+		t.Awaiting = &value
+	}
+	t.Manual = false // Clear old field to avoid confusion
+}
+
+// ClearAwaiting clears the awaiting state and the legacy Manual field.
+func (t *Tick) ClearAwaiting() {
+	t.Awaiting = nil
+	t.Manual = false
+}

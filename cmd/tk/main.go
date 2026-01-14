@@ -849,11 +849,11 @@ func runUpdate(args []string) int {
 		fmt.Fprintln(os.Stderr, "Warning: --manual is deprecated, use --awaiting work instead")
 		// Map manual=true to awaiting=work if awaiting not explicitly set
 		if manual.value && !awaiting.set {
-			awaitingWork := tick.AwaitingWork
-			t.Awaiting = &awaitingWork
+			t.SetAwaiting(tick.AwaitingWork)
+		} else if !manual.value {
+			// manual=false clears both fields
+			t.ClearAwaiting()
 		}
-		// Still set Manual for backwards compatibility with old code
-		t.Manual = manual.value
 	}
 	if parent.set {
 		t.Parent = parent.value
@@ -873,11 +873,11 @@ func runUpdate(args []string) int {
 	}
 	if awaiting.set {
 		if awaiting.value == "" {
-			t.Awaiting = nil
+			t.ClearAwaiting()
 		} else {
 			switch awaiting.value {
 			case tick.AwaitingWork, tick.AwaitingApproval, tick.AwaitingInput, tick.AwaitingReview, tick.AwaitingContent, tick.AwaitingEscalation, tick.AwaitingCheckpoint:
-				t.Awaiting = &awaiting.value
+				t.SetAwaiting(awaiting.value)
 			default:
 				fmt.Fprintf(os.Stderr, "invalid awaiting value: %s (must be work, approval, input, review, content, escalation, or checkpoint)\n", awaiting.value)
 				return exitUsage
@@ -2562,10 +2562,9 @@ func runApprove(args []string) int {
 		return exitUsage
 	}
 
-	// Handle legacy manual flag - treat as awaiting=work
+	// Handle legacy manual flag - normalize to awaiting=work before processing
 	if t.Awaiting == nil && t.Manual {
-		awaitingWork := tick.AwaitingWork
-		t.Awaiting = &awaitingWork
+		t.SetAwaiting(tick.AwaitingWork)
 	}
 
 	// Set verdict and process
@@ -2675,10 +2674,9 @@ func runReject(args []string) int {
 		return exitUsage
 	}
 
-	// Handle legacy manual flag - treat as awaiting=work
+	// Handle legacy manual flag - normalize to awaiting=work before processing
 	if t.Awaiting == nil && t.Manual {
-		awaitingWork := tick.AwaitingWork
-		t.Awaiting = &awaitingWork
+		t.SetAwaiting(tick.AwaitingWork)
 	}
 
 	// Add feedback note FIRST (before processing verdict) to prevent race condition

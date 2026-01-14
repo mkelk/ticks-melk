@@ -434,6 +434,124 @@ func TestIsTerminalAwaiting(t *testing.T) {
 	}
 }
 
+func TestSetAwaiting(t *testing.T) {
+	now := time.Date(2025, 1, 8, 10, 30, 0, 0, time.UTC)
+	base := Tick{
+		ID:        "a1b",
+		Title:     "Fix auth",
+		Status:    StatusOpen,
+		Priority:  2,
+		Type:      TypeBug,
+		Owner:     "petere",
+		CreatedBy: "petere",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	t.Run("set_awaiting_clears_manual", func(t *testing.T) {
+		tick := base
+		tick.Manual = true
+
+		tick.SetAwaiting(AwaitingApproval)
+
+		if tick.Awaiting == nil || *tick.Awaiting != AwaitingApproval {
+			t.Errorf("expected Awaiting=%q, got %v", AwaitingApproval, tick.Awaiting)
+		}
+		if tick.Manual {
+			t.Error("expected Manual=false after SetAwaiting, got true")
+		}
+	})
+
+	t.Run("set_awaiting_empty_clears_both", func(t *testing.T) {
+		tick := base
+		tick.Manual = true
+		awaiting := AwaitingWork
+		tick.Awaiting = &awaiting
+
+		tick.SetAwaiting("")
+
+		if tick.Awaiting != nil {
+			t.Errorf("expected Awaiting=nil after SetAwaiting(\"\"), got %v", *tick.Awaiting)
+		}
+		if tick.Manual {
+			t.Error("expected Manual=false after SetAwaiting(\"\"), got true")
+		}
+	})
+
+	t.Run("set_awaiting_from_fresh_tick", func(t *testing.T) {
+		tick := base
+
+		tick.SetAwaiting(AwaitingInput)
+
+		if tick.Awaiting == nil || *tick.Awaiting != AwaitingInput {
+			t.Errorf("expected Awaiting=%q, got %v", AwaitingInput, tick.Awaiting)
+		}
+		if tick.Manual {
+			t.Error("expected Manual=false, got true")
+		}
+	})
+}
+
+func TestClearAwaiting(t *testing.T) {
+	now := time.Date(2025, 1, 8, 10, 30, 0, 0, time.UTC)
+	base := Tick{
+		ID:        "a1b",
+		Title:     "Fix auth",
+		Status:    StatusOpen,
+		Priority:  2,
+		Type:      TypeBug,
+		Owner:     "petere",
+		CreatedBy: "petere",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	t.Run("clear_awaiting_clears_both_fields", func(t *testing.T) {
+		tick := base
+		tick.Manual = true
+		awaiting := AwaitingWork
+		tick.Awaiting = &awaiting
+
+		tick.ClearAwaiting()
+
+		if tick.Awaiting != nil {
+			t.Errorf("expected Awaiting=nil, got %v", *tick.Awaiting)
+		}
+		if tick.Manual {
+			t.Error("expected Manual=false, got true")
+		}
+	})
+
+	t.Run("clear_awaiting_only_manual", func(t *testing.T) {
+		tick := base
+		tick.Manual = true
+
+		tick.ClearAwaiting()
+
+		if tick.Awaiting != nil {
+			t.Errorf("expected Awaiting=nil, got %v", *tick.Awaiting)
+		}
+		if tick.Manual {
+			t.Error("expected Manual=false, got true")
+		}
+	})
+
+	t.Run("clear_awaiting_only_awaiting", func(t *testing.T) {
+		tick := base
+		awaiting := AwaitingApproval
+		tick.Awaiting = &awaiting
+
+		tick.ClearAwaiting()
+
+		if tick.Awaiting != nil {
+			t.Errorf("expected Awaiting=nil, got %v", *tick.Awaiting)
+		}
+		if tick.Manual {
+			t.Error("expected Manual=false, got true")
+		}
+	})
+}
+
 func TestWorkflowFieldsJSONSerialization(t *testing.T) {
 	now := time.Date(2025, 1, 8, 10, 30, 0, 0, time.UTC)
 

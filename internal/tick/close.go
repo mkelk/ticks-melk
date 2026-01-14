@@ -26,8 +26,8 @@ func HandleClose(t *Tick, reason string) (routed bool) {
 	now := time.Now().UTC()
 
 	if t.HasRequiredGate() {
-		// Route to human instead of closing
-		t.Awaiting = t.Requires
+		// Route to human instead of closing (also clears legacy Manual field)
+		t.SetAwaiting(*t.Requires)
 
 		// Add note explaining the routing
 		note := fmt.Sprintf("Work complete, awaiting %s", *t.Requires)
