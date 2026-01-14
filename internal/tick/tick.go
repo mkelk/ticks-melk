@@ -23,6 +23,13 @@ const (
 	TypeChore   = "chore"
 )
 
+// Requires values (pre-declared gates).
+const (
+	RequiresApproval = "approval"
+	RequiresReview   = "review"
+	RequiresContent  = "content"
+)
+
 // Tick represents a single work item on disk.
 type Tick struct {
 	ID             string     `json:"id"`
@@ -41,6 +48,7 @@ type Tick struct {
 	DeferUntil         *time.Time `json:"defer_until,omitempty"`
 	ExternalRef        string     `json:"external_ref,omitempty"`
 	Manual             bool       `json:"manual,omitempty"`
+	Requires           *string    `json:"requires,omitempty"`
 	CreatedBy          string     `json:"created_by"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
@@ -83,6 +91,9 @@ func (t Tick) Validate() error {
 	if t.UpdatedAt.IsZero() {
 		errs = append(errs, errors.New("updated_at is required"))
 	}
+	if t.Requires != nil && !isRequiresValid(*t.Requires) {
+		errs = append(errs, fmt.Errorf("invalid requires: %s", *t.Requires))
+	}
 
 	return errors.Join(errs...)
 }
@@ -99,6 +110,15 @@ func isStatusValid(value string) bool {
 func isTypeValid(value string) bool {
 	switch value {
 	case TypeBug, TypeFeature, TypeTask, TypeEpic, TypeChore:
+		return true
+	default:
+		return false
+	}
+}
+
+func isRequiresValid(value string) bool {
+	switch value {
+	case RequiresApproval, RequiresReview, RequiresContent:
 		return true
 	default:
 		return false
