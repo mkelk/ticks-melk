@@ -1,0 +1,13 @@
+{
+  "id": "cuf",
+  "title": "CLI Commands",
+  "description": "Add new CLI commands for human verdict workflow:\n- tk approve \u003cid\u003e: Set verdict=approved on awaiting tick\n- tk reject \u003cid\u003e [feedback]: Set verdict=rejected with optional note\n\nThese commands enable humans to respond to agent handoffs.",
+  "status": "open",
+  "priority": 1,
+  "type": "epic",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "7sn",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T16:14:29.486084Z",
+  "updated_at": "2026-01-14T16:14:29.486084Z"
+}

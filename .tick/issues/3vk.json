@@ -1,0 +1,17 @@
+{
+  "id": "3vk",
+  "title": "Implement Manual to Awaiting read compatibility",
+  "description": "Ensure reading ticks with Manual=true works correctly with new awaiting system\n\nWhen loading a tick:\n- If Manual=true AND Awaiting is null, treat as Awaiting=\"work\"\n- This is handled by IsAwaitingHuman() and GetAwaitingType() helpers\n- No data migration needed for reads\n\nImplementation:\nThe helper methods in tick.go handle this:\n\nfunc (t *Tick) IsAwaitingHuman() bool {\n    if t.Awaiting != nil \u0026\u0026 *t.Awaiting != \"\" {\n        return true\n    }\n    return t.Manual  // Backwards compat\n}\n\nfunc (t *Tick) GetAwaitingType() string {\n    if t.Awaiting != nil \u0026\u0026 *t.Awaiting != \"\" {\n        return *t.Awaiting\n    }\n    if t.Manual {\n        return AwaitingWork  // Backwards compat\n    }\n    return \"\"\n}\n\nAll code should use these helpers rather than accessing fields directly.",
+  "status": "open",
+  "priority": 1,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "blocked_by": [
+    "bet"
+  ],
+  "parent": "771",
+  "acceptance_criteria": "- [ ] IsAwaitingHuman() returns true for Manual=true ticks\n- [ ] GetAwaitingType() returns \"work\" for Manual=true ticks\n- [ ] Existing Manual=true ticks work with new queries\n- [ ] tk next excludes Manual=true ticks\n- [ ] tk list --awaiting includes Manual=true ticks",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T16:19:16.55502Z",
+  "updated_at": "2026-01-14T16:20:32.954531Z"
+}

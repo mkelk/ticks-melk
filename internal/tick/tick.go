@@ -174,3 +174,39 @@ func isVerdictValid(value string) bool {
 		return false
 	}
 }
+
+// IsAwaitingHuman returns true if tick is waiting for human action.
+// This includes ticks with Awaiting set or legacy Manual flag.
+func (t *Tick) IsAwaitingHuman() bool {
+	return t.Awaiting != nil || t.Manual
+}
+
+// GetAwaitingType returns the awaiting type, handling backwards compatibility with Manual.
+// Returns empty string if not awaiting human action.
+func (t *Tick) GetAwaitingType() string {
+	if t.Awaiting != nil {
+		return *t.Awaiting
+	}
+	if t.Manual {
+		return AwaitingWork
+	}
+	return ""
+}
+
+// HasRequiredGate returns true if tick has a pre-declared approval gate.
+func (t *Tick) HasRequiredGate() bool {
+	return t.Requires != nil
+}
+
+// IsTerminalAwaiting returns true if approved verdict should close the tick.
+// Terminal awaiting types: approval, review, content, work
+// Non-terminal awaiting types: input, escalation, checkpoint
+func (t *Tick) IsTerminalAwaiting() bool {
+	awaitingType := t.GetAwaitingType()
+	switch awaitingType {
+	case AwaitingApproval, AwaitingReview, AwaitingContent, AwaitingWork:
+		return true
+	default:
+		return false
+	}
+}

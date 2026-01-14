@@ -1,0 +1,18 @@
+{
+  "id": "4oj",
+  "title": "Write comprehensive verdict processing tests",
+  "description": "Add thorough unit tests for verdict processing in internal/tick/verdict_test.go\n\nThis is the most critical test file - the state machine MUST be correct.\n\nTest matrix (from design doc Verdict Processing Matrix):\n\n| awaiting     | verdict=approved      | verdict=rejected           |\n|--------------|----------------------|---------------------------|\n| work         | Close tick           | (invalid case?)           |\n| approval     | Close tick           | Back to agent             |\n| input        | Back to agent        | Close tick                |\n| review       | Close tick           | Back to agent             |\n| content      | Close tick           | Back to agent             |\n| escalation   | Back to agent        | Close tick                |\n| checkpoint   | Back to agent        | Back to agent             |\n\nTests should verify:\n1. Every cell in the matrix\n2. Awaiting cleared after processing\n3. Verdict cleared after processing\n4. ClosedAt set when closing\n5. Status changed to closed when closing\n6. No changes when Verdict is nil\n7. No changes when Awaiting is nil\n\nAlso test requires field handling:\n8. Close with requires=approval sets awaiting=approval\n9. Close with requires=review sets awaiting=review\n10. Close with requires=content sets awaiting=content\n11. Requires persists through rejection cycle",
+  "status": "open",
+  "priority": 0,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "blocked_by": [
+    "t0a",
+    "d11"
+  ],
+  "parent": "boh",
+  "acceptance_criteria": "- [ ] Tests cover all 14 cells of the verdict matrix (7 awaiting x 2 verdicts)\n- [ ] Tests verify state clearing\n- [ ] Tests verify close behavior (status, closedAt)\n- [ ] Tests verify no-op cases\n- [ ] Tests cover requires field handling\n- [ ] All edge cases covered\n- [ ] All tests pass",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T16:18:38.226705Z",
+  "updated_at": "2026-01-14T16:20:34.484976Z"
+}

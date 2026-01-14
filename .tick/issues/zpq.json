@@ -1,0 +1,14 @@
+{
+  "id": "zpq",
+  "title": "Write tests for new CLI flags",
+  "description": "Add integration tests for new flags in cmd/tk/main_test.go\n\nTest categories:\n\n1. tk create --requires:\n   - Creates tick with requires=approval\n   - Creates tick with requires=review\n   - Creates tick with requires=content\n   - Rejects invalid requires value\n\n2. tk create --awaiting:\n   - Creates tick with each awaiting type\n   - Rejects invalid awaiting value\n\n3. tk update --requires:\n   - Sets requires on existing tick\n   - Clears requires with empty value\n\n4. tk update --awaiting:\n   - Sets awaiting on existing tick\n   - Clears awaiting with empty value\n\n5. tk update --verdict:\n   - Sets verdict and triggers processing\n   - Verify state transitions\n\n6. tk list --awaiting:\n   - Filters to awaiting ticks\n   - Filters to specific type\n   - Handles comma-separated types\n   - Includes Manual=true ticks\n\nFollow existing test patterns.",
+  "status": "open",
+  "priority": 1,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "jko",
+  "acceptance_criteria": "- [ ] Tests for --requires on create\n- [ ] Tests for --requires on update\n- [ ] Tests for --awaiting on create\n- [ ] Tests for --awaiting on update\n- [ ] Tests for --verdict on update\n- [ ] Tests for --awaiting filter on list\n- [ ] All tests pass",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T16:17:17.618879Z",
+  "updated_at": "2026-01-14T16:17:17.618879Z"
+}

@@ -1,0 +1,13 @@
+{
+  "id": "boh",
+  "title": "Verdict Processing",
+  "description": "Implement verdict processing state machine:\n- When verdict is set, process based on awaiting type\n- Terminal states (approval, review, content, work) → close on approved\n- Non-terminal states (input, escalation, checkpoint) → back to agent\n- Clear awaiting and verdict after processing\n- Handle requires field on tick close\n\nThis is the core state machine for agent-human handoffs.",
+  "status": "open",
+  "priority": 1,
+  "type": "epic",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "7sn",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T16:14:32.166588Z",
+  "updated_at": "2026-01-14T16:14:32.166588Z"
+}

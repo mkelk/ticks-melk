@@ -1,0 +1,16 @@
+{
+  "id": "bet",
+  "title": "Add helper methods for workflow state",
+  "description": "Add helper methods to Tick struct for workflow state inspection:\n\n// IsAwaitingHuman returns true if tick is waiting for human action\nfunc (t *Tick) IsAwaitingHuman() bool\n\n// GetAwaitingType returns the awaiting type, handling backwards compat with Manual\nfunc (t *Tick) GetAwaitingType() string\n\n// HasRequiredGate returns true if tick has a pre-declared approval gate\nfunc (t *Tick) HasRequiredGate() bool\n\n// IsTerminalAwaiting returns true if approved verdict should close the tick\nfunc (t *Tick) IsTerminalAwaiting() bool\n\nTerminal awaiting types (approved = close): approval, review, content, work\nNon-terminal awaiting types (approved = back to agent): input, escalation, checkpoint",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "aee",
+  "acceptance_criteria": "- [ ] IsAwaitingHuman() returns true when Awaiting is set\n- [ ] IsAwaitingHuman() returns true when Manual is true (backwards compat)\n- [ ] GetAwaitingType() returns Awaiting value if set\n- [ ] GetAwaitingType() returns \"work\" if Manual is true and Awaiting is null\n- [ ] HasRequiredGate() returns true when Requires is set\n- [ ] IsTerminalAwaiting() correctly identifies terminal vs non-terminal states",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T16:15:53.822895Z",
+  "updated_at": "2026-01-14T16:32:47.238235Z",
+  "closed_at": "2026-01-14T16:32:47.238235Z",
+  "closed_reason": "Added 4 workflow helper methods to Tick struct: IsAwaitingHuman() checks Awaiting or Manual flag, GetAwaitingType() returns awaiting type with backwards compat for Manual, HasRequiredGate() checks Requires field, IsTerminalAwaiting() identifies terminal states (approval/review/content/work). Tests added for all methods."
+}

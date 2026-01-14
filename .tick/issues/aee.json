@@ -1,0 +1,14 @@
+{
+  "id": "aee",
+  "title": "Schema Changes",
+  "description": "Add three new fields to tick schema:\n- requires: Pre-declared gate (approval|review|content) set at creation, persists through lifecycle\n- awaiting: Current wait state (work|approval|input|review|content|escalation|checkpoint), transient\n- verdict: Human response (approved|rejected), transient, triggers state processing\n\nThese fields implement the agent-human handoff state machine.",
+  "notes": "2026-01-14 17:26 - Completed pgg: Added Requires field to Tick struct. Field is *string with json:requires,omitempty tag. Valid values are 'approval', 'review', 'content' (defined as RequiresApproval/RequiresReview/RequiresContent constants). Validation added to Validate() method with isRequiresValid() helper. Tests added. Pattern follows existing enum validation (isStatusValid, isTypeValid).\n2026-01-14 17:28 - Completed 5v7: Added Awaiting field to Tick struct. Field is *string with json:awaiting,omitempty tag. Valid values are work, approval, input, review, content, escalation, checkpoint (defined as AwaitingWork/AwaitingApproval/etc constants). Validation added to Validate() method with isAwaitingValid() helper. Tests added. Pattern follows existing enum validation (isStatusValid, isTypeValid, isRequiresValid).\n2026-01-14 17:30 - Completed d2f: Added Verdict field to Tick struct. Field is *string with json:verdict,omitempty tag. Valid values are 'approved', 'rejected' (defined as VerdictApproved/VerdictRejected constants). Validation added to Validate() method with isVerdictValid() helper. Tests added. Pattern follows existing enum validation (isStatusValid, isTypeValid, isRequiresValid, isAwaitingValid). All three schema fields for agent-human handoff are now complete: Requires, Awaiting, Verdict.\n2026-01-14 17:31 - Completed c91: Added ValidRequiresValues, ValidAwaitingValues, ValidVerdictValues slices to tick.go (lines 50-55). Constants already existed from previous iterations (pgg, 5v7, d2f). Added TestValidValueSlices test. All workflow enum constants and slices are now complete in internal/tick/tick.go.",
+  "status": "open",
+  "priority": 1,
+  "type": "epic",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "7sn",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T16:14:11.887029Z",
+  "updated_at": "2026-01-14T16:31:23.987971Z"
+}

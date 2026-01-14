@@ -264,3 +264,171 @@ func TestValidValueSlices(t *testing.T) {
 		}
 	}
 }
+
+func TestIsAwaitingHuman(t *testing.T) {
+	now := time.Date(2025, 1, 8, 10, 30, 0, 0, time.UTC)
+	base := Tick{
+		ID:        "a1b",
+		Title:     "Fix auth",
+		Status:    StatusOpen,
+		Priority:  2,
+		Type:      TypeBug,
+		Owner:     "petere",
+		CreatedBy: "petere",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	// No awaiting or manual - not waiting
+	if base.IsAwaitingHuman() {
+		t.Error("expected IsAwaitingHuman() to be false when neither Awaiting nor Manual is set")
+	}
+
+	// With Awaiting set
+	awaiting := AwaitingApproval
+	withAwaiting := base
+	withAwaiting.Awaiting = &awaiting
+	if !withAwaiting.IsAwaitingHuman() {
+		t.Error("expected IsAwaitingHuman() to be true when Awaiting is set")
+	}
+
+	// With Manual set (backwards compat)
+	withManual := base
+	withManual.Manual = true
+	if !withManual.IsAwaitingHuman() {
+		t.Error("expected IsAwaitingHuman() to be true when Manual is set")
+	}
+
+	// With both set
+	withBoth := base
+	withBoth.Awaiting = &awaiting
+	withBoth.Manual = true
+	if !withBoth.IsAwaitingHuman() {
+		t.Error("expected IsAwaitingHuman() to be true when both Awaiting and Manual are set")
+	}
+}
+
+func TestGetAwaitingType(t *testing.T) {
+	now := time.Date(2025, 1, 8, 10, 30, 0, 0, time.UTC)
+	base := Tick{
+		ID:        "a1b",
+		Title:     "Fix auth",
+		Status:    StatusOpen,
+		Priority:  2,
+		Type:      TypeBug,
+		Owner:     "petere",
+		CreatedBy: "petere",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	// No awaiting or manual - empty string
+	if got := base.GetAwaitingType(); got != "" {
+		t.Errorf("expected empty string, got %q", got)
+	}
+
+	// With Awaiting set - returns awaiting value
+	awaiting := AwaitingApproval
+	withAwaiting := base
+	withAwaiting.Awaiting = &awaiting
+	if got := withAwaiting.GetAwaitingType(); got != AwaitingApproval {
+		t.Errorf("expected %q, got %q", AwaitingApproval, got)
+	}
+
+	// With Manual set (backwards compat) - returns work
+	withManual := base
+	withManual.Manual = true
+	if got := withManual.GetAwaitingType(); got != AwaitingWork {
+		t.Errorf("expected %q for Manual=true, got %q", AwaitingWork, got)
+	}
+
+	// With both set - Awaiting takes precedence
+	withBoth := base
+	input := AwaitingInput
+	withBoth.Awaiting = &input
+	withBoth.Manual = true
+	if got := withBoth.GetAwaitingType(); got != AwaitingInput {
+		t.Errorf("expected %q (Awaiting takes precedence), got %q", AwaitingInput, got)
+	}
+}
+
+func TestHasRequiredGate(t *testing.T) {
+	now := time.Date(2025, 1, 8, 10, 30, 0, 0, time.UTC)
+	base := Tick{
+		ID:        "a1b",
+		Title:     "Fix auth",
+		Status:    StatusOpen,
+		Priority:  2,
+		Type:      TypeBug,
+		Owner:     "petere",
+		CreatedBy: "petere",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	// No requires - false
+	if base.HasRequiredGate() {
+		t.Error("expected HasRequiredGate() to be false when Requires is nil")
+	}
+
+	// With requires set - true
+	requires := RequiresApproval
+	withRequires := base
+	withRequires.Requires = &requires
+	if !withRequires.HasRequiredGate() {
+		t.Error("expected HasRequiredGate() to be true when Requires is set")
+	}
+}
+
+func TestIsTerminalAwaiting(t *testing.T) {
+	now := time.Date(2025, 1, 8, 10, 30, 0, 0, time.UTC)
+	base := Tick{
+		ID:        "a1b",
+		Title:     "Fix auth",
+		Status:    StatusOpen,
+		Priority:  2,
+		Type:      TypeBug,
+		Owner:     "petere",
+		CreatedBy: "petere",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	// Terminal awaiting types
+	terminalTypes := []string{AwaitingApproval, AwaitingReview, AwaitingContent, AwaitingWork}
+	for _, awType := range terminalTypes {
+		t.Run("terminal_"+awType, func(t *testing.T) {
+			tick := base
+			a := awType
+			tick.Awaiting = &a
+			if !tick.IsTerminalAwaiting() {
+				t.Errorf("expected IsTerminalAwaiting() to be true for %q", awType)
+			}
+		})
+	}
+
+	// Non-terminal awaiting types
+	nonTerminalTypes := []string{AwaitingInput, AwaitingEscalation, AwaitingCheckpoint}
+	for _, awType := range nonTerminalTypes {
+		t.Run("non_terminal_"+awType, func(t *testing.T) {
+			tick := base
+			a := awType
+			tick.Awaiting = &a
+			if tick.IsTerminalAwaiting() {
+				t.Errorf("expected IsTerminalAwaiting() to be false for %q", awType)
+			}
+		})
+	}
+
+	// Manual flag (backwards compat) should be terminal since it maps to work
+	withManual := base
+	withManual.Manual = true
+	if !withManual.IsTerminalAwaiting() {
+		t.Error("expected IsTerminalAwaiting() to be true for Manual=true (maps to work)")
+	}
+
+	// No awaiting - not terminal
+	if base.IsTerminalAwaiting() {
+		t.Error("expected IsTerminalAwaiting() to be false when not awaiting")
+	}
+}

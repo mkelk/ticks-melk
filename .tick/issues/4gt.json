@@ -1,0 +1,18 @@
+{
+  "id": "4gt",
+  "title": "Add --verdict flag to tk update",
+  "description": "Add --verdict flag to the update command\n\nUsage: tk update \u003cid\u003e --verdict approved|rejected\n\nBehavior:\n- Set the verdict field AND trigger verdict processing\n- This is a lower-level alternative to tk approve/tk reject\n- Triggers the same state machine logic\n\nImplementation:\n- Add -verdict and --verdict flags to update FlagSet\n- Validate value is approved or rejected\n- After setting, call verdict processing function\n- Processing may close tick or clear awaiting\n\nNote: Unlike approve/reject commands, this doesn't automatically validate that awaiting is set. The verdict processing will handle the edge case (no-op if not awaiting).\n\nTypically users should use tk approve/tk reject which are more ergonomic and add validation.",
+  "status": "open",
+  "priority": 1,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "blocked_by": [
+    "d2f",
+    "t0a"
+  ],
+  "parent": "jko",
+  "acceptance_criteria": "- [ ] --verdict flag added to update command\n- [ ] Valid values accepted (approved, rejected)\n- [ ] Invalid values rejected with error\n- [ ] Verdict processing triggered after setting\n- [ ] State transitions work correctly",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T16:17:16.02669Z",
+  "updated_at": "2026-01-14T16:20:31.40043Z"
+}

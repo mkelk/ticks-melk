@@ -1,0 +1,13 @@
+{
+  "id": "771",
+  "title": "Backwards Compatibility",
+  "description": "Maintain compatibility with existing manual field:\n- Read: If manual=true and awaiting=null, treat as awaiting=work\n- Write: Always write to awaiting, clear manual field\n- CLI: --manual shows deprecation warning, maps to --awaiting work\n- Queries: Check both awaiting and manual fields when filtering\n\nMigration path: v2.0 supports both, v3.0 removes manual.",
+  "status": "open",
+  "priority": 2,
+  "type": "epic",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "7sn",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T16:14:32.998773Z",
+  "updated_at": "2026-01-14T16:14:32.998773Z"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "jj3",
+  "title": "Add --awaiting flag to tk update",
+  "description": "Add --awaiting flag to the update command\n\nUsage: tk update \u003cid\u003e --awaiting work|approval|...\n       tk update \u003cid\u003e --awaiting=  (clear, return to agent)\n\nBehavior:\n- Set or clear the awaiting field\n- Setting awaiting moves tick to human queue\n- Clearing awaiting returns tick to agent queue\n- Validate value is one of the 7 awaiting types or empty\n\nImplementation:\n- Add -awaiting and --awaiting flags to update FlagSet\n- Use optionalString pattern for nullable field\n- --awaiting= (empty) clears the field\n- Validate enum value before updating\n\nUse case: Human manually routing task to another human or back to agent\n  tk update abc --awaiting work  # Human needs to do this\n  tk update abc --awaiting=      # Return to agent",
+  "status": "open",
+  "priority": 1,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "blocked_by": [
+    "5v7"
+  ],
+  "parent": "jko",
+  "acceptance_criteria": "- [ ] --awaiting flag added to update command\n- [ ] All 7 valid values accepted\n- [ ] Empty value clears the field (returns to agent)\n- [ ] Invalid values rejected with error\n- [ ] Field saved correctly to tick JSON",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T16:17:14.54283Z",
+  "updated_at": "2026-01-14T16:20:31.33363Z"
+}

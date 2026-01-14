@@ -1,0 +1,14 @@
+{
+  "id": "9gy",
+  "title": "Update queries to check both Manual and Awaiting",
+  "description": "Ensure all query logic handles both Manual and Awaiting fields\n\nAffected code:\n1. query.Ready() - already uses IsAwaitingHuman() helper\n2. query.Apply() with Awaiting filter - needs to also check Manual\n3. tk list --awaiting - needs to match Manual=true ticks\n4. tk next --awaiting - needs to return Manual=true ticks\n\nImplementation:\nIn filter Apply() for Awaiting:\n  // Use helper that handles both fields\n  awaitingType := t.GetAwaitingType()\n  if filter.Awaiting != nil {\n      if awaitingType != *filter.Awaiting {\n          continue\n      }\n  }\n\nThe key is using the helper methods consistently so backwards compat is automatic.",
+  "status": "open",
+  "priority": 1,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "771",
+  "acceptance_criteria": "- [ ] query.Ready() handles both fields\n- [ ] query.Apply() Awaiting filter handles both fields\n- [ ] tk list --awaiting shows Manual=true ticks\n- [ ] tk next --awaiting returns Manual=true ticks\n- [ ] All queries use helper methods",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T16:19:20.72167Z",
+  "updated_at": "2026-01-14T16:19:20.72167Z"
+}

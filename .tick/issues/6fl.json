@@ -1,0 +1,17 @@
+{
+  "id": "6fl",
+  "title": "Add Awaiting filter to query.Filter struct",
+  "description": "Add Awaiting field to the Filter struct in internal/query/filter.go\n\nCurrent Filter struct has fields for: Owner, Status, Priority, Type, Label, LabelAny, Parent, TitleContains, DescContains, NotesContains\n\nAdd new field:\n  Awaiting      *string   // Filter by awaiting type (nil = any, \"\" = none, value = specific)\n  AwaitingAny   []string  // Match any of these awaiting types\n\nSemantics:\n- Awaiting == nil: no filter (show all)\n- Awaiting == ptr(\"\") : filter to awaiting is null (agent tasks)\n- Awaiting == ptr(\"approval\"): filter to specific type\n- AwaitingAny: match any of the listed types\n\nUpdate Apply() function to handle these fields.\n\nThis supports the --awaiting filter on tk list.",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "blocked_by": [
+    "5v7"
+  ],
+  "parent": "9fb",
+  "acceptance_criteria": "- [ ] Awaiting field added to Filter struct\n- [ ] AwaitingAny field added for multiple types\n- [ ] Apply() handles Awaiting filter correctly\n- [ ] Apply() handles AwaitingAny filter correctly\n- [ ] Null/empty semantics work as specified",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T16:18:07.097602Z",
+  "updated_at": "2026-01-14T16:20:32.196596Z"
+}

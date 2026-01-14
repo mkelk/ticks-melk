@@ -1,0 +1,17 @@
+{
+  "id": "zr8",
+  "title": "Implement Manual to Awaiting write compatibility",
+  "description": "When writing awaiting state, clear the Manual field\n\nWhen setting Awaiting on a tick:\n- Clear Manual field to avoid confusion\n- Only use Awaiting field going forward\n\nImplementation:\nAdd method to tick.go:\n\nfunc (t *Tick) SetAwaiting(value string) {\n    if value == \"\" {\n        t.Awaiting = nil\n    } else {\n        t.Awaiting = \u0026value\n    }\n    t.Manual = false  // Clear old field\n}\n\nAll code setting awaiting should use this method or explicitly clear Manual.\n\nThis ensures:\n- New ticks use Awaiting, not Manual\n- Updated ticks migrate from Manual to Awaiting\n- No tick has both Manual=true and Awaiting set",
+  "status": "open",
+  "priority": 1,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "blocked_by": [
+    "bet"
+  ],
+  "parent": "771",
+  "acceptance_criteria": "- [ ] SetAwaiting method clears Manual field\n- [ ] tk update --awaiting clears Manual\n- [ ] tk create --awaiting doesn't set Manual\n- [ ] No tick ends up with both fields set",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T16:19:18.807557Z",
+  "updated_at": "2026-01-14T16:20:32.987154Z"
+}

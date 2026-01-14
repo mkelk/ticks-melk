@@ -1,0 +1,14 @@
+{
+  "id": "d98",
+  "title": "Add --from flag to tk note command",
+  "description": "Extend the 'note' command to support --from flag\n\nUsage: tk note \u003cid\u003e \"message\" --from agent|human\n\nCurrent behavior: Notes are added with timestamp but no author attribution\n\nNew behavior:\n- Default: --from agent (maintains current behavior)\n- --from human: Adds note with human attribution marker\n- Attribution helps agent distinguish feedback from its own notes\n\nNote format options:\nOption A: Prefix in note text\n  \"2025-01-14 10:30 [human] - Use Stripe for payments\"\n\nOption B: Separate metadata (more complex)\n  Store notes as structured data with author field\n\nRecommendation: Option A (prefix) is simpler and grep-friendly\n\nImplementation:\n- Add --from flag to note FlagSet\n- Validate value is \"agent\" or \"human\"\n- Include prefix in timestamp line when --from human",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "cuf",
+  "acceptance_criteria": "- [ ] --from flag added to note command\n- [ ] Default is --from agent (no change to output)\n- [ ] --from human adds attribution marker to note\n- [ ] Invalid --from values rejected\n- [ ] Help text documents the flag",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T16:16:33.286468Z",
+  "updated_at": "2026-01-14T16:16:33.286468Z"
+}

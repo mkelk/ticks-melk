@@ -1,0 +1,13 @@
+{
+  "id": "1g0",
+  "title": "TUI Updates",
+  "description": "Update the TUI (tk view) to display and interact with workflow state:\n- Display awaiting status in tick list\n- Display requires field in detail view\n- Display verdict pending state\n- Color coding for awaiting states\n- Keyboard shortcuts for approve/reject",
+  "status": "open",
+  "priority": 2,
+  "type": "epic",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "7sn",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T16:19:30.789246Z",
+  "updated_at": "2026-01-14T16:19:30.789246Z"
+}

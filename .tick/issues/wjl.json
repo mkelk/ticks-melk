@@ -1,0 +1,14 @@
+{
+  "id": "wjl",
+  "title": "Display workflow fields in TUI detail pane",
+  "description": "Update TUI detail pane to show requires, awaiting, and verdict fields\n\nCurrent detail view shows:\n- Title, Description, Status, Priority, Type\n- Owner, Labels, Parent, Blocked By\n- Acceptance Criteria, Notes\n\nAdd new section for workflow state:\n---\nWorkflow:\n  Requires: approval\n  Awaiting: approval (waiting for human)\n  Verdict: (pending)\n---\n\nOnly show section when at least one field is set.\nUse colors to indicate state:\n- Awaiting: Yellow/orange (needs attention)\n- Approved verdict: Green\n- Rejected verdict: Red\n\nImplementation in internal/tui/model.go renderDetail() function.",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "1g0",
+  "acceptance_criteria": "- [ ] Requires field displayed when set\n- [ ] Awaiting field displayed when set\n- [ ] Verdict field displayed when set\n- [ ] Section hidden when no workflow fields set\n- [ ] Colors indicate state",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T16:19:53.278768Z",
+  "updated_at": "2026-01-14T16:19:53.278768Z"
+}

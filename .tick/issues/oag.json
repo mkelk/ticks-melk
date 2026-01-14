@@ -1,0 +1,14 @@
+{
+  "id": "oag",
+  "title": "Update tk ready to exclude awaiting ticks",
+  "description": "Update tk ready command to exclude awaiting ticks\n\nCurrent behavior:\n- Shows all ready tasks (not blocked)\n- Has --include-manual flag to optionally show manual tasks\n\nNew behavior:\n- Exclude awaiting ticks by default (like manual)\n- Add --include-awaiting flag for optional display\n- Consider renaming/generalizing to --include-human or similar\n\nThe tk ready command shows agent-workable tasks. Tasks awaiting human should not appear by default since they're not actionable by agent.\n\nImplementation options:\n1. Reuse Ready() which now excludes awaiting (simplest)\n2. Add explicit filter in ready command\n3. Add --include-awaiting flag for humans wanting to see all\n\nRecommendation: Use Ready() and add --include-awaiting flag that bypasses the awaiting filter.",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "9fb",
+  "acceptance_criteria": "- [ ] tk ready excludes awaiting ticks by default\n- [ ] Behavior consistent with Ready() function\n- [ ] Optional --include-awaiting flag to show them\n- [ ] Backwards compat with --include-manual",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-14T16:18:05.259755Z",
+  "updated_at": "2026-01-14T16:18:05.259755Z"
+}
