@@ -36,6 +36,7 @@ type Tick struct {
 	Labels         []string   `json:"labels,omitempty"`
 	BlockedBy      []string   `json:"blocked_by,omitempty"`
 	Parent         string     `json:"parent,omitempty"`
+	Project        string     `json:"project,omitempty"`
 	DiscoveredFrom     string     `json:"discovered_from,omitempty"`
 	AcceptanceCriteria string     `json:"acceptance_criteria,omitempty"`
 	DeferUntil         *time.Time `json:"defer_until,omitempty"`

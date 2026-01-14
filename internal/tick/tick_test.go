@@ -1,6 +1,7 @@
 package tick
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -105,4 +106,102 @@ func TestTickValidateEnums(t *testing.T) {
 	if err := highPriority.Validate(); err == nil || !strings.Contains(err.Error(), "priority") {
 		t.Fatalf("expected priority error, got %v", err)
 	}
+}
+
+func TestTickProjectJSONMarshalUnmarshal(t *testing.T) {
+	now := time.Date(2025, 1, 8, 10, 30, 0, 0, time.UTC)
+
+	t.Run("marshal with project", func(t *testing.T) {
+		tick := Tick{
+			ID:        "abc",
+			Title:     "Test task",
+			Status:    StatusOpen,
+			Priority:  2,
+			Type:      TypeTask,
+			Owner:     "petere",
+			Project:   "2026-01-14-5464-project-dim",
+			CreatedBy: "petere",
+			CreatedAt: now,
+			UpdatedAt: now,
+		}
+
+		data, err := json.Marshal(tick)
+		if err != nil {
+			t.Fatalf("failed to marshal tick: %v", err)
+		}
+
+		if !strings.Contains(string(data), `"project":"2026-01-14-5464-project-dim"`) {
+			t.Fatalf("expected JSON to contain project field, got: %s", string(data))
+		}
+	})
+
+	t.Run("marshal without project omits field", func(t *testing.T) {
+		tick := Tick{
+			ID:        "abc",
+			Title:     "Test task",
+			Status:    StatusOpen,
+			Priority:  2,
+			Type:      TypeTask,
+			Owner:     "petere",
+			CreatedBy: "petere",
+			CreatedAt: now,
+			UpdatedAt: now,
+		}
+
+		data, err := json.Marshal(tick)
+		if err != nil {
+			t.Fatalf("failed to marshal tick: %v", err)
+		}
+
+		if strings.Contains(string(data), `"project"`) {
+			t.Fatalf("expected JSON to omit project field when empty, got: %s", string(data))
+		}
+	})
+
+	t.Run("unmarshal with project", func(t *testing.T) {
+		jsonData := `{
+			"id": "xyz",
+			"title": "From JSON",
+			"status": "open",
+			"priority": 1,
+			"type": "feature",
+			"owner": "alice",
+			"project": "my-project-123",
+			"created_by": "alice",
+			"created_at": "2025-01-08T10:30:00Z",
+			"updated_at": "2025-01-08T10:30:00Z"
+		}`
+
+		var tick Tick
+		if err := json.Unmarshal([]byte(jsonData), &tick); err != nil {
+			t.Fatalf("failed to unmarshal tick: %v", err)
+		}
+
+		if tick.Project != "my-project-123" {
+			t.Fatalf("expected project 'my-project-123', got '%s'", tick.Project)
+		}
+	})
+
+	t.Run("unmarshal without project defaults to empty", func(t *testing.T) {
+		jsonData := `{
+			"id": "xyz",
+			"title": "From JSON",
+			"status": "open",
+			"priority": 1,
+			"type": "feature",
+			"owner": "alice",
+			"created_by": "alice",
+			"created_at": "2025-01-08T10:30:00Z",
+			"updated_at": "2025-01-08T10:30:00Z"
+		}`
+
+		var tick Tick
+		if err := json.Unmarshal([]byte(jsonData), &tick); err != nil {
+			t.Fatalf("failed to unmarshal tick: %v", err)
+		}
+
+		if tick.Project != "" {
+			t.Fatalf("expected empty project, got '%s'", tick.Project)
+		}
+	})
 }
