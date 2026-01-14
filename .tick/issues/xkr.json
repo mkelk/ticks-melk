@@ -2,7 +2,7 @@
   "id": "xkr",
   "title": "Implement tk reject command",
   "description": "Add new 'reject' command to cmd/tk/main.go\n\nUsage: tk reject \u003cid\u003e [feedback message]\n\nBehavior:\n1. Parse tick ID from positional argument\n2. Parse optional feedback message from remaining args\n3. Load the tick\n4. Verify tick has awaiting set (error if not awaiting human)\n5. If feedback provided, add as human note FIRST (before verdict processing)\n6. Set verdict = \"rejected\"\n7. Call verdict processing logic (triggers state transition)\n8. Save tick\n9. Output result\n\nImplementation pattern:\n- Add case \"reject\" to main switch\n- Create runReject(args []string, stdout, stderr io.Writer) int\n- Feedback message is joined from remaining positional args\n- Note added with --from human semantics (for agent context)\n\nIMPORTANT: Add note BEFORE processing verdict to prevent race condition where ticker picks up task before feedback is saved.\n\nError cases:\n- No ID provided (exit code 2)\n- Tick not found (exit code 4)\n- Tick not awaiting human (error message)",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "type": "task",
   "owner": "peter@engelbrecht.dk",
@@ -16,5 +16,7 @@
   "acceptance_criteria": "- [ ] Command parses tick ID from positional arg\n- [ ] Command parses optional feedback from remaining args\n- [ ] Command adds feedback note BEFORE verdict processing\n- [ ] Command errors if tick not awaiting human\n- [ ] Command sets verdict=rejected and triggers processing\n- [ ] --json flag works\n- [ ] Note includes human attribution",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-14T16:16:32.441177Z",
-  "updated_at": "2026-01-14T16:20:30.496806Z"
+  "updated_at": "2026-01-14T16:49:02.194834Z",
+  "closed_at": "2026-01-14T16:49:02.194834Z",
+  "closed_reason": "Added runReject() function to cmd/tk/main.go following runApprove pattern. Key features: (1) parses tick ID and optional feedback message from positionals, (2) adds feedback as [human] note BEFORE processing verdict to prevent race condition, (3) handles legacy manual flag backwards compatibility, (4) uses ProcessVerdict for state machine, (5) JSON output includes tick and closed flag."
 }
