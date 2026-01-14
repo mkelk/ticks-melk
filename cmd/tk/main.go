@@ -817,12 +817,13 @@ func runClose(args []string) int {
 				return exitUsage
 			}
 
-			// Close all children with --force
+			// Close all children with --force (respecting requires gates)
 			for _, c := range openChildren {
-				c.Status = tick.StatusClosed
-				c.ClosedAt = &now
-				c.ClosedReason = "closed with parent epic (--force)"
-				c.UpdatedAt = now
+				routed := tick.HandleClose(&c, "closed with parent epic (--force)")
+				if routed {
+					// Child was routed to human instead of closed - still needs to be saved
+					c.UpdatedAt = now
+				}
 				if err := store.Write(c); err != nil {
 					fmt.Fprintf(os.Stderr, "failed to close child %s: %v\n", c.ID, err)
 					return exitIO
@@ -831,10 +832,8 @@ func runClose(args []string) int {
 		}
 	}
 
-	t.Status = tick.StatusClosed
-	t.ClosedAt = &now
-	t.ClosedReason = strings.TrimSpace(*reason)
-	t.UpdatedAt = now
+	// Use HandleClose to respect requires field
+	tick.HandleClose(&t, *reason)
 
 	if err := store.Write(t); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to close tick: %v\n", err)

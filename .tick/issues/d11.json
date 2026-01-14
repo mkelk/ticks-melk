@@ -2,7 +2,7 @@
   "id": "d11",
   "title": "Handle requires field on tick close",
   "description": "Update close logic to respect the requires field\n\nWhen a tick is being closed (via tk close or agent COMPLETE signal):\n1. Check if tick.Requires is set\n2. If set, instead of closing:\n   - Set Awaiting = tick.Requires\n   - Add note explaining work is complete, awaiting specified review\n   - Do NOT close the tick\n\nThis ensures pre-declared gates are enforced even if agent signals COMPLETE.\n\nImplementation locations:\n- tk close command: Check requires before closing\n- Any future integration point where agent signals COMPLETE\n\nCode pattern:\n  func handleClose(t *Tick) error {\n      if t.HasRequiredGate() {\n          // Don't close, route to human\n          t.Awaiting = t.Requires\n          // Add note: \"Work complete, awaiting \" + *t.Requires\n          return nil\n      }\n      // Normal close logic\n      t.Status = StatusClosed\n      ...\n  }\n\nNote: The requires field persists, so if human rejects and agent completes again, it will route to human again.",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "type": "task",
   "owner": "peter@engelbrecht.dk",
@@ -10,5 +10,7 @@
   "acceptance_criteria": "- [ ] tk close checks requires field\n- [ ] If requires set, sets awaiting instead of closing\n- [ ] Note added explaining the routing\n- [ ] Requires field persists (not cleared)\n- [ ] Works correctly through rejection cycles",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-14T16:18:37.025336Z",
-  "updated_at": "2026-01-14T16:18:37.025336Z"
+  "updated_at": "2026-01-14T16:39:05.631404Z",
+  "closed_at": "2026-01-14T16:39:05.631404Z",
+  "closed_reason": "Created HandleClose function in internal/tick/close.go that checks if tick.Requires is set before closing. When set, routes to human by setting Awaiting=Requires and adding a note. Updated runClose in cmd/tk/main.go to use HandleClose. Added comprehensive tests covering all requires values and rejection cycles."
 }
