@@ -41,7 +41,7 @@ Both support multi-agent workflows via git worktrees—ticks' lack of a daemon i
 | **Conflicts** | Native git merge driver | Custom sync logic |
 | **Background process** | None | Daemon required |
 | **Codebase** | ~1k lines Go | ~130k lines Go |
-| **Agent hooks** | Optional `tk prime` | Complex plugin system |
+| **Agent hooks** | Optional `tk snippet` | Complex plugin system |
 | **Query speed** | ~35ms | ~67ms |
 
 ### Benchmarks
@@ -67,7 +67,7 @@ Full benchmark methodology and results in `benchmarks/`.
 - Simple flat files you can `cat` and debug
 - No daemon, no SQLite, no infrastructure
 - Git-native conflict resolution
-- Minimal agent integration (just add output of `tk prime` to CLAUDE.md)
+- Minimal agent integration (just add output of `tk snippet` to CLAUDE.md)
 
 **Choose beads if you need:**
 - Advanced multi-agent coordination
@@ -140,6 +140,51 @@ tk next --epic       # Next ready epic
 tk next EPIC_ID      # Next ready task in a specific epic
 ```
 
+## Agent-Human Workflow
+
+Ticks supports structured handoff between agents and humans. Tasks can be routed to humans for approval, input, review, or manual work—and returned to agents with feedback.
+
+### Awaiting States
+
+| State | When Used |
+|-------|-----------|
+| `work` | Human must complete the task |
+| `approval` | Agent done, needs sign-off |
+| `input` | Agent needs information |
+| `review` | PR needs code review |
+| `content` | UI/copy needs human judgment |
+| `escalation` | Agent found issue, needs direction |
+| `checkpoint` | Phase complete, verify before next |
+
+### Creating Tasks for Humans
+
+```bash
+# Task requiring approval before closing
+tk create "Update auth flow" --requires approval
+
+# Task assigned directly to human
+tk create "Configure AWS credentials" --awaiting work
+```
+
+### Human Workflow
+
+```bash
+# See what needs attention
+tk list --awaiting
+tk next --awaiting
+
+# Review and respond
+tk show <id>
+tk approve <id>
+tk reject <id> "Soften the error messages"
+```
+
+### Notes for Feedback
+
+```bash
+tk note <id> "Use Stripe for payments" --from human
+```
+
 ## Commands
 
 | Command | Description |
@@ -155,7 +200,9 @@ tk next EPIC_ID      # Next ready task in a specific epic
 | `tk block <id> <blocker>` | Add a dependency |
 | `tk list` | List issues with filters |
 | `tk view` | Interactive TUI |
-| `tk prime` | Output CLAUDE.md content |
+| `tk approve <id>` | Approve awaiting tick |
+| `tk reject <id>` | Reject with feedback |
+| `tk snippet` | Output CLAUDE.md content |
 
 All commands support `--help` for options and `--json` for machine-readable output.
 
@@ -169,6 +216,8 @@ tk view
 - `space`/`enter`: fold/unfold epics
 - `/`: search
 - `z`: focus on epic
+- `a`: approve awaiting tick
+- `x`: reject awaiting tick
 - `q`: quit
 
 ## Search and Filtering

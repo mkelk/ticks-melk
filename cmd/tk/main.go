@@ -77,6 +77,15 @@ tk create "task" --parent EPIC_ID
 tk update ID --parent EPIC_ID  # move to epic
 ` + "```" + `
 
+**Agent-Human workflow:**
+` + "```" + `
+tk update ID --awaiting approval   # hand off to human
+tk update ID --awaiting=           # return to agent queue
+` + "```" + `
+
+Awaiting states: work, approval, input, review, content, escalation, checkpoint.
+Use ` + "`--requires approval`" + ` at creation for tasks needing sign-off before close.
+
 Commands show your ticks by default. Use ` + "`--all`" + ` to see everyone's (e.g. ` + "`tk next --all`" + `).
 
 All commands support ` + "`--help`" + ` for options.
