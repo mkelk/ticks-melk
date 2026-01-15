@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/pengelbrecht/ticks/internal/tick"
+	"github.com/mkelk/ticks-melk/internal/tick"
 )
 
 // LoadTicksParallel loads all ticks from the issues directory with bounded concurrency.

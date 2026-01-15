@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pengelbrecht/ticks/internal/tick"
+	"github.com/mkelk/ticks-melk/internal/tick"
 )
 
 func TestReadyAndBlocked(t *testing.T) {

@@ -1,9 +1,9 @@
 # Ticks installer for Windows
-# Usage: irm https://raw.githubusercontent.com/pengelbrecht/ticks/main/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/mkelk/ticks-melk/main-melk/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
 
-$Repo = "pengelbrecht/ticks"
+$Repo = "mkelk/ticks-melk"
 $Binary = "tk"
 $InstallDir = if ($env:INSTALL_DIR) { $env:INSTALL_DIR } else { "$env:LOCALAPPDATA\Programs\ticks" }
 

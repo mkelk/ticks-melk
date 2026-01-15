@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/pengelbrecht/ticks/internal/tick"
+	"github.com/mkelk/ticks-melk/internal/tick"
 )
 
 // Index is a cached snapshot of ticks.

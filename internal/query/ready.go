@@ -3,7 +3,7 @@ package query
 import (
 	"time"
 
-	"github.com/pengelbrecht/ticks/internal/tick"
+	"github.com/mkelk/ticks-melk/internal/tick"
 )
 
 // Ready returns open ticks that are not blocked by open blockers.

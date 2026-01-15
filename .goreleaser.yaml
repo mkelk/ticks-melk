@@ -43,7 +43,7 @@ changelog:
 
 release:
   github:
-    owner: pengelbrecht
-    name: ticks
+    owner: mkelk
+    name: ticks-melk
   draft: false
   prerelease: auto

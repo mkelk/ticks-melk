@@ -15,14 +15,14 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/pengelbrecht/ticks/internal/beads"
-	"github.com/pengelbrecht/ticks/internal/config"
-	"github.com/pengelbrecht/ticks/internal/github"
-	"github.com/pengelbrecht/ticks/internal/merge"
-	"github.com/pengelbrecht/ticks/internal/query"
-	"github.com/pengelbrecht/ticks/internal/tick"
-	"github.com/pengelbrecht/ticks/internal/tui"
-	"github.com/pengelbrecht/ticks/internal/update"
+	"github.com/mkelk/ticks-melk/internal/beads"
+	"github.com/mkelk/ticks-melk/internal/config"
+	"github.com/mkelk/ticks-melk/internal/github"
+	"github.com/mkelk/ticks-melk/internal/merge"
+	"github.com/mkelk/ticks-melk/internal/query"
+	"github.com/mkelk/ticks-melk/internal/tick"
+	"github.com/mkelk/ticks-melk/internal/tui"
+	"github.com/mkelk/ticks-melk/internal/update"
 )
 
 var Version = "dev"

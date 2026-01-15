@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/pengelbrecht/ticks/internal/tick"
+	"github.com/mkelk/ticks-melk/internal/tick"
 )
 
 // ImportResult contains the results of an import operation.

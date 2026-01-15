@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pengelbrecht/ticks/internal/tick"
+	"github.com/mkelk/ticks-melk/internal/tick"
 )
 
 // Filter describes filtering criteria for ticks.

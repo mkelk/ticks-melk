@@ -3,7 +3,7 @@
 A multiplayer-first issue tracker for AI coding agents.
 
 ```bash
-brew install pengelbrecht/tap/ticks
+brew install mkelk/tap/ticks-melk
 tk init
 tk ready
 ```
@@ -78,25 +78,25 @@ Full benchmark methodology and results in `benchmarks/`.
 ### Homebrew (macOS/Linux)
 
 ```bash
-brew install pengelbrecht/tap/ticks
+brew install mkelk/tap/ticks-melk
 ```
 
 ### Shell script (macOS/Linux)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/pengelbrecht/ticks/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/mkelk/ticks-melk/main-melk/install.sh | sh
 ```
 
 ### PowerShell (Windows)
 
 ```powershell
-irm https://raw.githubusercontent.com/pengelbrecht/ticks/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/mkelk/ticks-melk/main-melk/install.ps1 | iex
 ```
 
 ### From source
 
 ```bash
-go install github.com/pengelbrecht/ticks/cmd/tk@latest
+go install github.com/mkelk/ticks-melk/cmd/tk@latest
 ```
 
 ## Quick Start
@@ -119,7 +119,7 @@ tk close <id> --reason "Fixed"             # Complete
 tk upgrade
 
 # Homebrew
-brew upgrade pengelbrecht/tap/ticks
+brew upgrade mkelk/tap/ticks-melk
 ```
 
 ## Agent Integration

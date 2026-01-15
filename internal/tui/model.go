@@ -13,8 +13,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/pengelbrecht/ticks/internal/query"
-	"github.com/pengelbrecht/ticks/internal/tick"
+	"github.com/mkelk/ticks-melk/internal/query"
+	"github.com/mkelk/ticks-melk/internal/tick"
 )
 
 func init() {

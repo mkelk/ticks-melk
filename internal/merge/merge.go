@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pengelbrecht/ticks/internal/tick"
+	"github.com/mkelk/ticks-melk/internal/tick"
 )
 
 const notesMergeMarker = "--- merged from remote ---"

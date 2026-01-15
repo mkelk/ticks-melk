@@ -2,9 +2,9 @@
 set -e
 
 # Ticks installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/pengelbrecht/ticks/main/install.sh | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/mkelk/ticks-melk/main-melk/install.sh | sh
 
-REPO="pengelbrecht/ticks"
+REPO="mkelk/ticks-melk"
 BINARY="tk"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 
