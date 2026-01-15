@@ -192,7 +192,7 @@ func CheckForUpdate(currentVersion string) (*Release, bool, error) {
 func Update(currentVersion string) error {
 	method := DetectInstallMethod()
 	if method == InstallHomebrew {
-		return fmt.Errorf("tk was installed via Homebrew. Please run: brew upgrade mkelk/tap/ticks-melk")
+		return fmt.Errorf("tk was installed via Homebrew. Please run: brew upgrade mkelk/tap/ticks")
 	}
 
 	current := strings.TrimPrefix(currentVersion, "v")
@@ -241,7 +241,7 @@ func Update(currentVersion string) error {
 func UpdateInstructions(method InstallMethod) string {
 	switch method {
 	case InstallHomebrew:
-		return "Run: brew upgrade mkelk/tap/ticks-melk"
+		return "Run: brew upgrade mkelk/tap/ticks"
 	case InstallScript:
 		if runtime.GOOS == "windows" {
 			return "Run: tk upgrade\nOr reinstall: irm https://raw.githubusercontent.com/mkelk/ticks-melk/main-melk/install.ps1 | iex"
@@ -299,7 +299,7 @@ func formatUpdateNotice(current, latest string, method InstallMethod) string {
 	var cmd string
 	switch method {
 	case InstallHomebrew:
-		cmd = "brew upgrade mkelk/tap/ticks-melk"
+		cmd = "brew upgrade mkelk/tap/ticks"
 	default:
 		cmd = "tk upgrade"
 	}

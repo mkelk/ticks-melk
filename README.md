@@ -3,7 +3,7 @@
 A multiplayer-first issue tracker for AI coding agents.
 
 ```bash
-brew install mkelk/tap/ticks-melk
+brew install mkelk/tap/ticks
 tk init
 tk ready
 ```
@@ -78,7 +78,7 @@ Full benchmark methodology and results in `benchmarks/`.
 ### Homebrew (macOS/Linux)
 
 ```bash
-brew install mkelk/tap/ticks-melk
+brew install mkelk/tap/ticks
 ```
 
 ### Shell script (macOS/Linux)
@@ -119,7 +119,7 @@ tk close <id> --reason "Fixed"             # Complete
 tk upgrade
 
 # Homebrew
-brew upgrade mkelk/tap/ticks-melk
+brew upgrade mkelk/tap/ticks
 ```
 
 ## Agent Integration
