@@ -1,0 +1,12 @@
+{
+  "id": "mto",
+  "title": "Tick Board Cloud - Hosted multi-board service",
+  "description": "Commercial SaaS service for accessing tick boards from anywhere.\n\nUsers run tickboard locally, it auto-connects to tickboard.io. Users login to web dashboard and see all their boards across all machines. Full kanban UI with live updates, no setup required.\n\nStack: Cloudflare Workers, Durable Objects, KV/D1, Pages\n\nArchitecture:\n- Local tickboard connects outbound (wss) on startup if token configured\n- Cloud maintains WebSocket hub, relays HTTP requests\n- Dashboard aggregates all user's boards\n- Live updates via SSE over the tunnel",
+  "status": "open",
+  "priority": 3,
+  "type": "epic",
+  "owner": "peter@engelbrecht.dk",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-16T09:49:19.419419Z",
+  "updated_at": "2026-01-16T09:49:19.419419Z"
+}

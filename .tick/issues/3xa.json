@@ -1,0 +1,13 @@
+{
+  "id": "3xa",
+  "title": "Cloud: Request routing Worker",
+  "description": "Cloudflare Worker for request routing:\n- Route /b/:boardId/* to appropriate Durable Object\n- Authenticate user session (cookie/JWT)\n- Verify user owns the board\n- Forward request to DO, relay response\n- Handle SSE pass-through for live updates",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "mto",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-16T09:49:43.42913Z",
+  "updated_at": "2026-01-16T09:49:43.42913Z"
+}
