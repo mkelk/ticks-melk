@@ -56,7 +56,7 @@ export default {
 
     // SSE events endpoint: /events/:boardName
     if (url.pathname.startsWith("/events/")) {
-      const boardName = url.pathname.split("/")[2];
+      const boardName = decodeURIComponent(url.pathname.split("/")[2]);
 
       // Authenticate user
       const user = await auth.getUserFromRequest(env, request);
@@ -79,7 +79,7 @@ export default {
     if (url.pathname.startsWith("/b/")) {
       const parts = url.pathname.split("/");
       if (parts.length >= 3) {
-        const boardName = parts[2];
+        const boardName = decodeURIComponent(parts[2]);
         const path = "/" + parts.slice(3).join("/");
 
         // Static assets don't require auth (CSS, JS, images, fonts)

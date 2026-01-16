@@ -1,0 +1,12 @@
+{
+  "id": "d0p",
+  "title": "Cloud: Allow removing boards from dashboard list",
+  "description": "Add option to remove old/offline boards from the cloud dashboard board list",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-16T19:21:31.172703Z",
+  "updated_at": "2026-01-16T19:21:31.172703Z"
+}
