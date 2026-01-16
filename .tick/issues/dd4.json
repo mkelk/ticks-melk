@@ -1,0 +1,13 @@
+{
+  "id": "dd4",
+  "title": "want ability to reopen a closed tick",
+  "description": "sometimes agent has closed a tick, i want to be able to add a note and reopen",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "tickboard",
+  "created_by": "tickboard",
+  "created_at": "2026-01-16T20:52:47.767293+01:00",
+  "updated_at": "2026-01-16T19:55:48.656989Z",
+  "closed_at": "2026-01-16T19:55:48.656989Z"
+}

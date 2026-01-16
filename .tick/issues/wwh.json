@@ -2,11 +2,14 @@
   "id": "wwh",
   "title": "tick board: explore spontaneous reordering",
   "description": "Sometimes ticks seem to reorder themselves in cols, sort order should be reasonably stable",
-  "status": "open",
+  "notes": "2026-01-16 20:39 - Fixed by adding secondary sort by tick ID in app.js renderTicks(). Root cause: LoadTicksParallel uses concurrent goroutines with non-deterministic completion order, and frontend only sorted by priority. Now sorts by priority first, then by ID for ties. Commit: 935953f",
+  "status": "closed",
   "priority": 2,
   "type": "task",
   "owner": "tickboard",
   "created_by": "tickboard",
   "created_at": "2026-01-16T18:53:16.57238+01:00",
-  "updated_at": "2026-01-16T18:53:16.57238+01:00"
+  "updated_at": "2026-01-16T19:39:18.549055Z",
+  "closed_at": "2026-01-16T19:38:58.735256Z",
+  "closed_reason": "Added secondary sort by tick ID in app.js to ensure stable ordering when priorities are equal. The issue was that LoadTicksParallel loads ticks concurrently with non-deterministic order, and the frontend sort only used priority which caused reordering for ticks with same priority."
 }

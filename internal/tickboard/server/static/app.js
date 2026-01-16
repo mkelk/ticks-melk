@@ -1147,6 +1147,35 @@ async function approveTick() {
     }
 }
 
+// Reopen a closed tick
+async function reopenTick() {
+    if (!currentTickId) return;
+
+    const btn = document.getElementById('btn-reopen-tick');
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(`api/ticks/${currentTickId}/reopen`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || `HTTP ${response.status}`);
+        }
+
+        showToast('Tick reopened successfully', 'success');
+        closeTickDetail();
+        initBoard(); // Refresh the board
+    } catch (error) {
+        console.error('Failed to reopen tick:', error);
+        showToast(`Failed to reopen: ${error.message}`, 'error');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
 // Open the reject modal
 function openRejectModal() {
     const modal = document.getElementById('reject-modal');

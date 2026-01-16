@@ -1014,6 +1014,15 @@ main {
     background-color: var(--overlay0);
 }
 
+.action-btn-reopen {
+    background-color: var(--peach);
+    color: var(--crust);
+}
+
+.action-btn-reopen:hover {
+    background-color: #e9a472;
+}
+
 /* ========================================
    Modal Styles
    ======================================== */

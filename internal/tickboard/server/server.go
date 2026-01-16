@@ -745,6 +745,8 @@ func (s *Server) handleTickActions(w http.ResponseWriter, r *http.Request) {
 		s.handleAddNote(w, r, tickID)
 	case "close":
 		s.handleCloseTick(w, r, tickID)
+	case "reopen":
+		s.handleReopenTick(w, r, tickID)
 	default:
 		http.NotFound(w, r)
 	}
@@ -1435,6 +1437,78 @@ func (s *Server) handleCloseTick(w http.ResponseWriter, r *http.Request, tickID 
 		Tick:      t,
 		IsBlocked: false,
 		Column:    ColumnDone,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleReopenTick handles POST /api/ticks/:id/reopen.
+func (s *Server) handleReopenTick(w http.ResponseWriter, r *http.Request, tickID string) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Load the tick
+	tickPath := filepath.Join(s.tickDir, "issues", tickID+".json")
+	data, err := os.ReadFile(tickPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			http.Error(w, "Tick not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, fmt.Sprintf("Failed to read tick: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	var t tick.Tick
+	if err := json.Unmarshal(data, &t); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to parse tick: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Can only reopen closed ticks
+	if t.Status != tick.StatusClosed {
+		http.Error(w, "Tick is not closed", http.StatusBadRequest)
+		return
+	}
+
+	// Reopen the tick
+	t.Status = tick.StatusOpen
+	t.ClosedAt = nil
+	t.ClosedReason = ""
+	now := time.Now()
+	t.UpdatedAt = now
+
+	// Clear any verdict/awaiting state from workflow
+	t.Awaiting = nil
+	t.Verdict = nil
+
+	// Add reopen note
+	gitUser := getGitUser()
+	note := fmt.Sprintf("%s - (from: %s) Reopened", now.Format("2006-01-02 15:04"), gitUser)
+	if t.Notes != "" {
+		t.Notes = t.Notes + "\n" + note
+	} else {
+		t.Notes = note
+	}
+
+	// Save the tick
+	updatedData, err := json.MarshalIndent(t, "", "  ")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal tick: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if err := os.WriteFile(tickPath, updatedData, 0644); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to save tick: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Build response
+	response := map[string]interface{}{
+		"tick":   t,
+		"column": ColumnReady,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

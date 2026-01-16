@@ -2,11 +2,14 @@
   "id": "sog",
   "title": "tickboard workflow states",
   "description": "card says \"need content\" that's unclear, it actually needs a review for content.\n\nIf text area is small maybe \"Needs review (content)\", \"Needs review (code)\" etc",
-  "status": "open",
+  "notes": "2026-01-16 20:37 - Completed workflow label changes. Updated formatRequires() in app.js and dropdown in index.html. The test failures in the test run were pre-existing and unrelated to this change (missing ColumnBacklog/ColumnInput/ColumnReview constants and cloud client config issues).",
+  "status": "closed",
   "priority": 2,
   "type": "task",
   "owner": "tickboard",
   "created_by": "tickboard",
   "created_at": "2026-01-16T18:48:47.56261+01:00",
-  "updated_at": "2026-01-16T18:48:47.56261+01:00"
+  "updated_at": "2026-01-16T19:37:27.901106Z",
+  "closed_at": "2026-01-16T19:37:12.163889Z",
+  "closed_reason": "Updated workflow state labels for clarity: 'Needs Content' → 'Needs review (content)', 'Needs Review' → 'Needs review (code)', 'Needs Approval' → 'Needs approval'. Changed in both app.js formatRequires() function and index.html dropdown options."
 }
