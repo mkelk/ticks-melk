@@ -338,17 +338,22 @@ export async function deleteBoard(
   userId: string,
   boardId: string
 ): Promise<Response> {
-  const result = await env.DB.prepare(
-    "DELETE FROM boards WHERE id = ? AND user_id = ?"
-  )
-    .bind(boardId, userId)
-    .run();
+  try {
+    const result = await env.DB.prepare(
+      "DELETE FROM boards WHERE id = ? AND user_id = ?"
+    )
+      .bind(boardId, userId)
+      .run();
 
-  if (result.meta.changes === 0) {
-    return Response.json({ error: "Board not found" }, { status: 404 });
+    if (result.meta.changes === 0) {
+      return Response.json({ error: "Board not found" }, { status: 404 });
+    }
+
+    return Response.json({ success: true });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return Response.json({ error: `Delete error: ${message}` }, { status: 500 });
   }
-
-  return Response.json({ success: true });
 }
 
 // Create session cookie header

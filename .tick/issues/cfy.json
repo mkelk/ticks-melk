@@ -1,0 +1,15 @@
+{
+  "id": "cfy",
+  "title": "Generate app icons for PWA",
+  "description": "Create app icons in required sizes (192x192, 512x512, etc) for manifest. Apple touch icon. Favicon set.",
+  "status": "closed",
+  "priority": 3,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "33w",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-16T21:13:38.149535Z",
+  "updated_at": "2026-01-16T21:32:53.378134Z",
+  "closed_at": "2026-01-16T21:32:53.378134Z",
+  "closed_reason": "Created PWA icons (192x192, 512x512 + maskable variants), Apple touch icon (180x180), favicon set (16x16, 32x32 PNG + ICO). Added manifest.json with proper icon references. Updated index.html with favicon links, apple-touch-icon, manifest link, theme-color meta, and Apple PWA meta tags."
+}

@@ -212,7 +212,7 @@ export default {
         return jsonResponse({ error: "Unauthorized" }, 401);
       }
 
-      const boardId = url.pathname.split("/")[3];
+      const boardId = decodeURIComponent(url.pathname.split("/")[3]);
       return auth.deleteBoard(env, user.userId, boardId);
     }
 
