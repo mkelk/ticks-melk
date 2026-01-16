@@ -10,7 +10,8 @@
     "pan"
   ],
   "parent": "dfb",
+  "acceptance_criteria": "- Board polls /api/ticks every 5s\n- Only updates if data changed\n- Open detail panel preserved on refresh",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-16T09:16:48.563743Z",
-  "updated_at": "2026-01-16T09:16:48.563743Z"
+  "updated_at": "2026-01-16T09:19:52.520352Z"
 }

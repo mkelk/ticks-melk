@@ -11,7 +11,8 @@
     "hsg"
   ],
   "parent": "dfb",
+  "acceptance_criteria": "- POST /api/ticks with JSON body creates tick\n- Required: title\n- Optional: description, type, priority, parent, requires\n- Returns created tick with ID\n- 400 for missing title",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-16T09:16:02.21653Z",
-  "updated_at": "2026-01-16T09:17:00.551079Z"
+  "updated_at": "2026-01-16T09:19:42.922053Z"
 }

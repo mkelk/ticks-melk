@@ -10,7 +10,8 @@
     "qai"
   ],
   "parent": "dfb",
+  "acceptance_criteria": "- POST /api/ticks/:id/reject with {feedback} body\n- Note added with feedback text\n- Verdict field set to 'rejected'\n- Tick stays open (returns to agent)\n- 400 if tick not awaiting",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-16T09:16:00.764755Z",
-  "updated_at": "2026-01-16T09:16:00.764755Z"
+  "updated_at": "2026-01-16T09:19:40.19324Z"
 }

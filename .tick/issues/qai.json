@@ -7,7 +7,8 @@
   "type": "task",
   "owner": "peter@engelbrecht.dk",
   "parent": "dfb",
+  "acceptance_criteria": "- Server starts with `tickboard` or `tickboard ./path`\n- `--port` flag works (default 3000)\n- Finds .tick dir in path or cwd\n- Returns 404 for missing .tick\n- Graceful shutdown on Ctrl+C\n- Static files served from /static/",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-16T09:15:43.280244Z",
-  "updated_at": "2026-01-16T09:18:03.848906Z"
+  "updated_at": "2026-01-16T09:19:36.013809Z"
 }

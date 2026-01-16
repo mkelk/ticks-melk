@@ -10,7 +10,8 @@
     "yyh"
   ],
   "parent": "dfb",
+  "acceptance_criteria": "- Arrow keys navigate cards\n- Enter opens detail, Escape closes\n- 'a' approves, 'r' rejects when panel open\n- '?' shows help",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-16T09:16:50.839704Z",
-  "updated_at": "2026-01-16T09:16:50.839704Z"
+  "updated_at": "2026-01-16T09:19:54.582456Z"
 }
