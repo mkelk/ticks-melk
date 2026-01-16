@@ -265,10 +265,14 @@ func CheckPeriodically(currentVersion string) string {
 	// Check cache first
 	cache := loadCache()
 	if cache != nil && time.Since(cache.LastCheck) < checkInterval {
-		// Use cached result
+		// Use cached result, but re-validate that cached version is actually newer
+		// (user may have upgraded since the cache was written)
 		if cache.UpdateAvailable && cache.LatestVersion != "" {
-			method := DetectInstallMethod()
-			return formatUpdateNotice(currentVersion, cache.LatestVersion, method)
+			cachedLatest := strings.TrimPrefix(cache.LatestVersion, "v")
+			if cachedLatest != current && isNewerVersion(cachedLatest, current) {
+				method := DetectInstallMethod()
+				return formatUpdateNotice(currentVersion, cache.LatestVersion, method)
+			}
 		}
 		return ""
 	}
@@ -293,6 +297,26 @@ func CheckPeriodically(currentVersion string) string {
 
 	method := DetectInstallMethod()
 	return formatUpdateNotice(currentVersion, release.Version, method)
+}
+
+// isNewerVersion returns true if version a is newer than version b.
+// Both versions should be in semver format without 'v' prefix.
+func isNewerVersion(a, b string) bool {
+	aParts := strings.Split(a, ".")
+	bParts := strings.Split(b, ".")
+
+	for i := 0; i < len(aParts) && i < len(bParts); i++ {
+		var aNum, bNum int
+		fmt.Sscanf(aParts[i], "%d", &aNum)
+		fmt.Sscanf(bParts[i], "%d", &bNum)
+		if aNum > bNum {
+			return true
+		}
+		if aNum < bNum {
+			return false
+		}
+	}
+	return len(aParts) > len(bParts)
 }
 
 func formatUpdateNotice(current, latest string, method InstallMethod) string {
