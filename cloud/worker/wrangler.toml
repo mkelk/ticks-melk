@@ -17,7 +17,7 @@ new_classes = ["AgentHub"]
 [[d1_databases]]
 binding = "DB"
 database_name = "tickboard"
-database_id = "placeholder-create-via-wrangler"
+database_id = "cc15ca7e-a3b6-4f5d-85cf-42e94d536d6f"
 
 # Environment variables (set via wrangler secret)
 # TICKBOARD_SECRET - shared secret for token validation
