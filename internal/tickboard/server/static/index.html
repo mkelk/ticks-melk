@@ -11,8 +11,61 @@
         <header>
             <h1>Tick Board</h1>
         </header>
-        <main id="board">
-            <p>Loading...</p>
+        <main id="board" class="kanban-board">
+            <div class="kanban-column" data-column="backlog">
+                <div class="column-header">
+                    <h2>Backlog</h2>
+                    <span class="count-badge">0</span>
+                </div>
+                <div class="column-content">
+                    <p class="empty-state">No items in backlog</p>
+                </div>
+            </div>
+            <div class="kanban-column" data-column="ready">
+                <div class="column-header">
+                    <h2>Agent Queue</h2>
+                    <span class="count-badge">0</span>
+                </div>
+                <div class="column-content">
+                    <p class="empty-state">No items ready</p>
+                </div>
+            </div>
+            <div class="kanban-column" data-column="review">
+                <div class="column-header">
+                    <h2>Needs Review</h2>
+                    <span class="count-badge">0</span>
+                </div>
+                <div class="column-content">
+                    <p class="empty-state">No items awaiting review</p>
+                </div>
+            </div>
+            <div class="kanban-column" data-column="input">
+                <div class="column-header">
+                    <h2>Needs Input</h2>
+                    <span class="count-badge">0</span>
+                </div>
+                <div class="column-content">
+                    <p class="empty-state">No items need input</p>
+                </div>
+            </div>
+            <div class="kanban-column" data-column="rejected">
+                <div class="column-header">
+                    <h2>Rejected</h2>
+                    <span class="count-badge">0</span>
+                </div>
+                <div class="column-content">
+                    <p class="empty-state">No rejected items</p>
+                </div>
+            </div>
+            <div class="kanban-column" data-column="done">
+                <div class="column-header">
+                    <h2>Done</h2>
+                    <span class="count-badge">0</span>
+                </div>
+                <div class="column-content">
+                    <p class="empty-state">No completed items</p>
+                </div>
+            </div>
         </main>
     </div>
     <script src="/static/app.js"></script>

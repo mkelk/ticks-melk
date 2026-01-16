@@ -1,5 +1,6 @@
 // Tick Board application
 document.addEventListener('DOMContentLoaded', function() {
-    const board = document.getElementById('board');
-    board.innerHTML = '<p>Tick Board is running. API endpoints coming soon.</p>';
+    // Kanban board is rendered as static HTML
+    // Future tasks will add dynamic tick loading and interactions
+    console.log('Tick Board initialized');
 });
