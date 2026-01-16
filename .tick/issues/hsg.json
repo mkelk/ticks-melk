@@ -2,7 +2,7 @@
   "id": "hsg",
   "title": "API: List ticks with filters",
   "description": "GET /api/ticks endpoint:\n- Returns all ticks as JSON\n- Query params: status, awaiting, type, parent\n- Includes computed fields: isBlocked, column assignment\n- Column logic:\n  - backlog: open + (blocked OR priority\u003e=3)\n  - ready: open + unblocked + !awaiting\n  - agent: in_progress + !awaiting\n  - review: awaiting in (approval,review,content,work)\n  - input: awaiting in (input,escalation,checkpoint)\n  - rejected: verdict=rejected + open\n  - done: closed",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "type": "task",
   "owner": "peter@engelbrecht.dk",
@@ -13,5 +13,7 @@
   "acceptance_criteria": "- GET /api/ticks returns JSON array\n- Each tick has computed 'column' field\n- Query param ?status=open works\n- Query param ?awaiting=approval works\n- Empty array for no matches",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-16T09:15:58.639639Z",
-  "updated_at": "2026-01-16T09:19:37.07084Z"
+  "updated_at": "2026-01-16T09:27:59.163911Z",
+  "closed_at": "2026-01-16T09:27:59.163911Z",
+  "closed_reason": "Added GET /api/ticks endpoint with query param filters (status, awaiting, type, parent), computed isBlocked and column fields. Column logic assigns ticks to backlog/ready/agent/review/input/rejected/done based on status, priority, blocking, and awaiting state. Modified server.go and server_test.go."
 }
