@@ -1018,7 +1018,7 @@ func TestRejectTick_EmptyFeedback(t *testing.T) {
 	go func() { _ = srv.Run(ctx) }()
 	time.Sleep(100 * time.Millisecond)
 
-	// Empty body (no feedback)
+	// Empty body (no feedback) - should return 400
 	reqBody := `{}`
 	resp, err := http.Post("http://localhost:18781/api/ticks/mno/reject", "application/json", strings.NewReader(reqBody))
 	if err != nil {
@@ -1026,18 +1026,46 @@ func TestRejectTick_EmptyFeedback(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("POST /api/ticks/mno/reject status = %d, want %d", resp.StatusCode, http.StatusOK)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("POST /api/ticks/mno/reject with empty feedback status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
+	}
+}
+
+func TestRejectTick_WhitespaceOnlyFeedback(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
 	}
 
-	var result RejectTickResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
+	// Create a tick awaiting approval
+	task := baseTick("pqr", "Task awaiting approval")
+	awaiting := tick.AwaitingApproval
+	task.Awaiting = &awaiting
+	createTestTick(t, issuesDir, task)
+
+	srv, err := New(tickDir, 18791)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
 	}
 
-	// Should still work, just no note added
-	if result.Notes != "" {
-		t.Errorf("notes should be empty when no feedback provided, got: %s", result.Notes)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(100 * time.Millisecond)
+
+	// Whitespace-only feedback - should return 400
+	reqBody := `{"feedback": "   "}`
+	resp, err := http.Post("http://localhost:18791/api/ticks/pqr/reject", "application/json", strings.NewReader(reqBody))
+	if err != nil {
+		t.Fatalf("failed to request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("POST /api/ticks/pqr/reject with whitespace-only feedback status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
 	}
 }
 

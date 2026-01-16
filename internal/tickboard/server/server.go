@@ -601,6 +601,12 @@ func (s *Server) handleRejectTick(w http.ResponseWriter, r *http.Request, tickID
 		return
 	}
 
+	// Validate feedback is provided
+	if strings.TrimSpace(req.Feedback) == "" {
+		http.Error(w, "feedback is required", http.StatusBadRequest)
+		return
+	}
+
 	// Load the tick
 	tickPath := filepath.Join(s.tickDir, "issues", tickID+".json")
 	data, err := os.ReadFile(tickPath)
@@ -630,14 +636,12 @@ func (s *Server) handleRejectTick(w http.ResponseWriter, r *http.Request, tickID
 		t.SetAwaiting(tick.AwaitingWork)
 	}
 
-	// Add feedback as note if provided
-	if req.Feedback != "" {
-		note := fmt.Sprintf("%s - (from: human) %s", time.Now().Format("2006-01-02 15:04"), req.Feedback)
-		if t.Notes != "" {
-			t.Notes = t.Notes + "\n" + note
-		} else {
-			t.Notes = note
-		}
+	// Add feedback as note
+	note := fmt.Sprintf("%s - (from: human) %s", time.Now().Format("2006-01-02 15:04"), req.Feedback)
+	if t.Notes != "" {
+		t.Notes = t.Notes + "\n" + note
+	} else {
+		t.Notes = note
 	}
 
 	// Set verdict to rejected
