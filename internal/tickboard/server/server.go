@@ -269,6 +269,8 @@ func (s *Server) handleTickActions(w http.ResponseWriter, r *http.Request) {
 	switch action {
 	case "approve":
 		s.handleApproveTick(w, r, tickID)
+	case "reject":
+		s.handleRejectTick(w, r, tickID)
 	default:
 		http.NotFound(w, r)
 	}
@@ -276,6 +278,19 @@ func (s *Server) handleTickActions(w http.ResponseWriter, r *http.Request) {
 
 // ApproveTickResponse is the response body for POST /api/ticks/:id/approve.
 type ApproveTickResponse struct {
+	tick.Tick
+	IsBlocked bool   `json:"isBlocked"`
+	Column    string `json:"column"`
+	Closed    bool   `json:"closed"`
+}
+
+// RejectTickRequest is the request body for POST /api/ticks/:id/reject.
+type RejectTickRequest struct {
+	Feedback string `json:"feedback"`
+}
+
+// RejectTickResponse is the response body for POST /api/ticks/:id/reject.
+type RejectTickResponse struct {
 	tick.Tick
 	IsBlocked bool   `json:"isBlocked"`
 	Column    string `json:"column"`
@@ -365,6 +380,117 @@ func (s *Server) handleApproveTick(w http.ResponseWriter, r *http.Request, tickI
 	column := computeColumn(t, isBlocked)
 
 	response := ApproveTickResponse{
+		Tick:      t,
+		IsBlocked: isBlocked,
+		Column:    column,
+		Closed:    closed,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to encode response: %v", err), http.StatusInternalServerError)
+		return
+	}
+}
+
+// handleRejectTick handles POST /api/ticks/:id/reject.
+func (s *Server) handleRejectTick(w http.ResponseWriter, r *http.Request, tickID string) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Parse request body
+	var req RejectTickRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// Load the tick
+	tickPath := filepath.Join(s.tickDir, "issues", tickID+".json")
+	data, err := os.ReadFile(tickPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			http.Error(w, "Tick not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, fmt.Sprintf("Failed to read tick: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	var t tick.Tick
+	if err := json.Unmarshal(data, &t); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to parse tick: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Validate tick is awaiting human action
+	if !t.IsAwaitingHuman() {
+		http.Error(w, "Tick is not awaiting human action", http.StatusBadRequest)
+		return
+	}
+
+	// Handle legacy Manual flag by converting to Awaiting field
+	if t.Manual && t.Awaiting == nil {
+		t.SetAwaiting(tick.AwaitingWork)
+	}
+
+	// Add feedback as note if provided
+	if req.Feedback != "" {
+		note := fmt.Sprintf("%s - (from: human) %s", time.Now().Format("2006-01-02 15:04"), req.Feedback)
+		if t.Notes != "" {
+			t.Notes = t.Notes + "\n" + note
+		} else {
+			t.Notes = note
+		}
+	}
+
+	// Set verdict to rejected
+	verdict := tick.VerdictRejected
+	t.Verdict = &verdict
+	t.UpdatedAt = time.Now()
+
+	// Process the verdict
+	closed, err := tick.ProcessVerdict(&t)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to process verdict: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Save the tick
+	updatedData, err := json.MarshalIndent(t, "", "  ")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal tick: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if err := os.WriteFile(tickPath, updatedData, 0644); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to save tick: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Build response with computed fields
+	issuesDir := filepath.Join(s.tickDir, "issues")
+	allTicks, err := query.LoadTicksParallel(issuesDir)
+	if err != nil {
+		// Non-fatal: return tick without computed fields
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(RejectTickResponse{
+			Tick:   t,
+			Closed: closed,
+		})
+		return
+	}
+
+	tickIndex := make(map[string]tick.Tick, len(allTicks))
+	for _, tk := range allTicks {
+		tickIndex[tk.ID] = tk
+	}
+
+	isBlocked := computeIsBlocked(t, tickIndex)
+	column := computeColumn(t, isBlocked)
+
+	response := RejectTickResponse{
 		Tick:      t,
 		IsBlocked: isBlocked,
 		Column:    column,

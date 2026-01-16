@@ -2,7 +2,7 @@
   "id": "0ss",
   "title": "API: Reject tick",
   "description": "POST /api/ticks/:id/reject endpoint:\n- Accepts JSON body with feedback field\n- Adds note with feedback (from: human)\n- Calls tick.ProcessVerdict with rejected\n- Returns updated tick JSON",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "type": "task",
   "owner": "peter@engelbrecht.dk",
@@ -13,5 +13,7 @@
   "acceptance_criteria": "- POST /api/ticks/:id/reject with {feedback} body\n- Note added with feedback text\n- Verdict field set to 'rejected'\n- Tick stays open (returns to agent)\n- 400 if tick not awaiting",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-16T09:16:00.764755Z",
-  "updated_at": "2026-01-16T09:19:40.19324Z"
+  "updated_at": "2026-01-16T09:34:39.556658Z",
+  "closed_at": "2026-01-16T09:34:39.556658Z",
+  "closed_reason": "Added POST /api/ticks/:id/reject endpoint. Accepts JSON body with feedback field, adds note with '(from: human)' prefix if feedback provided, calls ProcessVerdict with rejected verdict. Added RejectTickRequest and RejectTickResponse types. Added comprehensive tests covering terminal/non-terminal awaiting states, validation, and edge cases."
 }

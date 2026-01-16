@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -769,5 +770,270 @@ func TestApproveTick_LegacyManual(t *testing.T) {
 	// Manual flag should be cleared
 	if result.Manual {
 		t.Error("expected manual=false after approval")
+	}
+}
+
+func TestRejectTick_TerminalAwaiting(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
+	// Create a tick awaiting approval (terminal state)
+	task := baseTick("abc", "Task awaiting approval")
+	awaiting := tick.AwaitingApproval
+	task.Awaiting = &awaiting
+	createTestTick(t, issuesDir, task)
+
+	srv, err := New(tickDir, 18776)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(100 * time.Millisecond)
+
+	reqBody := `{"feedback": "Need more tests"}`
+	resp, err := http.Post("http://localhost:18776/api/ticks/abc/reject", "application/json", strings.NewReader(reqBody))
+	if err != nil {
+		t.Fatalf("failed to request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("POST /api/ticks/abc/reject status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	var result RejectTickResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Terminal awaiting + rejected = NOT closed (goes back to agent)
+	if result.Closed {
+		t.Error("expected closed=false for terminal awaiting state with rejected verdict")
+	}
+	// Awaiting should be cleared
+	if result.Awaiting != nil {
+		t.Errorf("awaiting should be nil, got %v", *result.Awaiting)
+	}
+	// Notes should contain feedback
+	if !strings.Contains(result.Notes, "Need more tests") {
+		t.Errorf("notes should contain feedback, got: %s", result.Notes)
+	}
+	if !strings.Contains(result.Notes, "(from: human)") {
+		t.Errorf("notes should contain '(from: human)', got: %s", result.Notes)
+	}
+	// Verdict is cleared (per ProcessVerdict logic) so tick returns to ready state
+	// ProcessVerdict clears verdict when tick doesn't close, so column is ready
+	if result.Column != ColumnReady {
+		t.Errorf("column = %s, want %s", result.Column, ColumnReady)
+	}
+}
+
+func TestRejectTick_NonTerminalAwaiting(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
+	// Create a tick awaiting input (non-terminal state)
+	task := baseTick("def", "Task awaiting input")
+	awaiting := tick.AwaitingInput
+	task.Awaiting = &awaiting
+	createTestTick(t, issuesDir, task)
+
+	srv, err := New(tickDir, 18777)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(100 * time.Millisecond)
+
+	reqBody := `{"feedback": "Cannot provide this info"}`
+	resp, err := http.Post("http://localhost:18777/api/ticks/def/reject", "application/json", strings.NewReader(reqBody))
+	if err != nil {
+		t.Fatalf("failed to request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("POST /api/ticks/def/reject status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	var result RejectTickResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Non-terminal awaiting + rejected = closed (can't proceed)
+	if !result.Closed {
+		t.Error("expected closed=true for non-terminal awaiting state with rejected verdict")
+	}
+	if result.Status != tick.StatusClosed {
+		t.Errorf("status = %s, want %s", result.Status, tick.StatusClosed)
+	}
+	if result.Column != ColumnDone {
+		t.Errorf("column = %s, want %s", result.Column, ColumnDone)
+	}
+}
+
+func TestRejectTick_NotAwaiting(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
+	// Create a tick NOT awaiting human action
+	task := baseTick("ghi", "Regular task")
+	createTestTick(t, issuesDir, task)
+
+	srv, err := New(tickDir, 18778)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(100 * time.Millisecond)
+
+	reqBody := `{"feedback": "rejected"}`
+	resp, err := http.Post("http://localhost:18778/api/ticks/ghi/reject", "application/json", strings.NewReader(reqBody))
+	if err != nil {
+		t.Fatalf("failed to request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("POST /api/ticks/ghi/reject status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
+	}
+}
+
+func TestRejectTick_NotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
+	srv, err := New(tickDir, 18779)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(100 * time.Millisecond)
+
+	reqBody := `{"feedback": "rejected"}`
+	resp, err := http.Post("http://localhost:18779/api/ticks/nonexistent/reject", "application/json", strings.NewReader(reqBody))
+	if err != nil {
+		t.Fatalf("failed to request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("POST /api/ticks/nonexistent/reject status = %d, want %d", resp.StatusCode, http.StatusNotFound)
+	}
+}
+
+func TestRejectTick_MethodNotAllowed(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
+	task := baseTick("jkl", "Task")
+	awaiting := tick.AwaitingApproval
+	task.Awaiting = &awaiting
+	createTestTick(t, issuesDir, task)
+
+	srv, err := New(tickDir, 18780)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(100 * time.Millisecond)
+
+	resp, err := http.Get("http://localhost:18780/api/ticks/jkl/reject")
+	if err != nil {
+		t.Fatalf("failed to request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("GET /api/ticks/jkl/reject status = %d, want %d", resp.StatusCode, http.StatusMethodNotAllowed)
+	}
+}
+
+func TestRejectTick_EmptyFeedback(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
+	// Create a tick awaiting approval
+	task := baseTick("mno", "Task awaiting approval")
+	awaiting := tick.AwaitingApproval
+	task.Awaiting = &awaiting
+	createTestTick(t, issuesDir, task)
+
+	srv, err := New(tickDir, 18781)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(100 * time.Millisecond)
+
+	// Empty body (no feedback)
+	reqBody := `{}`
+	resp, err := http.Post("http://localhost:18781/api/ticks/mno/reject", "application/json", strings.NewReader(reqBody))
+	if err != nil {
+		t.Fatalf("failed to request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("POST /api/ticks/mno/reject status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	var result RejectTickResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Should still work, just no note added
+	if result.Notes != "" {
+		t.Errorf("notes should be empty when no feedback provided, got: %s", result.Notes)
 	}
 }
