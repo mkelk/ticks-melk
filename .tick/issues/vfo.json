@@ -1,0 +1,17 @@
+{
+  "id": "vfo",
+  "title": "UI: Tick detail panel",
+  "description": "Slide-out panel showing full tick details:\n- All tick fields (like tk show)\n- Workflow section with requires/awaiting/verdict\n- Notes history (parsed and formatted)\n- Blocker list with status\n- Close button\n\nAGENT VERIFICATION:\n- Use agent-browser to click a card\n- Verify panel slides in from right\n- Verify all fields display correctly\n- Verify notes are formatted with timestamps\n- Take screenshot\n\nHUMAN REVIEW:\n- URL: http://localhost:3000 (click any card)\n- Verify information is complete and readable",
+  "status": "open",
+  "priority": 1,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "blocked_by": [
+    "ccz"
+  ],
+  "parent": "dfb",
+  "requires": "content",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-16T09:16:20.248069Z",
+  "updated_at": "2026-01-16T09:16:20.248069Z"
+}

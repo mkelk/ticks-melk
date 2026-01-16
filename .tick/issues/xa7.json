@@ -1,0 +1,16 @@
+{
+  "id": "xa7",
+  "title": "Auto-refresh board",
+  "description": "Automatic board refresh:\n- Poll /api/ticks every 5 seconds\n- htmx hx-trigger='every 5s'\n- Only update if data changed (ETag or hash)\n- Preserve open detail panel on refresh\n- Visual indicator when refreshing",
+  "status": "open",
+  "priority": 3,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "blocked_by": [
+    "pan"
+  ],
+  "parent": "dfb",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-16T09:16:48.563743Z",
+  "updated_at": "2026-01-16T09:16:48.563743Z"
+}

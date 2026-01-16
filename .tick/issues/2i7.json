@@ -1,0 +1,18 @@
+{
+  "id": "2i7",
+  "title": "UI: Add note action",
+  "description": "Add note form in detail panel:\n- Textarea for note content\n- Submit button\n- htmx POST to /api/ticks/:id/note\n- Note appears in history immediately\n- Clear form on success\n\nAGENT VERIFICATION:\n- Use agent-browser to open any tick\n- Enter a test note\n- Submit and verify it appears in notes list\n- Take screenshot\n\nHUMAN REVIEW:\n- URL: http://localhost:3000 (open any tick)\n- Add a note and verify formatting",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "blocked_by": [
+    "vfo",
+    "vgs"
+  ],
+  "parent": "dfb",
+  "requires": "content",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-16T09:16:36.661848Z",
+  "updated_at": "2026-01-16T09:16:59.387746Z"
+}
