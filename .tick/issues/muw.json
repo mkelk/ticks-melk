@@ -2,12 +2,13 @@
   "id": "muw",
   "title": "Cloud: Live updates over tunnel",
   "description": "SSE relay for real-time updates:\n- Local agent pushes tick changes to DO\n- DO broadcasts to connected dashboard clients\n- Efficient: only send diffs\n- Handle client reconnect, replay missed events",
-  "status": "open",
+  "status": "closed",
   "priority": 3,
   "type": "task",
   "owner": "peter@engelbrecht.dk",
   "parent": "mto",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-16T09:49:45.640916Z",
-  "updated_at": "2026-01-16T09:49:45.640916Z"
+  "updated_at": "2026-01-16T18:01:52.170746Z",
+  "closed_at": "2026-01-16T18:01:52.170746Z"
 }

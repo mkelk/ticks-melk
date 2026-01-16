@@ -48,11 +48,17 @@ interface Message {
   data?: unknown;
 }
 
+interface EventSubscriber {
+  writer: WritableStreamDefaultWriter<Uint8Array>;
+  boardName: string;
+}
+
 export class AgentHub {
   private state: DurableObjectState;
   private env: Env;
   private agents: Map<WebSocket, AgentConnection> = new Map();
   private boardIndex: Map<string, WebSocket> = new Map(); // boardName -> socket
+  private eventSubscribers: Map<string, Set<EventSubscriber>> = new Map(); // boardName -> subscribers
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
@@ -127,7 +133,65 @@ export class AgentHub {
       return Response.json({ boards, count: boards.length });
     }
 
+    // SSE endpoint: /events/:boardName
+    if (url.pathname.startsWith("/events/")) {
+      const boardName = url.pathname.split("/")[2];
+      return this.handleSSE(boardName);
+    }
+
     return new Response("Not found", { status: 404 });
+  }
+
+  // Handle SSE subscription for live updates
+  private handleSSE(boardName: string): Response {
+    const encoder = new TextEncoder();
+
+    // Create a transform stream for SSE
+    const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
+    const writer = writable.getWriter();
+
+    // Register subscriber
+    const subscriber: EventSubscriber = { writer, boardName };
+    if (!this.eventSubscribers.has(boardName)) {
+      this.eventSubscribers.set(boardName, new Set());
+    }
+    this.eventSubscribers.get(boardName)!.add(subscriber);
+
+    // Send initial connection event
+    writer.write(encoder.encode(`event: connected\ndata: {"board":"${boardName}"}\n\n`));
+
+    // Clean up when client disconnects
+    readable.pipeTo(new WritableStream()).catch(() => {
+      this.eventSubscribers.get(boardName)?.delete(subscriber);
+    });
+
+    return new Response(readable, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
+  }
+
+  // Broadcast event to all subscribers for a board
+  private broadcastEvent(boardName: string, eventType: string, data: unknown) {
+    const subscribers = this.eventSubscribers.get(boardName);
+    if (!subscribers || subscribers.size === 0) return;
+
+    const encoder = new TextEncoder();
+    const message = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
+    const encoded = encoder.encode(message);
+
+    for (const sub of subscribers) {
+      try {
+        sub.writer.write(encoded);
+      } catch {
+        // Client disconnected, remove subscriber
+        subscribers.delete(sub);
+      }
+    }
   }
 
   // WebSocket message handler
@@ -153,6 +217,14 @@ export class AgentHub {
 
         case "response":
           this.handleResponse(conn, msg.data as RelayResponse);
+          break;
+
+        case "event":
+          // Local agent pushing an event - broadcast to subscribers
+          if (conn.boardName) {
+            const eventData = msg.data as { type: string; payload: unknown };
+            this.broadcastEvent(conn.boardName, eventData.type, eventData.payload);
+          }
           break;
 
         default:

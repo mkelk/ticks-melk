@@ -84,6 +84,12 @@ type ResponseMessage struct {
 	Body       string            `json:"body,omitempty"`
 }
 
+// EventMessage is an event pushed to the cloud for SSE broadcast.
+type EventMessage struct {
+	Type    string      `json:"type"`
+	Payload interface{} `json:"payload"`
+}
+
 // NewClient creates a new cloud client with the given configuration.
 func NewClient(cfg Config) (*Client, error) {
 	if cfg.Token == "" {
@@ -414,5 +420,20 @@ func (c *Client) IsConnected() bool {
 	c.connMu.Lock()
 	defer c.connMu.Unlock()
 	return c.conn != nil
+}
+
+// PushEvent sends an event to the cloud for SSE broadcast to connected clients.
+// eventType is the SSE event type (e.g., "tick_update", "tick_create").
+// payload is the event data to be JSON-serialized.
+func (c *Client) PushEvent(eventType string, payload interface{}) error {
+	event := EventMessage{
+		Type:    eventType,
+		Payload: payload,
+	}
+	data, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("failed to marshal event: %w", err)
+	}
+	return c.sendMessage(Message{Type: "event", Data: data})
 }
 

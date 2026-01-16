@@ -54,6 +54,27 @@ export default {
       return hub.fetch(request);
     }
 
+    // SSE events endpoint: /events/:boardName
+    if (url.pathname.startsWith("/events/")) {
+      const boardName = url.pathname.split("/")[2];
+
+      // Authenticate user
+      const user = await auth.getUserFromRequest(env, request);
+      if (!user) {
+        return jsonResponse({ error: "Unauthorized" }, 401);
+      }
+
+      // Verify user owns this board
+      const ownsBoard = await auth.userOwnsBoard(env, user.userId, boardName);
+      if (!ownsBoard) {
+        return jsonResponse({ error: "Board not found or access denied" }, 403);
+      }
+
+      const id = env.AGENT_HUB.idFromName("global");
+      const hub = env.AGENT_HUB.get(id);
+      return hub.fetch(new Request(`http://internal/events/${boardName}`, request));
+    }
+
     // Board proxy endpoint: /b/:boardId/*
     if (url.pathname.startsWith("/b/")) {
       const parts = url.pathname.split("/");
