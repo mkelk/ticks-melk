@@ -645,62 +645,8 @@ main {
     }
 }
 
-/* Mobile: Vertical stacking */
+/* Mobile: Card adjustments (column layout handled by mobile tabs section) */
 @media (max-width: 480px) {
-    main {
-        padding: 0.75rem;
-        /* Reset horizontal scroll for vertical layout */
-        overflow-x: visible;
-    }
-
-    .kanban-board {
-        /* Stack columns vertically */
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        height: auto;
-        min-height: auto;
-        min-width: auto;
-        overflow-x: visible;
-        /* Account for safe area at bottom */
-        padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
-    }
-
-    .kanban-column {
-        /* Full width columns */
-        flex: none;
-        min-width: auto;
-        max-width: none;
-        width: 100%;
-        /* Limit column height on mobile to prevent excessive scrolling */
-        max-height: none;
-    }
-
-    /* Collapsible column content on mobile - show limited cards */
-    .column-content {
-        max-height: 300px;
-        overflow-y: auto;
-    }
-
-    /* For empty columns, reduce height */
-    .kanban-column:has(.empty-state) .column-content {
-        max-height: none;
-    }
-
-    .column-header {
-        padding: 0.75rem;
-    }
-
-    .column-header h2 {
-        font-size: 0.8125rem;
-    }
-
-    .count-badge {
-        min-width: 1.25rem;
-        height: 1.25rem;
-        font-size: 0.6875rem;
-    }
-
     /* Card adjustments for mobile */
     .tick-card {
         padding: 0.75rem;
@@ -2395,6 +2341,177 @@ main {
         min-height: 2.75rem;
         width: 2.75rem;
         height: 2.75rem;
+    }
+}
+
+/* ========================================
+   Mobile Column Tabs
+   ======================================== */
+
+/* Mobile column tabs - hidden on desktop */
+.mobile-column-tabs {
+    display: none;
+}
+
+/* Show tabs and enable column switching on mobile */
+@media (max-width: 480px) {
+    /* Mobile column tabs bar */
+    .mobile-column-tabs {
+        display: flex;
+        gap: 0.25rem;
+        padding: 0.5rem 0.75rem;
+        background-color: var(--surface0);
+        border-bottom: 1px solid var(--surface1);
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        /* Prevent horizontal scroll bar on small screens */
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .mobile-column-tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .mobile-column-tab {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.125rem;
+        flex: 1;
+        min-width: 3.5rem;
+        padding: 0.5rem 0.25rem;
+        background: none;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+        position: relative;
+    }
+
+    .mobile-column-tab:hover {
+        background-color: var(--surface1);
+    }
+
+    .mobile-column-tab.active {
+        background-color: var(--surface1);
+    }
+
+    /* Tab indicator line for active tab */
+    .mobile-column-tab.active::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60%;
+        height: 2px;
+        background-color: var(--blue);
+        border-radius: 1px;
+    }
+
+    /* Color-code active tab based on column */
+    .mobile-column-tab.active[data-column="blocked"]::after { background-color: var(--red); }
+    .mobile-column-tab.active[data-column="ready"]::after { background-color: var(--blue); }
+    .mobile-column-tab.active[data-column="agent"]::after { background-color: var(--peach); }
+    .mobile-column-tab.active[data-column="human"]::after { background-color: var(--yellow); }
+    .mobile-column-tab.active[data-column="done"]::after { background-color: var(--green); }
+
+    .mobile-tab-icon {
+        font-size: 0.875rem;
+        line-height: 1;
+        color: var(--overlay1);
+    }
+
+    .mobile-column-tab.active .mobile-tab-icon {
+        color: var(--text);
+    }
+
+    /* Color-code icons based on column */
+    .mobile-column-tab[data-column="blocked"] .mobile-tab-icon { color: var(--red); }
+    .mobile-column-tab[data-column="ready"] .mobile-tab-icon { color: var(--blue); }
+    .mobile-column-tab[data-column="agent"] .mobile-tab-icon { color: var(--peach); }
+    .mobile-column-tab[data-column="human"] .mobile-tab-icon { color: var(--yellow); }
+    .mobile-column-tab[data-column="done"] .mobile-tab-icon { color: var(--green); }
+
+    .mobile-tab-label {
+        font-size: 0.625rem;
+        font-weight: 500;
+        color: var(--overlay1);
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+
+    .mobile-column-tab.active .mobile-tab-label {
+        color: var(--text);
+    }
+
+    .mobile-tab-count {
+        font-size: 0.625rem;
+        font-weight: 600;
+        color: var(--overlay0);
+        background-color: var(--surface1);
+        padding: 0 0.25rem;
+        border-radius: 4px;
+        min-width: 1rem;
+        text-align: center;
+    }
+
+    .mobile-column-tab.active .mobile-tab-count {
+        background-color: var(--surface2);
+        color: var(--text);
+    }
+
+    /* Mobile kanban board - single column view */
+    .kanban-board {
+        display: block;
+        height: calc(100vh - 140px); /* Adjust for header + tabs */
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Hide all columns by default on mobile */
+    .kanban-column {
+        display: none;
+        flex: none;
+        width: 100%;
+        max-width: none;
+        min-width: auto;
+        height: 100%;
+        max-height: none;
+        border-radius: 0;
+        border: none;
+        background-color: var(--base);
+    }
+
+    /* Show only the active column on mobile */
+    .kanban-column.mobile-active {
+        display: flex;
+    }
+
+    /* Column header adjustments for mobile single-column view */
+    .kanban-column.mobile-active .column-header {
+        display: none; /* Hide header since we have tabs */
+    }
+
+    /* Full-height scrollable content */
+    .kanban-column.mobile-active .column-content {
+        max-height: none;
+        padding: 0.75rem;
+        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+
+    /* Adjust main padding for mobile tab view */
+    main {
+        padding: 0;
+    }
+}
+
+/* Touch target sizing for mobile tabs */
+@media (pointer: coarse) {
+    .mobile-column-tab {
+        min-height: 2.75rem;
+        min-width: 3.5rem;
     }
 }
 

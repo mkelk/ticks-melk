@@ -12,6 +12,9 @@ let boardInfo = null; // Cached board info (repo name, epics)
 // Mobile navigation state
 let mobileNavOpen = false;
 
+// Mobile column tab state
+let activeMobileColumn = 'blocked';
+
 // Status icons matching tk view
 const STATUS_ICONS = {
     open: '\u25CB',       // ○ (empty circle)
@@ -834,6 +837,12 @@ function renderTicks(ticks) {
             colEl.innerHTML = `<p class="empty-state">${emptyText[colName]}</p>`;
         }
     });
+
+    // Update mobile tab counts
+    updateMobileTabCounts(counts);
+
+    // Maintain active mobile column (re-apply after render)
+    switchMobileColumn(activeMobileColumn);
 }
 
 // Fetch ticks from API
@@ -2017,6 +2026,65 @@ function clearMobileSearch() {
 }
 
 // ========================================
+// Mobile Column Tabs
+// ========================================
+
+// Switch to a specific column on mobile
+function switchMobileColumn(columnName) {
+    // Update active state on tabs
+    document.querySelectorAll('.mobile-column-tab').forEach(tab => {
+        if (tab.dataset.column === columnName) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
+    });
+
+    // Update active state on columns
+    document.querySelectorAll('.kanban-column').forEach(col => {
+        if (col.dataset.column === columnName) {
+            col.classList.add('mobile-active');
+        } else {
+            col.classList.remove('mobile-active');
+        }
+    });
+
+    // Store active column
+    activeMobileColumn = columnName;
+}
+
+// Update mobile tab counts
+function updateMobileTabCounts(counts) {
+    const columns = ['blocked', 'ready', 'agent', 'human', 'done'];
+    columns.forEach(col => {
+        const countEl = document.getElementById(`mobile-count-${col}`);
+        if (countEl) {
+            countEl.textContent = counts[col] || 0;
+        }
+    });
+}
+
+// Initialize mobile column view on page load
+function initMobileColumnTabs() {
+    // Set the first column with items as active, or default to 'ready'
+    const preferredOrder = ['ready', 'blocked', 'agent', 'human', 'done'];
+    let initialColumn = 'blocked';
+
+    // On initial load, try to show a column that has items
+    if (cachedTicks.length > 0) {
+        for (const col of preferredOrder) {
+            const hasItems = cachedTicks.some(t => t.column === col);
+            if (hasItems) {
+                initialColumn = col;
+                break;
+            }
+        }
+    }
+
+    switchMobileColumn(initialColumn);
+}
+
+// ========================================
 // Touch Drag and Drop
 // ========================================
 
@@ -2374,11 +2442,12 @@ renderTicks = function(ticks) {
 };
 
 // Main entry point
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     console.log('Tick Board initialized');
-    initBoard();
+    await initBoard();
     initActivityFeed();
     initCloudUI();
+    initMobileColumnTabs();
     initTouchInteractions();
 
     // Try to set up live updates (will fail gracefully if endpoint not implemented)

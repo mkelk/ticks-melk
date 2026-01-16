@@ -75,6 +75,34 @@
                 </button>
             </div>
         </nav>
+        <!-- Mobile Column Tabs (visible only on mobile) -->
+        <div id="mobile-column-tabs" class="mobile-column-tabs">
+            <button class="mobile-column-tab active" data-column="blocked" onclick="switchMobileColumn('blocked')">
+                <span class="mobile-tab-icon">⊘</span>
+                <span class="mobile-tab-label">Blocked</span>
+                <span class="mobile-tab-count" id="mobile-count-blocked">0</span>
+            </button>
+            <button class="mobile-column-tab" data-column="ready" onclick="switchMobileColumn('ready')">
+                <span class="mobile-tab-icon">▶</span>
+                <span class="mobile-tab-label">Queue</span>
+                <span class="mobile-tab-count" id="mobile-count-ready">0</span>
+            </button>
+            <button class="mobile-column-tab" data-column="agent" onclick="switchMobileColumn('agent')">
+                <span class="mobile-tab-icon">●</span>
+                <span class="mobile-tab-label">Active</span>
+                <span class="mobile-tab-count" id="mobile-count-agent">0</span>
+            </button>
+            <button class="mobile-column-tab" data-column="human" onclick="switchMobileColumn('human')">
+                <span class="mobile-tab-icon">👤</span>
+                <span class="mobile-tab-label">Human</span>
+                <span class="mobile-tab-count" id="mobile-count-human">0</span>
+            </button>
+            <button class="mobile-column-tab" data-column="done" onclick="switchMobileColumn('done')">
+                <span class="mobile-tab-icon">✓</span>
+                <span class="mobile-tab-label">Done</span>
+                <span class="mobile-tab-count" id="mobile-count-done">0</span>
+            </button>
+        </div>
         <main id="board" class="kanban-board">
             <div class="kanban-column" data-column="blocked">
                 <div class="column-header">
