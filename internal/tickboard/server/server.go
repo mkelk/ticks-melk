@@ -367,23 +367,26 @@ func (s *Server) getRepoName() string {
 	return repoName
 }
 
-// parseGitRemote extracts "owner/repo" from a git remote URL.
+// parseGitRemote extracts "owner--repo" from a git remote URL.
+// Uses "--" as separator instead of "/" to be URL-path safe.
 // Supports HTTPS (https://github.com/owner/repo.git) and SSH (git@github.com:owner/repo.git).
 func parseGitRemote(remoteURL string) string {
 	// Remove trailing .git
 	remoteURL = strings.TrimSuffix(remoteURL, ".git")
+
+	var ownerRepo string
 
 	// SSH format: git@github.com:owner/repo
 	if strings.HasPrefix(remoteURL, "git@") {
 		// Extract the path after the ":"
 		parts := strings.SplitN(remoteURL, ":", 2)
 		if len(parts) == 2 {
-			return parts[1]
+			ownerRepo = parts[1]
 		}
 	}
 
 	// HTTPS format: https://github.com/owner/repo
-	if strings.Contains(remoteURL, "://") {
+	if ownerRepo == "" && strings.Contains(remoteURL, "://") {
 		// Parse URL and extract path
 		parts := strings.SplitN(remoteURL, "://", 2)
 		if len(parts) == 2 {
@@ -391,12 +394,17 @@ func parseGitRemote(remoteURL string) string {
 			// Remove host
 			slashIdx := strings.Index(hostPath, "/")
 			if slashIdx != -1 {
-				return hostPath[slashIdx+1:]
+				ownerRepo = hostPath[slashIdx+1:]
 			}
 		}
 	}
 
-	return ""
+	if ownerRepo == "" {
+		return ""
+	}
+
+	// Replace / with -- to make it URL-path safe
+	return strings.ReplaceAll(ownerRepo, "/", "--")
 }
 
 // handleInfo handles GET /api/info.
