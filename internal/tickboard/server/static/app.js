@@ -171,7 +171,7 @@ async function openTickDetail(tickId) {
 
     try {
         // Fetch full tick details
-        const response = await fetch(`/api/ticks/${tickId}`);
+        const response = await fetch(`api/ticks/${tickId}`);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -823,7 +823,7 @@ function renderTicks(ticks) {
 // Fetch ticks from API
 async function fetchTicks() {
     try {
-        const response = await fetch('/api/ticks');
+        const response = await fetch('api/ticks');
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -838,7 +838,7 @@ async function fetchTicks() {
 // Fetch board info (repo name, epics) from API
 async function fetchInfo() {
     try {
-        const response = await fetch('/api/info');
+        const response = await fetch('api/info');
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -985,7 +985,7 @@ async function initBoard() {
 
 // Set up SSE for live updates with FLIP animations
 function setupLiveUpdates() {
-    const eventSource = new EventSource('/api/events');
+    const eventSource = new EventSource('api/events');
 
     eventSource.addEventListener('connected', () => {
         console.log('SSE connected');
@@ -1108,7 +1108,7 @@ async function approveTick() {
     btn.disabled = true;
 
     try {
-        const response = await fetch(`/api/ticks/${currentTickId}/approve`, {
+        const response = await fetch(`api/ticks/${currentTickId}/approve`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         });
@@ -1164,7 +1164,7 @@ async function submitReject() {
     btn.disabled = true;
 
     try {
-        const response = await fetch(`/api/ticks/${currentTickId}/reject`, {
+        const response = await fetch(`api/ticks/${currentTickId}/reject`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ feedback })
@@ -1199,7 +1199,7 @@ async function updateTickField(field, value) {
         const requestBody = {};
         requestBody[field] = value;
 
-        const response = await fetch(`/api/ticks/${currentTickId}`, {
+        const response = await fetch(`api/ticks/${currentTickId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody)
@@ -1263,7 +1263,7 @@ async function submitClose() {
             requestBody.reason = reason;
         }
 
-        const response = await fetch(`/api/ticks/${currentTickId}/close`, {
+        const response = await fetch(`api/ticks/${currentTickId}/close`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody)
@@ -1307,7 +1307,7 @@ async function submitNote() {
     btn.disabled = true;
 
     try {
-        const response = await fetch(`/api/ticks/${currentTickId}/note`, {
+        const response = await fetch(`api/ticks/${currentTickId}/note`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message })
@@ -1505,7 +1505,7 @@ async function submitCreateTick(event) {
     submitBtn.disabled = true;
 
     try {
-        const response = await fetch('/api/ticks', {
+        const response = await fetch('api/ticks', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody)
@@ -1575,7 +1575,7 @@ function formatRelativeTime(timestamp) {
 // Fetch activity from API
 async function fetchActivity(limit = 30) {
     try {
-        const response = await fetch(`/api/activity?limit=${limit}`);
+        const response = await fetch(`api/activity?limit=${limit}`);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
