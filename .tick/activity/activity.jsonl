@@ -23,3 +23,5 @@
 {"ts":"2026-01-16T17:43:59.21992Z","tick":"3yt","action":"close","actor":"peter@engelbrecht.dk","epic":"mto","data":{"title":"Local: Auto-connect to cloud"}}
 {"ts":"2026-01-16T17:47:13.406845Z","tick":"up0","action":"create","actor":"tickboard","data":{"priority":2,"title":"Favico for Tick Board","type":"task"}}
 {"ts":"2026-01-16T17:48:47.563127Z","tick":"sog","action":"create","actor":"tickboard","data":{"priority":2,"title":"tickboard workflow states","type":"task"}}
+{"ts":"2026-01-16T17:51:42.45137Z","tick":"njm","action":"create","actor":"tickboard","data":{"priority":2,"title":"Tick Board: Repo should have full path","type":"task"}}
+{"ts":"2026-01-16T17:53:16.572815Z","tick":"wwh","action":"create","actor":"tickboard","data":{"priority":2,"title":"tick board: explore spontaneous reordering","type":"task"}}

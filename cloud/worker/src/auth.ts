@@ -124,9 +124,18 @@ export async function login(
     .bind(tokenId, result.id, "session", tokenHash)
     .run();
 
-  return Response.json({
+  const response = Response.json({
     user: { id: result.id, email: result.email },
     token: token,
+  });
+
+  // Also set session cookie for browser-based access
+  const headers = new Headers(response.headers);
+  headers.set("Set-Cookie", createSessionCookie(token));
+
+  return new Response(response.body, {
+    status: response.status,
+    headers,
   });
 }
 
@@ -278,16 +287,51 @@ export async function listBoards(
   });
 }
 
-// Get user ID from request (via Authorization header)
+// Get user ID from request (via Authorization header or session cookie)
 export async function getUserFromRequest(
   env: Env,
   request: Request
 ): Promise<{ userId: string; tokenId: string } | null> {
+  // Try Authorization header first
   const authHeader = request.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return null;
+  if (authHeader?.startsWith("Bearer ")) {
+    const token = authHeader.slice(7);
+    return validateToken(env, token);
   }
 
-  const token = authHeader.slice(7);
-  return validateToken(env, token);
+  // Try session cookie
+  const cookie = request.headers.get("Cookie");
+  if (cookie) {
+    const sessionMatch = cookie.match(/session=([^;]+)/);
+    if (sessionMatch) {
+      return validateToken(env, sessionMatch[1]);
+    }
+  }
+
+  return null;
+}
+
+// Check if user owns a specific board
+export async function userOwnsBoard(
+  env: Env,
+  userId: string,
+  boardName: string
+): Promise<boolean> {
+  const result = await env.DB.prepare(
+    "SELECT 1 FROM boards WHERE user_id = ? AND name = ?"
+  )
+    .bind(userId, boardName)
+    .first();
+
+  return result !== null;
+}
+
+// Create session cookie header
+export function createSessionCookie(token: string, maxAge = 30 * 24 * 60 * 60): string {
+  return `session=${token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}; Path=/`;
+}
+
+// Clear session cookie header
+export function clearSessionCookie(): string {
+  return "session=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=/";
 }

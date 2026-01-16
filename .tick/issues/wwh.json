@@ -1,0 +1,12 @@
+{
+  "id": "wwh",
+  "title": "tick board: explore spontaneous reordering",
+  "description": "Sometimes ticks seem to reorder themselves in cols, sort order should be reasonably stable",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "tickboard",
+  "created_by": "tickboard",
+  "created_at": "2026-01-16T18:53:16.57238+01:00",
+  "updated_at": "2026-01-16T18:53:16.57238+01:00"
+}

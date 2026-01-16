@@ -57,16 +57,45 @@ export default {
     if (url.pathname.startsWith("/b/")) {
       const parts = url.pathname.split("/");
       if (parts.length >= 3) {
-        const boardId = parts[2];
+        const boardName = parts[2];
         const path = "/" + parts.slice(3).join("/");
+
+        // Authenticate user
+        const user = await auth.getUserFromRequest(env, request);
+        if (!user) {
+          return jsonResponse({ error: "Unauthorized" }, 401);
+        }
+
+        // Verify user owns this board
+        const ownsBoard = await auth.userOwnsBoard(env, user.userId, boardName);
+        if (!ownsBoard) {
+          return jsonResponse({ error: "Board not found or access denied" }, 403);
+        }
 
         const id = env.AGENT_HUB.idFromName("global");
         const hub = env.AGENT_HUB.get(id);
 
         // Forward to hub with board context
         const proxyUrl = new URL(request.url);
-        proxyUrl.pathname = `/proxy/${boardId}${path}`;
-        return hub.fetch(new Request(proxyUrl, request));
+        proxyUrl.pathname = `/proxy/${boardName}${path}`;
+        const response = await hub.fetch(new Request(proxyUrl, request));
+
+        // For SSE requests, pass through the streaming response with proper headers
+        const acceptHeader = request.headers.get("Accept");
+        if (acceptHeader?.includes("text/event-stream") ||
+            response.headers.get("Content-Type")?.includes("text/event-stream")) {
+          // Return streaming response as-is with CORS headers
+          const headers = new Headers(response.headers);
+          headers.set("Access-Control-Allow-Origin", "*");
+          headers.set("Cache-Control", "no-cache");
+          headers.set("Connection", "keep-alive");
+          return new Response(response.body, {
+            status: response.status,
+            headers,
+          });
+        }
+
+        return response;
       }
     }
 
@@ -87,6 +116,17 @@ export default {
       } catch {
         return jsonResponse({ error: "Invalid request body" }, 400);
       }
+    }
+
+    if (url.pathname === "/api/auth/logout" && request.method === "POST") {
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Set-Cookie": auth.clearSessionCookie(),
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
     }
 
     // Protected routes - require authentication
