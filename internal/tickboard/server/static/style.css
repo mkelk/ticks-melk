@@ -560,6 +560,7 @@ main {
     }
 }
 
+/* Tablet: Horizontal scroll with fixed-width columns */
 @media (max-width: 768px) {
     header {
         padding: 0.75rem 1rem;
@@ -606,16 +607,128 @@ main {
 
     main {
         padding: 1rem;
+        /* Allow horizontal scrolling for kanban */
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     .kanban-board {
-        padding-bottom: 1rem;
-        /* Account for safe area at bottom */
+        /* Horizontal scroll layout for tablet */
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        gap: 0.75rem;
+        min-width: max-content;
         padding-bottom: max(1rem, env(safe-area-inset-bottom));
+        /* Ensure smooth horizontal scrolling */
+        scroll-snap-type: x proximity;
     }
 
     .kanban-column {
-        min-width: 280px;
+        /* Fixed width columns for horizontal scroll */
+        flex: 0 0 260px;
+        min-width: 260px;
+        max-width: 260px;
+        scroll-snap-align: start;
+    }
+
+    .column-header h2 {
+        font-size: 0.75rem;
+    }
+
+    .tick-card {
+        padding: 0.625rem;
+    }
+
+    .tick-card-title {
+        font-size: 0.75rem;
+    }
+}
+
+/* Mobile: Vertical stacking */
+@media (max-width: 480px) {
+    main {
+        padding: 0.75rem;
+        /* Reset horizontal scroll for vertical layout */
+        overflow-x: visible;
+    }
+
+    .kanban-board {
+        /* Stack columns vertically */
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        height: auto;
+        min-height: auto;
+        min-width: auto;
+        overflow-x: visible;
+        /* Account for safe area at bottom */
+        padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+    }
+
+    .kanban-column {
+        /* Full width columns */
+        flex: none;
+        min-width: auto;
+        max-width: none;
+        width: 100%;
+        /* Limit column height on mobile to prevent excessive scrolling */
+        max-height: none;
+    }
+
+    /* Collapsible column content on mobile - show limited cards */
+    .column-content {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    /* For empty columns, reduce height */
+    .kanban-column:has(.empty-state) .column-content {
+        max-height: none;
+    }
+
+    .column-header {
+        padding: 0.75rem;
+    }
+
+    .column-header h2 {
+        font-size: 0.8125rem;
+    }
+
+    .count-badge {
+        min-width: 1.25rem;
+        height: 1.25rem;
+        font-size: 0.6875rem;
+    }
+
+    /* Card adjustments for mobile */
+    .tick-card {
+        padding: 0.75rem;
+        /* Ensure touch targets are adequate */
+        min-height: 3rem;
+    }
+
+    .tick-card-title {
+        font-size: 0.8125rem;
+        -webkit-line-clamp: 3;
+    }
+
+    .tick-card-id {
+        font-size: 0.625rem;
+        padding: 0.125rem 0.3125rem;
+    }
+
+    .tick-card-priority {
+        font-size: 0.625rem;
+    }
+
+    .tick-card-badge {
+        font-size: 0.5625rem;
+    }
+
+    .empty-state {
+        padding: 1rem;
+        font-size: 0.8125rem;
     }
 }
 
@@ -1471,6 +1584,7 @@ main {
     min-height: 60px;
 }
 
+/* 480px form and modal adjustments (kanban handled in earlier breakpoint) */
 @media (max-width: 480px) {
     header {
         padding: 0.5rem 0.75rem;
@@ -1494,14 +1608,6 @@ main {
     .epic-filter {
         font-size: 1rem;
         padding: 0.625rem 0.75rem;
-    }
-
-    main {
-        padding: 0.75rem;
-    }
-
-    .kanban-column {
-        min-width: 260px;
     }
 
     .modal-lg {
