@@ -932,7 +932,7 @@ func runUpdate(args []string) int {
 func runClose(args []string) int {
 	fs := flag.NewFlagSet("close", flag.ContinueOnError)
 	reason := fs.String("reason", "", "close reason")
-	force := fs.Bool("force", false, "close epic and all open children")
+	force := fs.Bool("force", false, "close epic and all open children, or bypass requires gate")
 	jsonOutput := fs.Bool("json", false, "output as json")
 	fs.SetOutput(os.Stderr)
 	positionals, err := parseInterleaved(fs, args)
@@ -997,13 +997,14 @@ func runClose(args []string) int {
 				return exitUsage
 			}
 
-			// Close all children with --force (respecting requires gates)
+			// Close all children with --force (bypassing requires gates)
 			for _, c := range openChildren {
-				routed := tick.HandleClose(&c, "closed with parent epic (--force)")
-				if routed {
-					// Child was routed to human instead of closed - still needs to be saved
-					c.UpdatedAt = now
-				}
+				c.Status = tick.StatusClosed
+				c.ClosedAt = &now
+				c.ClosedReason = "closed with parent epic (--force)"
+				c.ClearAwaiting()
+				c.Verdict = nil
+				c.UpdatedAt = now
 				if err := store.Write(c); err != nil {
 					fmt.Fprintf(os.Stderr, "failed to close child %s: %v\n", c.ID, err)
 					return exitIO
@@ -1012,8 +1013,30 @@ func runClose(args []string) int {
 		}
 	}
 
-	// Use HandleClose to respect requires field
-	tick.HandleClose(&t, *reason)
+	// Handle closing based on requires gate
+	if *force && t.HasRequiredGate() {
+		// Force close: bypass requires gate, cancel any pending review
+		t.Status = tick.StatusClosed
+		t.ClosedAt = &now
+		t.ClosedReason = strings.TrimSpace(*reason)
+		t.ClearAwaiting()
+		t.Verdict = nil
+		t.UpdatedAt = now
+	} else {
+		// Normal close: respect requires field
+		routed := tick.HandleClose(&t, *reason)
+		if routed {
+			// Save the routed state, but return error
+			if err := store.Write(t); err != nil {
+				fmt.Fprintf(os.Stderr, "failed to save tick: %v\n", err)
+				return exitIO
+			}
+			fmt.Fprintf(os.Stderr, "tick %s requires %s before closing\n", t.ID, *t.Requires)
+			fmt.Fprintf(os.Stderr, "use 'tk approve %s' to approve and close\n", t.ID)
+			fmt.Fprintf(os.Stderr, "use 'tk close %s --force' to bypass and close immediately\n", t.ID)
+			return exitGeneric
+		}
+	}
 
 	if err := store.Write(t); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to close tick: %v\n", err)
