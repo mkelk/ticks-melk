@@ -10,6 +10,7 @@
  */
 
 import * as auth from "./auth";
+import { landingPage } from "./landing";
 
 export interface Env {
   AGENT_HUB: DurableObjectNamespace;
@@ -181,6 +182,13 @@ export default {
     // Health check
     if (url.pathname === "/health") {
       return new Response("ok", { status: 200 });
+    }
+
+    // Landing page
+    if (url.pathname === "/" || url.pathname === "") {
+      return new Response(landingPage, {
+        headers: { "Content-Type": "text/html" },
+      });
     }
 
     return new Response("Not found", { status: 404 });
