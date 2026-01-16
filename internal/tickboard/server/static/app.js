@@ -94,10 +94,258 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Open tick detail panel (placeholder for future task)
-function openTickDetail(tickId) {
-    console.log('Open detail for tick:', tickId);
-    // Future task will implement detail panel
+// Format priority for display (P0-P4)
+function formatPriority(priority) {
+    const labels = ['Critical', 'High', 'Medium', 'Low', 'Backlog'];
+    return `P${priority} (${labels[priority] || 'Unknown'})`;
+}
+
+// Format type for display
+function formatType(type) {
+    return type.charAt(0).toUpperCase() + type.slice(1);
+}
+
+// Format date for display
+function formatDate(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+// Format verdict for display
+function formatVerdict(verdict) {
+    if (!verdict) return null;
+    const labels = {
+        approved: 'Approved',
+        rejected: 'Rejected'
+    };
+    return labels[verdict] || verdict;
+}
+
+// Open tick detail panel
+async function openTickDetail(tickId) {
+    const panel = document.getElementById('detail-panel');
+    const overlay = document.getElementById('detail-overlay');
+
+    // Show panel with loading state
+    panel.classList.remove('hidden');
+    overlay.classList.remove('hidden');
+
+    try {
+        // Fetch full tick details
+        const response = await fetch(`/api/ticks/${tickId}`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        const tick = await response.json();
+
+        // Populate the panel
+        populateDetailPanel(tick);
+    } catch (error) {
+        console.error('Failed to fetch tick details:', error);
+        closeTickDetail();
+    }
+}
+
+// Close tick detail panel
+function closeTickDetail() {
+    const panel = document.getElementById('detail-panel');
+    const overlay = document.getElementById('detail-overlay');
+    panel.classList.add('hidden');
+    overlay.classList.add('hidden');
+}
+
+// Handle escape key to close panel
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeTickDetail();
+    }
+});
+
+// Populate detail panel with tick data
+function populateDetailPanel(tick) {
+    // Header: ID badge with type color
+    const idEl = document.getElementById('detail-id');
+    idEl.textContent = tick.id;
+    idEl.className = `detail-id type-${tick.type}`;
+
+    // Header: Status icon
+    const statusInfo = getStatusInfo(tick);
+    const statusEl = document.getElementById('detail-status');
+    statusEl.textContent = statusInfo.icon;
+    statusEl.className = `detail-status ${statusInfo.class}`;
+
+    // Title
+    document.getElementById('detail-title').textContent = tick.title;
+
+    // Core fields
+    document.getElementById('detail-type').textContent = formatType(tick.type);
+    document.getElementById('detail-priority').textContent = formatPriority(tick.priority);
+    document.getElementById('detail-owner').textContent = tick.owner;
+    document.getElementById('detail-created').textContent = formatDate(tick.created_at);
+
+    // Parent (optional)
+    const parentField = document.getElementById('detail-parent-field');
+    if (tick.parent) {
+        document.getElementById('detail-parent').textContent = tick.parent;
+        parentField.style.display = '';
+    } else {
+        parentField.style.display = 'none';
+    }
+
+    // Labels (optional)
+    const labelsField = document.getElementById('detail-labels-field');
+    if (tick.labels && tick.labels.length > 0) {
+        document.getElementById('detail-labels').textContent = tick.labels.join(', ');
+        labelsField.style.display = '';
+    } else {
+        labelsField.style.display = 'none';
+    }
+
+    // Description section
+    const descSection = document.getElementById('detail-description-section');
+    if (tick.description) {
+        document.getElementById('detail-description').textContent = tick.description;
+        descSection.style.display = '';
+    } else {
+        descSection.style.display = 'none';
+    }
+
+    // Acceptance Criteria section
+    const acSection = document.getElementById('detail-ac-section');
+    if (tick.acceptance_criteria) {
+        document.getElementById('detail-ac').textContent = tick.acceptance_criteria;
+        acSection.style.display = '';
+    } else {
+        acSection.style.display = 'none';
+    }
+
+    // Workflow section (requires, awaiting, verdict)
+    const workflowSection = document.getElementById('detail-workflow-section');
+    const workflowEl = document.getElementById('detail-workflow');
+    workflowEl.innerHTML = '';
+
+    const hasWorkflow = tick.requires || tick.awaiting || tick.manual || tick.verdict || tick.isBlocked;
+    if (hasWorkflow) {
+        // Requires badge
+        if (tick.requires) {
+            const badge = document.createElement('span');
+            badge.className = 'workflow-badge badge-requires';
+            badge.textContent = `Requires: ${formatRequires(tick.requires)}`;
+            workflowEl.appendChild(badge);
+        }
+
+        // Awaiting badge
+        const awaitingType = tick.awaiting || (tick.manual ? 'work' : null);
+        if (awaitingType) {
+            const badge = document.createElement('span');
+            badge.className = 'workflow-badge badge-awaiting';
+            badge.textContent = `Awaiting: ${formatAwaiting(awaitingType)}`;
+            workflowEl.appendChild(badge);
+        }
+
+        // Verdict badge
+        if (tick.verdict) {
+            const badge = document.createElement('span');
+            badge.className = `workflow-badge badge-verdict-${tick.verdict}`;
+            badge.textContent = `Verdict: ${formatVerdict(tick.verdict)}`;
+            workflowEl.appendChild(badge);
+        }
+
+        // Blocked badge
+        if (tick.isBlocked) {
+            const badge = document.createElement('span');
+            badge.className = 'workflow-badge badge-blocked';
+            badge.textContent = 'Blocked';
+            workflowEl.appendChild(badge);
+        }
+
+        workflowSection.style.display = '';
+    } else {
+        workflowSection.style.display = 'none';
+    }
+
+    // Blockers section
+    const blockersSection = document.getElementById('detail-blockers-section');
+    const blockersEl = document.getElementById('detail-blockers');
+    blockersEl.innerHTML = '';
+
+    if (tick.blockerDetails && tick.blockerDetails.length > 0) {
+        tick.blockerDetails.forEach(blocker => {
+            const li = document.createElement('li');
+            li.className = 'blocker-item';
+
+            const statusIcon = blocker.status === 'closed' ? STATUS_ICONS.closed : STATUS_ICONS.open;
+            const statusClass = blocker.status === 'closed' ? 'status-closed' : 'status-open';
+
+            li.innerHTML = `
+                <span class="blocker-id">${escapeHtml(blocker.id)}</span>
+                <span class="blocker-title">${escapeHtml(blocker.title)}</span>
+                <span class="blocker-status ${statusClass}">${statusIcon}</span>
+            `;
+            blockersEl.appendChild(li);
+        });
+        blockersSection.style.display = '';
+    } else {
+        blockersSection.style.display = 'none';
+    }
+
+    // Notes section
+    const notesSection = document.getElementById('detail-notes-section');
+    const notesEl = document.getElementById('detail-notes');
+    notesEl.innerHTML = '';
+
+    if (tick.notesList && tick.notesList.length > 0) {
+        tick.notesList.forEach(note => {
+            const noteDiv = document.createElement('div');
+            noteDiv.className = 'note-item';
+
+            let metaHtml = '';
+            if (note.timestamp || note.author) {
+                metaHtml = '<div class="note-meta">';
+                if (note.timestamp) {
+                    metaHtml += `<span class="note-timestamp">${escapeHtml(note.timestamp)}</span>`;
+                }
+                if (note.author) {
+                    metaHtml += `<span class="note-author">${escapeHtml(note.author)}</span>`;
+                }
+                metaHtml += '</div>';
+            }
+
+            noteDiv.innerHTML = `
+                ${metaHtml}
+                <div class="note-text">${escapeHtml(note.text)}</div>
+            `;
+            notesEl.appendChild(noteDiv);
+        });
+        notesSection.style.display = '';
+    } else {
+        notesSection.style.display = 'none';
+    }
+
+    // Closed section
+    const closedSection = document.getElementById('detail-closed-section');
+    if (tick.status === 'closed' && tick.closed_at) {
+        document.getElementById('detail-closed-at').textContent = formatDate(tick.closed_at);
+
+        const closedReasonField = document.getElementById('detail-closed-reason-field');
+        if (tick.closed_reason) {
+            document.getElementById('detail-closed-reason').textContent = tick.closed_reason;
+            closedReasonField.style.display = '';
+        } else {
+            closedReasonField.style.display = 'none';
+        }
+
+        closedSection.style.display = '';
+    } else {
+        closedSection.style.display = 'none';
+    }
 }
 
 // Render ticks into columns

@@ -355,3 +355,347 @@ main {
         min-width: 280px;
     }
 }
+
+/* ========================================
+   Detail Panel Styles
+   ======================================== */
+
+/* Overlay behind the panel */
+.detail-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 90;
+    transition: opacity 0.3s ease;
+}
+
+.detail-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Slide-out panel */
+.detail-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 420px;
+    max-width: 90vw;
+    height: 100vh;
+    background-color: var(--mantle);
+    border-left: 1px solid var(--surface0);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(0);
+    transition: transform 0.3s ease;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.detail-panel.hidden {
+    transform: translateX(100%);
+}
+
+/* Panel header */
+.detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    background-color: var(--surface0);
+    border-bottom: 1px solid var(--surface1);
+    flex-shrink: 0;
+}
+
+.detail-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* ID badge in header */
+.detail-id {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    border-radius: 4px;
+    background-color: var(--surface1);
+    color: var(--subtext0);
+}
+
+.detail-id.type-task {
+    background-color: rgba(137, 180, 250, 0.2);
+    color: var(--blue);
+}
+.detail-id.type-epic {
+    background-color: rgba(203, 166, 247, 0.2);
+    color: var(--mauve);
+}
+.detail-id.type-bug {
+    background-color: rgba(243, 139, 168, 0.2);
+    color: var(--red);
+}
+.detail-id.type-feature {
+    background-color: rgba(166, 227, 161, 0.2);
+    color: var(--green);
+}
+.detail-id.type-chore {
+    background-color: rgba(148, 226, 213, 0.2);
+    color: var(--teal);
+}
+
+/* Status indicator in header */
+.detail-status {
+    font-size: 1rem;
+    line-height: 1;
+}
+.detail-status.status-open { color: var(--overlay0); }
+.detail-status.status-in_progress { color: var(--blue); }
+.detail-status.status-closed { color: var(--green); }
+.detail-status.status-awaiting { color: var(--yellow); }
+.detail-status.status-blocked { color: var(--red); }
+
+/* Close button */
+.detail-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    background: none;
+    border: none;
+    color: var(--subtext0);
+    font-size: 1.5rem;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.detail-close:hover {
+    background-color: var(--surface1);
+    color: var(--text);
+}
+
+/* Scrollable content area */
+.detail-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+}
+
+/* Custom scrollbar for detail content */
+.detail-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.detail-content::-webkit-scrollbar-track {
+    background: var(--mantle);
+    border-radius: 3px;
+}
+
+.detail-content::-webkit-scrollbar-thumb {
+    background: var(--surface1);
+    border-radius: 3px;
+}
+
+.detail-content::-webkit-scrollbar-thumb:hover {
+    background: var(--surface2);
+}
+
+/* Title */
+.detail-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.4;
+    margin-bottom: 1.25rem;
+}
+
+/* Sections */
+.detail-section {
+    margin-bottom: 1.5rem;
+}
+
+.detail-section-title {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--subtext0);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.375rem;
+    border-bottom: 1px solid var(--surface0);
+}
+
+/* Field grid */
+.detail-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.detail-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.detail-label {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--overlay1);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.detail-value {
+    font-size: 0.875rem;
+    color: var(--text);
+}
+
+/* Description text */
+.detail-description {
+    font-size: 0.875rem;
+    color: var(--subtext1);
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+/* Workflow badges */
+.detail-workflow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.workflow-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 4px;
+}
+
+.workflow-badge.badge-requires {
+    background-color: rgba(203, 166, 247, 0.15);
+    color: var(--mauve);
+}
+
+.workflow-badge.badge-awaiting {
+    background-color: rgba(249, 226, 175, 0.2);
+    color: var(--yellow);
+}
+
+.workflow-badge.badge-verdict-approved {
+    background-color: rgba(166, 227, 161, 0.2);
+    color: var(--green);
+}
+
+.workflow-badge.badge-verdict-rejected {
+    background-color: rgba(243, 139, 168, 0.2);
+    color: var(--red);
+}
+
+.workflow-badge.badge-blocked {
+    background-color: rgba(243, 139, 168, 0.2);
+    color: var(--red);
+}
+
+/* Blocker list */
+.detail-blockers {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.blocker-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--surface0);
+    border-radius: 4px;
+    font-size: 0.8125rem;
+}
+
+.blocker-id {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--blue);
+}
+
+.blocker-title {
+    flex: 1;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.blocker-status {
+    font-size: 0.875rem;
+}
+
+.blocker-status.status-open { color: var(--overlay0); }
+.blocker-status.status-closed { color: var(--green); }
+
+/* Notes list */
+.detail-notes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.note-item {
+    padding: 0.75rem;
+    background-color: var(--surface0);
+    border-radius: 4px;
+    border-left: 3px solid var(--surface2);
+}
+
+.note-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.375rem;
+    font-size: 0.6875rem;
+    color: var(--overlay1);
+}
+
+.note-timestamp {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.note-author {
+    font-weight: 500;
+    color: var(--subtext0);
+}
+
+.note-text {
+    font-size: 0.8125rem;
+    color: var(--text);
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+/* Responsive adjustments for detail panel */
+@media (max-width: 480px) {
+    .detail-panel {
+        width: 100vw;
+        max-width: 100vw;
+    }
+
+    .detail-fields {
+        grid-template-columns: 1fr;
+    }
+}
