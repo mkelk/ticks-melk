@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	// DefaultCloudURL is the default tickboard.io WebSocket endpoint.
-	DefaultCloudURL = "wss://tickboard.io/agent"
+	// DefaultCloudURL is the default tickboard.dev WebSocket endpoint.
+	DefaultCloudURL = "wss://tickboard.dev/agent"
 
 	// EnvToken is the environment variable for the cloud token.
 	EnvToken = "TICKBOARD_TOKEN"
@@ -30,7 +30,7 @@ const (
 	ConfigFileName = ".tickboardrc"
 )
 
-// Client manages the connection to tickboard.io cloud.
+// Client manages the connection to tickboard.dev cloud.
 type Client struct {
 	token      string
 	cloudURL   string

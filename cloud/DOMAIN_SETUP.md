@@ -1,10 +1,10 @@
 # Tickboard Cloud Domain Setup
 
-This guide explains how to configure a custom domain (e.g., `tickboard.io`) for the Tickboard Cloud Worker.
+This guide explains how to configure a custom domain (e.g., `tickboard.dev`) for the Tickboard Cloud Worker.
 
 ## Prerequisites
 
-- A registered domain (e.g., `tickboard.io`)
+- A registered domain (e.g., `tickboard.dev`)
 - A Cloudflare account
 - Access to the domain's DNS settings
 
@@ -26,7 +26,7 @@ In Cloudflare DNS settings, add these records:
 |------|------|---------|-------|
 | A | @ | 192.0.2.1 | Proxied (orange cloud) |
 | AAAA | @ | 100:: | Proxied (orange cloud) |
-| CNAME | www | tickboard.io | Proxied (orange cloud) |
+| CNAME | www | tickboard.dev | Proxied (orange cloud) |
 
 Note: The A/AAAA records use placeholder IPs since Workers handles the actual routing. The "Proxied" status is required for Workers to intercept requests.
 
@@ -36,8 +36,8 @@ In `cloud/worker/wrangler.toml`, uncomment the routes section and update with yo
 
 ```toml
 [routes]
-{ pattern = "tickboard.io/*", zone_name = "tickboard.io" }
-{ pattern = "www.tickboard.io/*", zone_name = "tickboard.io" }
+{ pattern = "tickboard.dev/*", zone_name = "tickboard.dev" }
+{ pattern = "www.tickboard.dev/*", zone_name = "tickboard.dev" }
 ```
 
 ### 4. Deploy the Worker
@@ -59,7 +59,7 @@ Test the deployment:
 
 ```bash
 # Health check
-curl https://tickboard.io/health
+curl https://tickboard.dev/health
 
 # Should return: ok
 ```
@@ -70,7 +70,7 @@ Cloudflare also supports "Custom Domains" directly in Workers settings:
 
 1. Go to Workers & Pages > tickboard-cloud > Settings > Triggers
 2. Click "Add Custom Domain"
-3. Enter `tickboard.io`
+3. Enter `tickboard.dev`
 4. Cloudflare automatically configures DNS and SSL
 
 This method is simpler but requires the domain to already be on Cloudflare.
@@ -80,7 +80,7 @@ This method is simpler but requires the domain to already be on Cloudflare.
 The Go client in `internal/tickboard/cloud/client.go` uses this default:
 
 ```go
-DefaultCloudURL = "wss://tickboard.io/agent"
+DefaultCloudURL = "wss://tickboard.dev/agent"
 ```
 
 Users can override this with the `TICKBOARD_URL` environment variable or `url=` in `~/.tickboardrc`.
