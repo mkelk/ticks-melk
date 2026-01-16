@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -196,12 +197,72 @@ func readConfigFile() configFile {
 	return cfg
 }
 
-// deriveBoardName gets the board name from the tick directory.
+// deriveBoardName returns the full repo name in format "owner/repo[:worktree]".
+// Falls back to directory name if git info is unavailable.
 func deriveBoardName(tickDir string) string {
-	// tickDir is like /path/to/repo/.tick
-	// We want the repo name (parent of .tick)
-	parent := filepath.Dir(tickDir)
-	return filepath.Base(parent)
+	repoDir := filepath.Dir(tickDir)
+
+	// Try to get the remote URL
+	cmd := exec.Command("git", "-C", repoDir, "remote", "get-url", "origin")
+	out, err := cmd.Output()
+	if err != nil {
+		// Fallback to directory name
+		return filepath.Base(repoDir)
+	}
+
+	// Parse the remote URL to extract owner/repo
+	remoteURL := strings.TrimSpace(string(out))
+	repoName := parseGitRemote(remoteURL)
+	if repoName == "" {
+		return filepath.Base(repoDir)
+	}
+
+	// Check if this is a worktree
+	cmd = exec.Command("git", "-C", repoDir, "rev-parse", "--show-toplevel")
+	topLevel, err := cmd.Output()
+	if err == nil {
+		topLevelDir := strings.TrimSpace(string(topLevel))
+		currentBase := filepath.Base(repoDir)
+		topBase := filepath.Base(topLevelDir)
+		// If the current directory name differs from the repo root, it's a worktree
+		if currentBase != topBase && topLevelDir != repoDir {
+			repoName = repoName + ":" + currentBase
+		}
+	}
+
+	return repoName
+}
+
+// parseGitRemote extracts "owner/repo" from a git remote URL.
+// Supports HTTPS (https://github.com/owner/repo.git) and SSH (git@github.com:owner/repo.git).
+func parseGitRemote(remoteURL string) string {
+	// Remove trailing .git
+	remoteURL = strings.TrimSuffix(remoteURL, ".git")
+
+	// SSH format: git@github.com:owner/repo
+	if strings.HasPrefix(remoteURL, "git@") {
+		// Extract the path after the ":"
+		parts := strings.SplitN(remoteURL, ":", 2)
+		if len(parts) == 2 {
+			return parts[1]
+		}
+	}
+
+	// HTTPS format: https://github.com/owner/repo
+	if strings.Contains(remoteURL, "://") {
+		// Parse URL and extract path
+		parts := strings.SplitN(remoteURL, "://", 2)
+		if len(parts) == 2 {
+			hostPath := parts[1]
+			// Remove host
+			slashIdx := strings.Index(hostPath, "/")
+			if slashIdx != -1 {
+				return hostPath[slashIdx+1:]
+			}
+		}
+	}
+
+	return ""
 }
 
 // Connect establishes the WebSocket connection to the cloud.

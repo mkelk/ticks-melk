@@ -323,6 +323,82 @@ type InfoResponse struct {
 	Epics    []EpicInfo `json:"epics"`
 }
 
+// getRepoName returns the full repo name in format "owner/repo[:worktree]".
+// Falls back to directory name if git info is unavailable.
+func (s *Server) getRepoName() string {
+	repoDir := filepath.Dir(s.tickDir)
+
+	// Try to get the remote URL
+	cmd := exec.Command("git", "-C", repoDir, "remote", "get-url", "origin")
+	out, err := cmd.Output()
+	if err != nil {
+		// Fallback to directory name
+		name := filepath.Base(repoDir)
+		if name == "." || name == "/" {
+			return "Tick Board"
+		}
+		return name
+	}
+
+	// Parse the remote URL to extract owner/repo
+	remoteURL := strings.TrimSpace(string(out))
+	repoName := parseGitRemote(remoteURL)
+	if repoName == "" {
+		name := filepath.Base(repoDir)
+		if name == "." || name == "/" {
+			return "Tick Board"
+		}
+		return name
+	}
+
+	// Check if this is a worktree
+	cmd = exec.Command("git", "-C", repoDir, "rev-parse", "--show-toplevel")
+	topLevel, err := cmd.Output()
+	if err == nil {
+		topLevelDir := strings.TrimSpace(string(topLevel))
+		currentBase := filepath.Base(repoDir)
+		topBase := filepath.Base(topLevelDir)
+		// If the current directory name differs from the repo root, it's a worktree
+		if currentBase != topBase && topLevelDir != repoDir {
+			repoName = repoName + ":" + currentBase
+		}
+	}
+
+	return repoName
+}
+
+// parseGitRemote extracts "owner/repo" from a git remote URL.
+// Supports HTTPS (https://github.com/owner/repo.git) and SSH (git@github.com:owner/repo.git).
+func parseGitRemote(remoteURL string) string {
+	// Remove trailing .git
+	remoteURL = strings.TrimSuffix(remoteURL, ".git")
+
+	// SSH format: git@github.com:owner/repo
+	if strings.HasPrefix(remoteURL, "git@") {
+		// Extract the path after the ":"
+		parts := strings.SplitN(remoteURL, ":", 2)
+		if len(parts) == 2 {
+			return parts[1]
+		}
+	}
+
+	// HTTPS format: https://github.com/owner/repo
+	if strings.Contains(remoteURL, "://") {
+		// Parse URL and extract path
+		parts := strings.SplitN(remoteURL, "://", 2)
+		if len(parts) == 2 {
+			hostPath := parts[1]
+			// Remove host
+			slashIdx := strings.Index(hostPath, "/")
+			if slashIdx != -1 {
+				return hostPath[slashIdx+1:]
+			}
+		}
+	}
+
+	return ""
+}
+
 // handleInfo handles GET /api/info.
 func (s *Server) handleInfo(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -330,11 +406,8 @@ func (s *Server) handleInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get repo name from parent of .tick directory
-	repoName := filepath.Base(filepath.Dir(s.tickDir))
-	if repoName == "." || repoName == "/" {
-		repoName = "Tick Board"
-	}
+	// Get full repo name from git
+	repoName := s.getRepoName()
 
 	// Load all ticks to find epics
 	issuesDir := filepath.Join(s.tickDir, "issues")
