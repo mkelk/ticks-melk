@@ -1337,13 +1337,16 @@ function closeCloseModal(event) {
 
 // Submit the close action
 async function submitClose() {
-    if (!currentTickId) return;
+    if (!currentTickId) {
+        showToast('No tick selected', 'error');
+        return;
+    }
 
     const textarea = document.getElementById('close-reason');
     const reason = textarea.value.trim();
 
     const btn = document.querySelector('#close-modal .action-btn-close');
-    btn.disabled = true;
+    if (btn) btn.disabled = true;
 
     try {
         const requestBody = {};
@@ -1358,8 +1361,14 @@ async function submitClose() {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || `HTTP ${response.status}`);
+            let errorMsg = `HTTP ${response.status}`;
+            try {
+                const error = await response.json();
+                errorMsg = error.error || errorMsg;
+            } catch {
+                // Response body not JSON, use status code
+            }
+            throw new Error(errorMsg);
         }
 
         showToast('Tick closed', 'success');
@@ -1370,7 +1379,7 @@ async function submitClose() {
         console.error('Failed to close tick:', error);
         showToast(`Failed to close: ${error.message}`, 'error');
     } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
     }
 }
 
