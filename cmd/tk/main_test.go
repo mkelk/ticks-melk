@@ -594,7 +594,7 @@ func TestRejectCommand(t *testing.T) {
 		os.WriteFile(tickPath, newData, 0o644)
 
 		rejectOut, code := captureStdout(func() int {
-			return run([]string{"tk", "reject", id, "--json"})
+			return run([]string{"tk", "reject", id, "Test rejection feedback", "--json"})
 		})
 		if code != exitSuccess {
 			t.Fatalf("expected reject exit %d, got %d", exitSuccess, code)
@@ -638,7 +638,7 @@ func TestRejectCommand(t *testing.T) {
 		os.WriteFile(tickPath, newData, 0o644)
 
 		rejectOut, code := captureStdout(func() int {
-			return run([]string{"tk", "reject", id, "--json"})
+			return run([]string{"tk", "reject", id, "Test rejection feedback", "--json"})
 		})
 		if code != exitSuccess {
 			t.Fatalf("expected reject exit %d, got %d", exitSuccess, code)
@@ -673,7 +673,7 @@ func TestRejectCommand(t *testing.T) {
 		os.WriteFile(tickPath, newData, 0o644)
 
 		rejectOut, code := captureStdout(func() int {
-			return run([]string{"tk", "reject", id, "--json"})
+			return run([]string{"tk", "reject", id, "Test rejection feedback", "--json"})
 		})
 		if code != exitSuccess {
 			t.Fatalf("expected reject exit %d, got %d", exitSuccess, code)
@@ -708,7 +708,7 @@ func TestRejectCommand(t *testing.T) {
 		os.WriteFile(tickPath, newData, 0o644)
 
 		rejectOut, code := captureStdout(func() int {
-			return run([]string{"tk", "reject", id, "--json"})
+			return run([]string{"tk", "reject", id, "Test rejection feedback", "--json"})
 		})
 		if code != exitSuccess {
 			t.Fatalf("expected reject exit %d, got %d", exitSuccess, code)
@@ -744,7 +744,7 @@ func TestRejectCommand(t *testing.T) {
 		os.WriteFile(tickPath, newData, 0o644)
 
 		rejectOut, code := captureStdout(func() int {
-			return run([]string{"tk", "reject", id, "--json"})
+			return run([]string{"tk", "reject", id, "Test rejection feedback", "--json"})
 		})
 		if code != exitSuccess {
 			t.Fatalf("expected reject exit %d, got %d", exitSuccess, code)
@@ -786,7 +786,7 @@ func TestRejectCommand(t *testing.T) {
 		os.WriteFile(tickPath, newData, 0o644)
 
 		rejectOut, code := captureStdout(func() int {
-			return run([]string{"tk", "reject", id, "--json"})
+			return run([]string{"tk", "reject", id, "Test rejection feedback", "--json"})
 		})
 		if code != exitSuccess {
 			t.Fatalf("expected reject exit %d, got %d", exitSuccess, code)
@@ -828,7 +828,7 @@ func TestRejectCommand(t *testing.T) {
 		os.WriteFile(tickPath, newData, 0o644)
 
 		rejectOut, code := captureStdout(func() int {
-			return run([]string{"tk", "reject", id, "--json"})
+			return run([]string{"tk", "reject", id, "Test rejection feedback", "--json"})
 		})
 		if code != exitSuccess {
 			t.Fatalf("expected reject exit %d, got %d", exitSuccess, code)
@@ -903,7 +903,7 @@ func TestRejectCommand(t *testing.T) {
 
 		// Reject - manual flag is treated as awaiting=work (terminal)
 		rejectOut, code := captureStdout(func() int {
-			return run([]string{"tk", "reject", id, "--json"})
+			return run([]string{"tk", "reject", id, "Test rejection feedback", "--json"})
 		})
 		if code != exitSuccess {
 			t.Fatalf("expected reject exit %d, got %d", exitSuccess, code)
@@ -940,7 +940,7 @@ func TestRejectCommand(t *testing.T) {
 		os.WriteFile(tickPath, newData, 0o644)
 
 		rejectOut, code := captureStdout(func() int {
-			return run([]string{"tk", "reject", id, "--json"})
+			return run([]string{"tk", "reject", id, "Test rejection feedback", "--json"})
 		})
 		if code != exitSuccess {
 			t.Fatalf("expected reject exit %d, got %d", exitSuccess, code)
