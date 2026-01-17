@@ -2,7 +2,7 @@
   "id": "eox",
   "title": "Port stats command to Cobra",
   "description": "Migrate stats command (show repository statistics) to Cobra.",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "type": "task",
   "owner": "peter@engelbrecht.dk",
@@ -12,5 +12,7 @@
   "parent": "8un",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-17T21:29:24.884108Z",
-  "updated_at": "2026-01-17T21:30:00.472584Z"
+  "updated_at": "2026-01-17T22:29:30.702556Z",
+  "closed_at": "2026-01-17T22:29:30.702556Z",
+  "closed_reason": "Ported stats command to Cobra. Created stats.go with --all and --json flags, added formatStatusCounts/formatPriorityCounts/formatTypeCounts helpers locally. Added 'stats' to Cobra routing in main.go. Command shows repo stats including total ticks, status/priority/type breakdowns, and ready/blocked counts."
 }
