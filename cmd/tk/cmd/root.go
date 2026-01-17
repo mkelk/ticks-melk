@@ -300,6 +300,9 @@ func ResetFlags() {
 
 	// Reset init flags
 	importBeads = false
+
+	// Reset board flags
+	boardPort = 3000
 }
 
 // SetVersion allows main.go to set the version at initialization
