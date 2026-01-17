@@ -15,6 +15,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/pengelbrecht/ticks/cmd/tk/cmd"
 	"github.com/pengelbrecht/ticks/internal/beads"
 	"github.com/pengelbrecht/ticks/internal/config"
 	"github.com/pengelbrecht/ticks/internal/github"
@@ -26,6 +27,11 @@ import (
 )
 
 var Version = "dev"
+
+func init() {
+	// Sync version with the Cobra cmd package for when commands are migrated
+	cmd.SetVersion(Version)
+}
 
 // listOutput wraps list results with optional filter metadata for JSON output.
 type listOutput struct {
