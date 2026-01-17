@@ -100,7 +100,7 @@ func runCreate(cmd *cobra.Command, args []string) error {
 		case tick.RequiresApproval, tick.RequiresReview, tick.RequiresContent:
 			// valid
 		default:
-			return fmt.Errorf("invalid requires value: %s (must be approval, review, or content)", requiresVal)
+			return NewExitError(ExitUsage, "invalid requires value: %s (must be approval, review, or content)", requiresVal)
 		}
 	}
 
@@ -111,7 +111,7 @@ func runCreate(cmd *cobra.Command, args []string) error {
 		case tick.AwaitingWork, tick.AwaitingApproval, tick.AwaitingInput, tick.AwaitingReview, tick.AwaitingContent, tick.AwaitingEscalation, tick.AwaitingCheckpoint:
 			// valid
 		default:
-			return fmt.Errorf("invalid awaiting value: %s (must be work, approval, input, review, content, escalation, or checkpoint)", awaitingVal)
+			return NewExitError(ExitUsage, "invalid awaiting value: %s (must be work, approval, input, review, content, escalation, or checkpoint)", awaitingVal)
 		}
 	}
 

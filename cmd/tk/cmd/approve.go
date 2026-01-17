@@ -48,30 +48,30 @@ func init() {
 func runApprove(cmd *cobra.Command, args []string) error {
 	root, err := repoRoot()
 	if err != nil {
-		return fmt.Errorf("failed to detect repo root: %w", err)
+		return NewExitError(ExitNoRepo, "failed to detect repo root: %v", err)
 	}
 
 	project, err := github.DetectProject(nil)
 	if err != nil {
-		return fmt.Errorf("failed to detect project: %w", err)
+		return NewExitError(ExitGitHub, "failed to detect project: %v", err)
 	}
 
 	id, err := github.NormalizeID(project, args[0])
 	if err != nil {
-		return fmt.Errorf("invalid id: %w", err)
+		return NewExitError(ExitNotFound, "invalid id: %v", err)
 	}
 
 	store := tick.NewStore(filepath.Join(root, ".tick"))
 	t, err := store.Read(id)
 	if err != nil {
-		return fmt.Errorf("failed to read tick: %w", err)
+		return NewExitError(ExitNotFound, "failed to read tick: %v", err)
 	}
 
 	// Verify tick is awaiting human decision
 	if !t.IsAwaitingHuman() {
 		fmt.Fprintf(os.Stderr, "tick %s is not awaiting human decision\n", t.ID)
 		fmt.Fprintf(os.Stderr, "use `tk show %s` to check current status\n", t.ID)
-		return fmt.Errorf("tick is not awaiting human decision")
+		return NewExitError(ExitUsage, "tick is not awaiting human decision")
 	}
 
 	// Handle legacy manual flag - normalize to awaiting=work before processing

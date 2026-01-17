@@ -124,7 +124,7 @@ func runNote(cmd *cobra.Command, args []string) error {
 
 	// Validate --from flag
 	if noteFrom != "agent" && noteFrom != "human" {
-		return fmt.Errorf("invalid --from value: %s (must be agent or human)", noteFrom)
+		return NewExitError(ExitUsage, "invalid --from value: %s (must be agent or human)", noteFrom)
 	}
 
 	timestamp := time.Now().Format("2006-01-02 15:04")

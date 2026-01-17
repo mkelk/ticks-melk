@@ -228,7 +228,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 			case tick.RequiresApproval, tick.RequiresReview, tick.RequiresContent:
 				t.Requires = &updateRequires
 			default:
-				return fmt.Errorf("invalid requires value: %s (must be approval, review, or content)", updateRequires)
+				return NewExitError(ExitUsage, "invalid requires value: %s (must be approval, review, or content)", updateRequires)
 			}
 		}
 	}
@@ -240,7 +240,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 			case tick.AwaitingWork, tick.AwaitingApproval, tick.AwaitingInput, tick.AwaitingReview, tick.AwaitingContent, tick.AwaitingEscalation, tick.AwaitingCheckpoint:
 				t.SetAwaiting(updateAwaiting)
 			default:
-				return fmt.Errorf("invalid awaiting value: %s (must be work, approval, input, review, content, escalation, or checkpoint)", updateAwaiting)
+				return NewExitError(ExitUsage, "invalid awaiting value: %s (must be work, approval, input, review, content, escalation, or checkpoint)", updateAwaiting)
 			}
 		}
 	}
@@ -249,7 +249,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		case tick.VerdictApproved, tick.VerdictRejected:
 			t.Verdict = &updateVerdict
 		default:
-			return fmt.Errorf("invalid verdict value: %s (must be approved or rejected)", updateVerdict)
+			return NewExitError(ExitUsage, "invalid verdict value: %s (must be approved or rejected)", updateVerdict)
 		}
 	}
 

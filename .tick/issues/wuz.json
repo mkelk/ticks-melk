@@ -2,7 +2,7 @@
   "id": "wuz",
   "title": "Verify CLI compatibility and remove old command dispatcher",
   "description": "Run full test suite to verify all commands work identically. Check exit codes, output formats, and flag behavior. Remove old manual flag parsing code once Cobra migration is complete.",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "type": "task",
   "owner": "peter@engelbrecht.dk",
@@ -30,5 +30,7 @@
   "parent": "8un",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-17T21:29:36.932527Z",
-  "updated_at": "2026-01-17T21:30:07.10709Z"
+  "updated_at": "2026-01-17T22:50:02.390574Z",
+  "closed_at": "2026-01-17T22:50:02.390574Z",
+  "closed_reason": "Verified CLI compatibility and removed old command dispatcher. Fixed Cobra flag persistence bug by adding ResetFlags() and resetCobraFlags() to root.go. Fixed exit code compatibility by creating ExitError type and GetExitCode function. Removed ~2600 lines of dead code from main.go - all commands now route through Cobra. All tests pass."
 }
