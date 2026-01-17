@@ -115,16 +115,14 @@ func run(args []string) int {
 	}
 
 	switch args[1] {
-	case "init", "whoami", "show", "create", "update", "close", "reopen", "delete", "block", "unblock", "note", "notes", "list", "ready", "next", "blocked", "label", "labels", "deps", "status", "rebuild", "merge-file", "stats", "view", "snippet", "import", "approve", "reject":
+	case "init", "whoami", "show", "create", "update", "close", "reopen", "delete", "block", "unblock", "note", "notes", "list", "ready", "next", "blocked", "label", "labels", "deps", "status", "rebuild", "merge-file", "stats", "view", "snippet", "import", "approve", "reject", "version", "upgrade":
 		// Route to Cobra command (pass args[1:] to include the subcommand)
 		if err := cobracmd.ExecuteArgs(args[1:]); err != nil {
 			return exitGeneric
 		}
 		return exitSuccess
-	case "version", "--version", "-v":
+	case "--version", "-v":
 		return runVersion()
-	case "upgrade":
-		return runUpgrade()
 	case "--help", "-h":
 		printUsage()
 		return exitSuccess
