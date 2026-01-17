@@ -2,7 +2,7 @@
   "id": "rgb",
   "title": "Add board command to Cobra routing",
   "description": "Add 'board' case to main.go switch statement to route to cobracmd.ExecuteArgs. Verify command is accessible via 'tk board'.",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "type": "task",
   "owner": "peter@engelbrecht.dk",
@@ -12,5 +12,7 @@
   "parent": "pkw",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-17T23:01:34.927847Z",
-  "updated_at": "2026-01-17T23:01:53.343316Z"
+  "updated_at": "2026-01-17T23:16:03.519932Z",
+  "closed_at": "2026-01-17T23:16:03.519932Z",
+  "closed_reason": "Board command routing already complete from task 0gv. Verified: 'board' case in main.go switch (line 50), help text (line 94), and boardPort reset in root.go ResetFlags(). Command accessible via 'tk board' with proper exit codes."
 }
