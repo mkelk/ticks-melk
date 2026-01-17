@@ -1,12 +1,14 @@
 # Ticker Absorption Plan (into ticks)
 
 ## Goal
-Absorb the `ticker` project into `ticks` so there is only one CLI (`tk`), one codebase, and one TUI. No `ticker` binary, repo, installer, or updater remains.
+Absorb the `ticker` project into `ticks` so there is only one CLI (`tk`) and one codebase. The ticker TUI is replaced by tickboard (web-based). No `ticker` binary, repo, installer, or updater remains.
 
 ## Decisions (Locked)
 - **CLI framework:** Cobra (migrate existing `tk` commands to Cobra).
 - **Run logs:** Stored as separate files under `.tick/runlog/` (not embedded in tick JSON).
-- **TUI:** Single split-pane UI (ticks list on left, runner output/status on right).
+- **TUI:** Ticker TUI is **not** absorbed; tickboard replaces it as the visual interface.
+- **Run mode:** `tk run` is headless-only (no `--headless` flag needed).
+- **Tickboard:** Absorbed into `tk board` command; enhanced to show streaming agent output and detailed run status.
 
 ## Phase 0: CLI Foundation (Cobra migration)
 **Why:** `ticker` already uses Cobra; adopting it in `ticks` provides a clean subcommand structure for `run/resume/checkpoints/merge` and removes manual flag plumbing.
@@ -28,6 +30,12 @@ Move the following packages from `ticker/internal/` to `ticks/internal/`:
 - `parallel` → `internal/parallel`
 - `runlog` → `internal/runlog`
 
+**Note:** Ticker's `internal/tui` is **not** merged. However, the following data structures from it are needed by tickboard and should be moved to appropriate packages:
+- `TaskInfo` → `internal/engine` or `internal/runlog`
+- `RunRecord`, `ToolRecord`, `MetricsRecord` → `internal/agent` (already there)
+- `ToolActivityInfo` → `internal/agent`
+- Message types for streaming (`OutputMsg`, `IterationStartMsg`, etc.) → `internal/engine`
+
 Update imports to `github.com/pengelbrecht/ticks/...`.
 
 ## Phase 2: Replace `tk` Exec with In-Process Store Access
@@ -43,29 +51,62 @@ This removes the `tk` process dependency and simplifies the runner loop.
 **Tasks:**
 - Define runlog schema (reuse `agent.RunRecord`).
 - Implement read/write helpers in `internal/runlog`.
-- Update engine/TUI usage to load and store run logs via `runlog` package.
-- Remove any mutation of tick JSON for run data.
+- Update engine usage to store run logs via `runlog` package.
+- For in-progress runs, write to `.tick/runlog/<tick-id>.live.json` (deleted on completion).
 
-## Phase 4: TUI Unification (Split Pane)
-**Target layout:**
-- **Left pane:** Tick list + filters (current `ticks` TUI).
-- **Right pane:** Runner output + status (from `ticker` TUI).
+### Log Retention & Cleanup
+Implement `internal/gc.Cleanup(maxAge time.Duration)` to clean all temporary/log data:
 
-**Tasks:**
-- Merge TUI models into a single `internal/tui` package.
-- Add a “run mode” with streaming output and task status.
-- Ensure human workflow actions (approve/reject) remain available.
+| Path | Contents | Action |
+|------|----------|--------|
+| `.tick/activity/activity.jsonl` | Tick change log | Trim entries older than `maxAge` |
+| `.tick/runlog/*.json` | Completed run records | Delete files older than `maxAge` |
+| `.tick/runlog/*.live.json` | In-progress runs | **Skip** (never delete) |
+| `.ticker/checkpoints/` | Checkpoint files | Delete files older than `maxAge` |
+
+**Behavior:**
+- Default `maxAge`: 30 days.
+- Called async (non-blocking) at `tk run` and `tk board` startup.
+- Optional `tk gc` command for manual cleanup with `--dry-run` and `--max-age` flags.
+
+## Phase 4: Tickboard Enhancement
+**Goal:** Tickboard replaces ticker TUI as the visual interface for monitoring runs.
+
+**New APIs:**
+- `GET /api/run-stream/<epic-id>` — SSE endpoint for streaming agent output.
+- `GET /api/run-status/<epic-id>` — Current run state (iteration, tokens, active tool, etc.).
+- `GET /api/runlog/<tick-id>` — Completed run record for a task.
+
+**Engine Integration:**
+- Engine writes streaming output to `.tick/runlog/<tick-id>.live.json` during runs.
+- Tickboard server watches this file and relays updates via SSE.
+- On run completion, `.live.json` is finalized to `.json` and broadcast.
+
+**Browser UI Enhancements:**
+- Streaming output pane (live agent stdout/stderr).
+- Tool activity indicator (current tool, input preview, duration).
+- Token/cost metrics display (input, output, cache read, cache creation, cost).
+- Verification status display.
+- Run history view for completed tasks (expandable RunRecord details).
+
+**Data Structures to Support:**
+- `TaskInfo` — task status, blocked state, awaiting type, current indicator.
+- `ToolActivityInfo` — active tool name, input, start time, duration, error state.
+- `RunRecord` — session metadata, output, thinking, tools log, metrics, success/error.
+- Live metrics — input/output tokens, cache tokens, model, status.
 
 ## Phase 5: CLI Surface Integration
 Add runner commands to `tk`:
-- `tk run [epic-id...]`
-- `tk resume <checkpoint-id>`
-- `tk checkpoints [epic-id]`
-- `tk merge <epic-id>`
+- `tk run [epic-id...]` — Run agent loop (headless-only).
+- `tk resume <checkpoint-id>` — Resume from checkpoint.
+- `tk checkpoints [epic-id]` — List checkpoints.
+- `tk merge <epic-id>` — Merge completed epic branch.
+- `tk board` — Launch tickboard server (absorbs `cmd/tickboard`).
+- `tk gc` — Manual log cleanup with `--dry-run` and `--max-age` flags.
 
-Map all flags from `ticker`:
+Map flags from `ticker` (excluding `--headless`):
 - `--max-iterations`, `--max-cost`, `--checkpoint-interval`, `--max-task-retries`
-- `--auto`, `--headless`, `--jsonl`, `--skip-verify`, `--verify-only`
+- `--auto`, `--jsonl`, `--skip-verify`, `--verify-only`
 - `--worktree`, `--parallel`, `--watch`, `--timeout`, `--poll`, `--debounce`
 - `--include-standalone`, `--include-orphans`, `--all`
 
@@ -73,9 +114,11 @@ Map all flags from `ticker`:
 - Remove `ticker` installer and updater references.
 - Ensure `ticks/internal/update` handles all update checks + upgrade.
 - Update `ticks` install scripts to include runner in release artifacts.
+- Remove `cmd/tickboard` (absorbed into `tk board`).
 
 ## Phase 7: Docs + Repo Cleanup
 - Update `ticks/README.md` and `ticks/SPEC.md` to describe runner features.
+- Document `tk run`, `tk board`, `tk gc` commands.
 - Remove `ticker` repo (archive or delete).
 
 ## Deliverables Checklist
@@ -83,6 +126,10 @@ Map all flags from `ticker`:
 - [ ] Runner engine + agent packages under `ticks/internal/`
 - [ ] No shelling out to `tk` from within `tk`
 - [ ] Run logs stored in `.tick/runlog/`
-- [ ] Single split-pane TUI
-- [ ] All `ticker` commands available as `tk` subcommands
+- [ ] Log cleanup on `tk run`/`tk board` startup (30-day retention)
+- [ ] `tk gc` command for manual cleanup
+- [ ] Tickboard enhanced with streaming output and run status
+- [ ] `tk board` command (replaces standalone tickboard binary)
+- [ ] `tk run` is headless-only
+- [ ] All `ticker` runner commands available as `tk` subcommands
 - [ ] `ticker` repo no longer required
