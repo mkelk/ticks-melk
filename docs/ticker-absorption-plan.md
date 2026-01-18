@@ -33,7 +33,7 @@ Move tickboard into `ticks` as the `tk board` command.
 
 **Result:** `tk board` launches the tickboard server; no standalone `tickboard` binary.
 
-## Phase 2: Package Merge (Engine + Runner)
+## Phase 2: Package Merge (Engine + Runner) ✅
 Move the following packages from `ticker/internal/` to `ticks/internal/`:
 - `engine` → `internal/engine`
 - `agent` → `internal/agent`
@@ -52,12 +52,16 @@ Move the following packages from `ticker/internal/` to `ticks/internal/`:
 
 Update imports to `github.com/pengelbrecht/ticks/...`.
 
-## Phase 3: Replace `tk` Exec with In-Process Store Access
+**Status:** Complete (epic ote)
+
+## Phase 3: Replace `tk` Exec with In-Process Store Access ✅
 `ticker/internal/ticks/client.go` shells out to `tk`. In the merged codebase, replace this with direct access to:
 - `internal/tick` (store + schema)
 - `internal/query` (filtering and selection)
 
 This removes the `tk` process dependency and simplifies the runner loop.
+
+**Status:** Complete (epic h66)
 
 ## Phase 4: Run Log Storage (Separate Files)
 **New storage path:** `.tick/runlog/<tick-id>.json`
@@ -161,9 +165,9 @@ Convert `ticker/skills/ticker/` to a unified skill in `ticks/skills/ticks/`.
 
 ## Deliverables Checklist
 - [x] Cobra-based `tk` CLI with all existing commands preserved
-- [ ] `tk board` command (replaces standalone tickboard binary)
-- [ ] Runner engine + agent packages under `ticks/internal/`
-- [ ] No shelling out to `tk` from within `tk`
+- [x] `tk board` command (replaces standalone tickboard binary)
+- [x] Runner engine + agent packages under `ticks/internal/`
+- [x] No shelling out to `tk` from within `tk`
 - [ ] Run logs stored in `.tick/runlog/`
 - [ ] Log cleanup on `tk run`/`tk board` startup (30-day retention)
 - [ ] `tk gc` command for manual cleanup
