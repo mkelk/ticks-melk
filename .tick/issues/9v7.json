@@ -1,0 +1,13 @@
+{
+  "id": "9v7",
+  "title": "Update internal/context to use .tick/logs/context/",
+  "description": "Change path from .ticker/context/ to .tick/logs/context/",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "ntp",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-18T12:41:33.165261Z",
+  "updated_at": "2026-01-18T12:41:33.165261Z"
+}

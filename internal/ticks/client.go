@@ -1,15 +1,14 @@
 package ticks
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/pengelbrecht/ticks/internal/agent"
 	"github.com/pengelbrecht/ticks/internal/query"
+	"github.com/pengelbrecht/ticks/internal/runrecord"
 	"github.com/pengelbrecht/ticks/internal/tick"
 )
 

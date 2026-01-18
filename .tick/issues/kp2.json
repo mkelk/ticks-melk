@@ -1,0 +1,13 @@
+{
+  "id": "kp2",
+  "title": "Update internal/runlog to use .tick/logs/runs/",
+  "description": "Change path from .ticker/runs/ to .tick/logs/runs/",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "ntp",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-18T12:41:30.610902Z",
+  "updated_at": "2026-01-18T12:41:30.610902Z"
+}

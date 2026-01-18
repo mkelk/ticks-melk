@@ -1,0 +1,15 @@
+{
+  "id": "2j4",
+  "title": "Create runrecord store with Read/Write for .tick/runlog/",
+  "description": "Create internal/runrecord package with Store struct that manages .tick/logs/records/ directory. Implement Write, Read, Exists, Delete, List. Status: Package created, path updated to new unified structure.",
+  "notes": "2026-01-18 13:41 - Package created at internal/runrecord/ but path needs update from .tick/runrecords/ to .tick/logs/records/ (partially done).",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "ntp",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-18T07:28:03.948969Z",
+  "updated_at": "2026-01-18T12:42:13.484321Z",
+  "closed_at": "2026-01-18T12:42:13.484321Z"
+}

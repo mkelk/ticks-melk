@@ -1,0 +1,13 @@
+{
+  "id": "xu6",
+  "title": "Update internal/checkpoint to use .tick/logs/checkpoints/",
+  "description": "Change path from .ticker/checkpoints/ to .tick/logs/checkpoints/",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "ntp",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-18T12:41:31.966832Z",
+  "updated_at": "2026-01-18T12:41:31.966832Z"
+}

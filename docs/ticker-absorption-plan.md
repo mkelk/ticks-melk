@@ -5,10 +5,29 @@ Absorb the `ticker` project into `ticks` so there is only one CLI (`tk`) and one
 
 ## Decisions (Locked)
 - **CLI framework:** Cobra (migrate existing `tk` commands to Cobra).
-- **Run logs:** Stored as separate files under `.tick/runlog/` (not embedded in tick JSON).
+- **Unified logging:** All logs under `.tick/logs/` with auto-generated `.gitignore`.
 - **TUI:** Ticker TUI is **not** absorbed; tickboard replaces it as the visual interface.
 - **Run mode:** `tk run` is headless-only (no `--headless` flag needed).
 - **Tickboard:** Absorbed into `tk board` command; enhanced to show streaming agent output and detailed run status.
+
+## Directory Structure
+
+```
+.tick/
+├── issues/              # ticks (tracked)
+├── activity/            # tick mutation audit (tracked)
+└── logs/                # runtime logs (NOT tracked via .gitignore)
+    ├── runs/            # engine debug JSONL - per run timestamp
+    ├── records/         # task completion JSON - per tick ID
+    ├── checkpoints/     # resume state JSON - per checkpoint ID
+    └── context/         # cached epic context MD - per epic ID
+```
+
+**Tracking policy:**
+- `issues/` + `activity/` = issue tracker data (travels with repo)
+- `logs/` = runtime state (local machine, ephemeral, regeneratable)
+
+**Auto-gitignore:** `tk init` creates `.tick/.gitignore` containing `logs/`.
 
 ## Phase 0: CLI Foundation (Cobra migration) ✅
 **Why:** `ticker` already uses Cobra; adopting it in `ticks` provides a clean subcommand structure for `run/resume/checkpoints/merge` and removes manual flag plumbing.
@@ -63,24 +82,42 @@ This removes the `tk` process dependency and simplifies the runner loop.
 
 **Status:** Complete (epic h66)
 
-## Phase 4: Run Log Storage (Separate Files)
-**New storage path:** `.tick/runlog/<tick-id>.json`
+## Phase 4: Unified Logging Structure
 
-**Tasks:**
-- Define runlog schema (reuse `agent.RunRecord`).
-- Implement read/write helpers in `internal/runlog`.
-- Update engine usage to store run logs via `runlog` package.
-- For in-progress runs, write to `.tick/runlog/<tick-id>.live.json` (deleted on completion).
+**Goal:** Consolidate all logging under `.tick/` with clear separation between tracked issue data and ephemeral runtime logs.
+
+### Directory Migration
+
+| Old Path | New Path | Package |
+|----------|----------|---------|
+| `.ticker/runs/` | `.tick/logs/runs/` | `internal/runlog` |
+| `.ticker/checkpoints/` | `.tick/logs/checkpoints/` | `internal/checkpoint` |
+| `.ticker/context/` | `.tick/logs/context/` | `internal/context` |
+| (embedded in tick JSON) | `.tick/logs/records/` | `internal/runrecord` |
+
+### Tasks
+
+1. **Create `internal/runrecord` package** — Store `agent.RunRecord` as `.tick/logs/records/<tick-id>.json`
+2. **Update `internal/runlog`** — Change path from `.ticker/runs/` to `.tick/logs/runs/`
+3. **Update `internal/checkpoint`** — Change path from `.ticker/checkpoints/` to `.tick/logs/checkpoints/`
+4. **Update `internal/context`** — Change path from `.ticker/context/` to `.tick/logs/context/`
+5. **Update `ticks.Client`** — Use `runrecord.Store` instead of embedding in tick JSON
+6. **Migrate existing data** — Move files from `.ticker/` to `.tick/logs/`
+7. **Update `tk init`** — Create `.tick/.gitignore` with `logs/` entry
+8. **Remove `.ticker/` references** — Delete old directory after migration
 
 ### Log Retention & Cleanup
-Implement `internal/gc.Cleanup(maxAge time.Duration)` to clean all temporary/log data:
+
+Implement `internal/gc.Cleanup(maxAge time.Duration)` to clean ephemeral data:
 
 | Path | Contents | Action |
 |------|----------|--------|
 | `.tick/activity/activity.jsonl` | Tick change log | Trim entries older than `maxAge` |
-| `.tick/runlog/*.json` | Completed run records | Delete files older than `maxAge` |
-| `.tick/runlog/*.live.json` | In-progress runs | **Skip** (never delete) |
-| `.ticker/checkpoints/` | Checkpoint files | Delete files older than `maxAge` |
+| `.tick/logs/records/*.json` | Completed run records | Delete files older than `maxAge` |
+| `.tick/logs/records/*.live.json` | In-progress runs | **Skip** (never delete) |
+| `.tick/logs/runs/*.jsonl` | Engine debug logs | Delete files older than `maxAge` |
+| `.tick/logs/checkpoints/*.json` | Checkpoint files | Delete files older than `maxAge` |
+| `.tick/logs/context/*.md` | Cached context docs | Delete files older than `maxAge` |
 
 **Behavior:**
 - Default `maxAge`: 30 days.
@@ -93,10 +130,10 @@ Implement `internal/gc.Cleanup(maxAge time.Duration)` to clean all temporary/log
 **New APIs:**
 - `GET /api/run-stream/<epic-id>` — SSE endpoint for streaming agent output.
 - `GET /api/run-status/<epic-id>` — Current run state (iteration, tokens, active tool, etc.).
-- `GET /api/runlog/<tick-id>` — Completed run record for a task.
+- `GET /api/records/<tick-id>` — Completed run record for a task.
 
 **Engine Integration:**
-- Engine writes streaming output to `.tick/runlog/<tick-id>.live.json` during runs.
+- Engine writes streaming output to `.tick/logs/records/<tick-id>.live.json` during runs.
 - Tickboard server watches this file and relays updates via SSE.
 - On run completion, `.live.json` is finalized to `.json` and broadcast.
 
@@ -168,7 +205,9 @@ Convert `ticker/skills/ticker/` to a unified skill in `ticks/skills/ticks/`.
 - [x] `tk board` command (replaces standalone tickboard binary)
 - [x] Runner engine + agent packages under `ticks/internal/`
 - [x] No shelling out to `tk` from within `tk`
-- [ ] Run logs stored in `.tick/runlog/`
+- [ ] Unified logging under `.tick/logs/` (runs, records, checkpoints, context)
+- [ ] Auto-generated `.tick/.gitignore` with `logs/` entry
+- [ ] Migration from `.ticker/` to `.tick/logs/`
 - [ ] Log cleanup on `tk run`/`tk board` startup (30-day retention)
 - [ ] `tk gc` command for manual cleanup
 - [ ] Tickboard enhanced with streaming output and run status

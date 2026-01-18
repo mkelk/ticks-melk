@@ -1,0 +1,13 @@
+{
+  "id": "cin",
+  "title": "Update tk init to create .tick/.gitignore",
+  "description": "Add logs/ entry to .tick/.gitignore on tk init",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "ntp",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-18T12:41:34.457615Z",
+  "updated_at": "2026-01-18T12:41:34.457615Z"
+}
