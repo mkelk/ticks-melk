@@ -1,0 +1,13 @@
+{
+  "id": "h66",
+  "title": "Phase 3: Replace tk Exec with In-Process Store Access",
+  "description": "Replace internal/ticks/client.go which shells out to tk with direct access to internal/tick (store) and internal/query (filtering). Removes tk process dependency.",
+  "status": "closed",
+  "priority": 2,
+  "type": "epic",
+  "owner": "peter@engelbrecht.dk",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-18T06:42:57.908733Z",
+  "updated_at": "2026-01-18T07:04:50.837031Z",
+  "closed_at": "2026-01-18T07:04:50.837031Z"
+}

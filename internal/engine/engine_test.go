@@ -317,7 +317,8 @@ func (m *mockTicksClient) SetRunRecord(taskID string, record *agent.RunRecord) e
 
 func TestNewEngine(t *testing.T) {
 	a := &mockAgent{name: "test", available: true}
-	tc := ticks.NewClient()
+	tmpDir := t.TempDir()
+	tc := ticks.NewClient(tmpDir)
 	b := budget.NewTracker(budget.Limits{MaxIterations: 10})
 	c := checkpoint.NewManager()
 
@@ -358,7 +359,7 @@ func TestEngine_Run_NoTasks(t *testing.T) {
 	// Create engine with mock ticks
 	e := &Engine{
 		agent:      mockAg,
-		ticks:      ticks.NewClient(), // We'll override the methods
+		ticks:      mockTicks, // Use the mock client
 		budget:     b,
 		checkpoint: c,
 		prompt:     NewPromptBuilder(),

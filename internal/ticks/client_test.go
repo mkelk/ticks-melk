@@ -13,9 +13,14 @@ import (
 )
 
 func TestNewClient(t *testing.T) {
-	c := NewClient()
-	if c.Command != "tk" {
-		t.Errorf("expected Command to be 'tk', got %q", c.Command)
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	if err := os.MkdirAll(filepath.Join(tickDir, "issues"), 0755); err != nil {
+		t.Fatalf("creating tick dir: %v", err)
+	}
+	c := NewClient(tickDir)
+	if c == nil {
+		t.Error("expected non-nil client")
 	}
 }
 
@@ -300,6 +305,10 @@ func TestSetRunRecord(t *testing.T) {
 	// Create a test task file
 	taskData := map[string]interface{}{
 		"id":          "test123",
+		"owner":      "test",
+		"created_by": "test",
+		"created_at": "2025-01-01T00:00:00Z",
+		"updated_at": "2025-01-01T00:00:00Z",
 		"title":       "Test Task",
 		"description": "A test task",
 		"status":      "open",
@@ -310,13 +319,6 @@ func TestSetRunRecord(t *testing.T) {
 	taskFile := filepath.Join(tickDir, "test123.json")
 	if err := os.WriteFile(taskFile, taskJSON, 0600); err != nil {
 		t.Fatalf("writing task file: %v", err)
-	}
-
-	// Change to temp directory so findTickDir works
-	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("changing to temp dir: %v", err)
 	}
 
 	// Create a RunRecord
@@ -341,7 +343,7 @@ func TestSetRunRecord(t *testing.T) {
 	}
 
 	// Test SetRunRecord
-	client := NewClient()
+	client := NewClient(filepath.Join(tmpDir, ".tick"))
 	if err := client.SetRunRecord("test123", record); err != nil {
 		t.Fatalf("SetRunRecord failed: %v", err)
 	}
@@ -382,13 +384,17 @@ func TestSetRunRecord(t *testing.T) {
 }
 
 func TestSetRunRecordNilRecord(t *testing.T) {
-	client := NewClient()
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	if err := os.MkdirAll(filepath.Join(tickDir, "issues"), 0755); err != nil {
+		t.Fatalf("creating tick dir: %v", err)
+	}
+	client := NewClient(tickDir)
 	// Should return nil without error when record is nil
 	if err := client.SetRunRecord("test123", nil); err != nil {
 		t.Errorf("SetRunRecord with nil record should return nil, got %v", err)
 	}
 }
-
 func TestGetRunRecord(t *testing.T) {
 	// Create a temp directory structure for .tick/issues
 	tempDir := t.TempDir()
@@ -397,19 +403,17 @@ func TestGetRunRecord(t *testing.T) {
 		t.Fatalf("creating temp dirs: %v", err)
 	}
 
-	// Change to temp directory
-	origDir, _ := os.Getwd()
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("changing to temp dir: %v", err)
-	}
-	defer os.Chdir(origDir)
-
 	// Create a task file with a run record
 	startTime := time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)
 	endTime := time.Date(2025, 1, 1, 10, 5, 0, 0, time.UTC)
 
 	taskData := map[string]interface{}{
 		"id":     "test456",
+		"type":       "task",
+		"owner":      "test",
+		"created_by": "test",
+		"created_at": "2025-01-01T00:00:00Z",
+		"updated_at": "2025-01-01T00:00:00Z",
 		"title":  "Test Task with Run",
 		"status": "closed",
 		"run": map[string]interface{}{
@@ -442,7 +446,7 @@ func TestGetRunRecord(t *testing.T) {
 	}
 
 	// Test GetRunRecord
-	client := NewClient()
+	client := NewClient(filepath.Join(tempDir, ".tick"))
 	record, err := client.GetRunRecord("test456")
 	if err != nil {
 		t.Fatalf("GetRunRecord failed: %v", err)
@@ -479,16 +483,14 @@ func TestGetRunRecordNoRecord(t *testing.T) {
 		t.Fatalf("creating temp dirs: %v", err)
 	}
 
-	// Change to temp directory
-	origDir, _ := os.Getwd()
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("changing to temp dir: %v", err)
-	}
-	defer os.Chdir(origDir)
-
 	// Create a task file WITHOUT a run record
 	taskData := map[string]interface{}{
 		"id":     "test789",
+		"type":       "task",
+		"owner":      "test",
+		"created_by": "test",
+		"created_at": "2025-01-01T00:00:00Z",
+		"updated_at": "2025-01-01T00:00:00Z",
 		"title":  "Task Without Run",
 		"status": "open",
 	}
@@ -504,7 +506,7 @@ func TestGetRunRecordNoRecord(t *testing.T) {
 	}
 
 	// Test GetRunRecord - should return nil, nil
-	client := NewClient()
+	client := NewClient(filepath.Join(tempDir, ".tick"))
 	record, err := client.GetRunRecord("test789")
 	if err != nil {
 		t.Fatalf("GetRunRecord failed: %v", err)
@@ -522,15 +524,8 @@ func TestGetRunRecordNonexistent(t *testing.T) {
 		t.Fatalf("creating temp dirs: %v", err)
 	}
 
-	// Change to temp directory
-	origDir, _ := os.Getwd()
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("changing to temp dir: %v", err)
-	}
-	defer os.Chdir(origDir)
-
 	// Test GetRunRecord for non-existent task - should return nil, nil
-	client := NewClient()
+	client := NewClient(filepath.Join(tempDir, ".tick"))
 	record, err := client.GetRunRecord("nonexistent")
 	if err != nil {
 		t.Fatalf("GetRunRecord for nonexistent task should not error, got: %v", err)
@@ -801,16 +796,13 @@ func TestClientProcessVerdict(t *testing.T) {
 		t.Fatalf("creating tick dir: %v", err)
 	}
 
-	// Change to temp directory so findTickDir works
-	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("changing to temp dir: %v", err)
-	}
-
 	// Create a test task file with verdict and awaiting set
 	taskData := map[string]interface{}{
 		"id":          "verdict-test",
+		"owner":      "test",
+		"created_by": "test",
+		"created_at": "2025-01-01T00:00:00Z",
+		"updated_at": "2025-01-01T00:00:00Z",
 		"title":       "Test Verdict Processing",
 		"description": "A task to test verdict processing",
 		"status":      "open",
@@ -827,7 +819,7 @@ func TestClientProcessVerdict(t *testing.T) {
 	}
 
 	// Process verdict
-	client := NewClient()
+	client := NewClient(filepath.Join(tmpDir, ".tick"))
 	result, err := client.ProcessVerdict("verdict-test")
 	if err != nil {
 		t.Fatalf("ProcessVerdict failed: %v", err)
@@ -896,6 +888,11 @@ func TestClientProcessVerdictNoVerdict(t *testing.T) {
 	// Create task without verdict
 	taskData := map[string]interface{}{
 		"id":       "no-verdict",
+		"type":       "task",
+		"owner":      "test",
+		"created_by": "test",
+		"created_at": "2025-01-01T00:00:00Z",
+		"updated_at": "2025-01-01T00:00:00Z",
 		"title":    "No Verdict",
 		"status":   "open",
 		"awaiting": "approval",
@@ -906,7 +903,7 @@ func TestClientProcessVerdictNoVerdict(t *testing.T) {
 		t.Fatalf("writing task file: %v", err)
 	}
 
-	client := NewClient()
+	client := NewClient(filepath.Join(tmpDir, ".tick"))
 	result, err := client.ProcessVerdict("no-verdict")
 	if err != nil {
 		t.Fatalf("ProcessVerdict failed: %v", err)
@@ -933,13 +930,6 @@ func TestFindNextReadyTaskFiltersAwaiting(t *testing.T) {
 	tickDir := filepath.Join(tmpDir, ".tick", "issues")
 	if err := os.MkdirAll(tickDir, 0755); err != nil {
 		t.Fatalf("creating tick dir: %v", err)
-	}
-
-	// Change to temp directory so findTickDir works
-	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("changing to temp dir: %v", err)
 	}
 
 	// Create an epic
@@ -1762,16 +1752,14 @@ func TestGetStructuredNotesLegacyFormat(t *testing.T) {
 		t.Fatalf("creating tick dir: %v", err)
 	}
 
-	// Change to temp directory so findTickDir works
-	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("changing to temp dir: %v", err)
-	}
-
 	// Create a tick file with legacy notes string
 	taskData := map[string]interface{}{
 		"id":     "legacy-notes",
+		"type":       "task",
+		"owner":      "test",
+		"created_by": "test",
+		"created_at": "2025-01-01T00:00:00Z",
+		"updated_at": "2025-01-01T00:00:00Z",
 		"title":  "Task with Legacy Notes",
 		"status": "open",
 		"notes":  "First note\nSecond note\nThird note",
@@ -1783,7 +1771,7 @@ func TestGetStructuredNotesLegacyFormat(t *testing.T) {
 	}
 
 	// Test GetStructuredNotes
-	client := NewClient()
+	client := NewClient(filepath.Join(tmpDir, ".tick"))
 	notes, err := client.GetStructuredNotes("legacy-notes")
 	if err != nil {
 		t.Fatalf("GetStructuredNotes failed: %v", err)
@@ -1809,7 +1797,7 @@ func TestGetStructuredNotesLegacyFormat(t *testing.T) {
 	}
 }
 
-// TestGetStructuredNotesNewFormat tests reading structured_notes array
+// TestGetStructuredNotesNewFormat tests reading notes with author markers
 func TestGetStructuredNotesNewFormat(t *testing.T) {
 	tmpDir := t.TempDir()
 	tickDir := filepath.Join(tmpDir, ".tick", "issues")
@@ -1817,22 +1805,17 @@ func TestGetStructuredNotesNewFormat(t *testing.T) {
 		t.Fatalf("creating tick dir: %v", err)
 	}
 
-	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("changing to temp dir: %v", err)
-	}
-
-	// Create a tick file with structured notes
+	// Create a tick file with notes in string format
 	taskData := map[string]interface{}{
-		"id":     "structured-notes",
-		"title":  "Task with Structured Notes",
-		"status": "open",
-		"structured_notes": []map[string]interface{}{
-			{"content": "Agent progress note", "author": "agent"},
-			{"content": "Human feedback", "author": "human"},
-			{"content": "Another agent note", "author": ""},
-		},
+		"id":         "structured-notes",
+		"type":       "task",
+		"owner":      "test",
+		"created_by": "test",
+		"created_at": "2025-01-01T00:00:00Z",
+		"updated_at": "2025-01-01T00:00:00Z",
+		"title":      "Task with Structured Notes",
+		"status":     "open",
+		"notes":      "2025-01-01 10:00 - Agent progress note\n2025-01-01 10:01 - [human] Human feedback\n2025-01-01 10:02 - Another agent note",
 	}
 	taskJSON, _ := json.MarshalIndent(taskData, "", "  ")
 	taskFile := filepath.Join(tickDir, "structured-notes.json")
@@ -1840,14 +1823,14 @@ func TestGetStructuredNotesNewFormat(t *testing.T) {
 		t.Fatalf("writing task file: %v", err)
 	}
 
-	client := NewClient()
+	client := NewClient(filepath.Join(tmpDir, ".tick"))
 	notes, err := client.GetStructuredNotes("structured-notes")
 	if err != nil {
 		t.Fatalf("GetStructuredNotes failed: %v", err)
 	}
 
 	if len(notes) != 3 {
-		t.Errorf("expected 3 notes, got %d", len(notes))
+		t.Fatalf("expected 3 notes, got %d", len(notes))
 	}
 
 	// Verify authors
@@ -1858,7 +1841,7 @@ func TestGetStructuredNotesNewFormat(t *testing.T) {
 		t.Error("notes[1] should be from human")
 	}
 	if !notes[2].IsFromAgent() {
-		t.Error("notes[2] should be from agent (empty author defaults to agent)")
+		t.Error("notes[2] should be from agent (default)")
 	}
 }
 
@@ -1879,14 +1862,14 @@ func TestGetNotesByAuthor(t *testing.T) {
 	// Create a tick file with mixed notes
 	taskData := map[string]interface{}{
 		"id":     "mixed-notes",
+		"type":       "task",
+		"owner":      "test",
+		"created_by": "test",
+		"created_at": "2025-01-01T00:00:00Z",
+		"updated_at": "2025-01-01T00:00:00Z",
 		"title":  "Task with Mixed Notes",
 		"status": "open",
-		"structured_notes": []map[string]interface{}{
-			{"content": "Agent note 1", "author": "agent"},
-			{"content": "Human note 1", "author": "human"},
-			{"content": "Agent note 2", "author": ""},
-			{"content": "Human note 2", "author": "human"},
-		},
+		"notes": "2025-01-01 10:00 - Agent note 1\n2025-01-01 10:01 - [human] Human note 1\n2025-01-01 10:02 - Agent note 2\n2025-01-01 10:03 - [human] Human note 2",
 	}
 	taskJSON, _ := json.MarshalIndent(taskData, "", "  ")
 	taskFile := filepath.Join(tickDir, "mixed-notes.json")
@@ -1894,7 +1877,7 @@ func TestGetNotesByAuthor(t *testing.T) {
 		t.Fatalf("writing task file: %v", err)
 	}
 
-	client := NewClient()
+	client := NewClient(filepath.Join(tmpDir, ".tick"))
 
 	// Test filtering by human author
 	humanNotes, err := client.GetNotesByAuthor("mixed-notes", "human")
@@ -1941,12 +1924,14 @@ func TestGetHumanNotes(t *testing.T) {
 
 	taskData := map[string]interface{}{
 		"id":     "human-notes-test",
+		"type":       "task",
+		"owner":      "test",
+		"created_by": "test",
+		"created_at": "2025-01-01T00:00:00Z",
+		"updated_at": "2025-01-01T00:00:00Z",
 		"title":  "Task for Human Notes Test",
 		"status": "open",
-		"structured_notes": []map[string]interface{}{
-			{"content": "Agent did something", "author": "agent"},
-			{"content": "Please use approach X", "author": "human"},
-		},
+		"notes": "2025-01-01 10:00 - Agent did something\n2025-01-01 10:01 - [human] Please use approach X",
 	}
 	taskJSON, _ := json.MarshalIndent(taskData, "", "  ")
 	taskFile := filepath.Join(tickDir, "human-notes-test.json")
@@ -1954,7 +1939,7 @@ func TestGetHumanNotes(t *testing.T) {
 		t.Fatalf("writing task file: %v", err)
 	}
 
-	client := NewClient()
+	client := NewClient(filepath.Join(tmpDir, ".tick"))
 	humanNotes, err := client.GetHumanNotes("human-notes-test")
 	if err != nil {
 		t.Fatalf("GetHumanNotes failed: %v", err)
@@ -1963,7 +1948,7 @@ func TestGetHumanNotes(t *testing.T) {
 	if len(humanNotes) != 1 {
 		t.Errorf("expected 1 human note, got %d", len(humanNotes))
 	}
-	if len(humanNotes) > 0 && humanNotes[0].Content != "Please use approach X" {
+	if len(humanNotes) > 0 && !strings.Contains(humanNotes[0].Content, "[human] Please use approach X") {
 		t.Errorf("unexpected content: %q", humanNotes[0].Content)
 	}
 }
@@ -1984,13 +1969,14 @@ func TestGetAgentNotes(t *testing.T) {
 
 	taskData := map[string]interface{}{
 		"id":     "agent-notes-test",
+		"type":       "task",
+		"owner":      "test",
+		"created_by": "test",
+		"created_at": "2025-01-01T00:00:00Z",
+		"updated_at": "2025-01-01T00:00:00Z",
 		"title":  "Task for Agent Notes Test",
 		"status": "open",
-		"structured_notes": []map[string]interface{}{
-			{"content": "Completed step 1", "author": "agent"},
-			{"content": "Use different approach", "author": "human"},
-			{"content": "Completed step 2", "author": ""}, // Empty author = agent
-		},
+		"notes": "2025-01-01 10:00 - Completed step 1\n2025-01-01 10:01 - [human] Use different approach\n2025-01-01 10:02 - Completed step 2",
 	}
 	taskJSON, _ := json.MarshalIndent(taskData, "", "  ")
 	taskFile := filepath.Join(tickDir, "agent-notes-test.json")
@@ -1998,7 +1984,7 @@ func TestGetAgentNotes(t *testing.T) {
 		t.Fatalf("writing task file: %v", err)
 	}
 
-	client := NewClient()
+	client := NewClient(filepath.Join(tmpDir, ".tick"))
 	agentNotes, err := client.GetAgentNotes("agent-notes-test")
 	if err != nil {
 		t.Fatalf("GetAgentNotes failed: %v", err)
@@ -2017,19 +2003,10 @@ func TestGetStructuredNotesNonexistent(t *testing.T) {
 		t.Fatalf("creating tick dir: %v", err)
 	}
 
-	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("changing to temp dir: %v", err)
-	}
-
-	client := NewClient()
-	notes, err := client.GetStructuredNotes("nonexistent")
-	if err != nil {
-		t.Fatalf("GetStructuredNotes for nonexistent should not error, got: %v", err)
-	}
-	if notes != nil {
-		t.Errorf("expected nil notes for nonexistent issue, got %v", notes)
+	client := NewClient(filepath.Join(tmpDir, ".tick"))
+	_, err := client.GetStructuredNotes("nonexistent")
+	if err == nil {
+		t.Error("expected error for nonexistent issue, got nil")
 	}
 }
 
@@ -2049,6 +2026,11 @@ func TestGetStructuredNotesEmptyNotes(t *testing.T) {
 
 	taskData := map[string]interface{}{
 		"id":     "no-notes",
+		"type":       "task",
+		"owner":      "test",
+		"created_by": "test",
+		"created_at": "2025-01-01T00:00:00Z",
+		"updated_at": "2025-01-01T00:00:00Z",
 		"title":  "Task without Notes",
 		"status": "open",
 	}
@@ -2058,7 +2040,7 @@ func TestGetStructuredNotesEmptyNotes(t *testing.T) {
 		t.Fatalf("writing task file: %v", err)
 	}
 
-	client := NewClient()
+	client := NewClient(filepath.Join(tmpDir, ".tick"))
 	notes, err := client.GetStructuredNotes("no-notes")
 	if err != nil {
 		t.Fatalf("GetStructuredNotes failed: %v", err)
@@ -2101,161 +2083,6 @@ func TestStandaloneOnlyOption(t *testing.T) {
 	}
 }
 
-// TestFindReadyTaskFromListEmpty tests findReadyTaskFromList with empty list
-func TestFindReadyTaskFromListEmpty(t *testing.T) {
-	client := NewClient()
-	task, err := client.findReadyTaskFromList([]Task{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if task != nil {
-		t.Errorf("expected nil for empty list, got %+v", task)
-	}
-}
-
-// TestFindReadyTaskFromListPriorityOrdering tests that priority is respected
-func TestFindReadyTaskFromListPriorityOrdering(t *testing.T) {
-	tasks := []Task{
-		{ID: "low-priority", Status: "open", Priority: 3},
-		{ID: "high-priority", Status: "open", Priority: 1},
-		{ID: "medium-priority", Status: "open", Priority: 2},
-	}
-
-	client := NewClient()
-	task, err := client.findReadyTaskFromList(tasks)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if task == nil {
-		t.Fatal("expected a task, got nil")
-	}
-	if task.ID != "high-priority" {
-		t.Errorf("expected highest priority task 'high-priority', got %q", task.ID)
-	}
-}
-
-// TestFindReadyTaskFromListFiltersAwaiting tests that awaiting tasks are excluded
-func TestFindReadyTaskFromListFiltersAwaiting(t *testing.T) {
-	approval := "approval"
-	tasks := []Task{
-		{ID: "awaiting-task", Status: "open", Priority: 1, Awaiting: &approval},
-		{ID: "ready-task", Status: "open", Priority: 2},
-	}
-
-	client := NewClient()
-	task, err := client.findReadyTaskFromList(tasks)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if task == nil {
-		t.Fatal("expected a task, got nil")
-	}
-	if task.ID != "ready-task" {
-		t.Errorf("expected 'ready-task', got %q", task.ID)
-	}
-}
-
-// TestFindReadyTaskFromListFiltersManual tests that manual tasks are excluded
-func TestFindReadyTaskFromListFiltersManual(t *testing.T) {
-	tasks := []Task{
-		{ID: "manual-task", Status: "open", Priority: 1, Manual: true},
-		{ID: "ready-task", Status: "open", Priority: 2},
-	}
-
-	client := NewClient()
-	task, err := client.findReadyTaskFromList(tasks)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if task == nil {
-		t.Fatal("expected a task, got nil")
-	}
-	if task.ID != "ready-task" {
-		t.Errorf("expected 'ready-task', got %q", task.ID)
-	}
-}
-
-// TestFindReadyTaskFromListFiltersBlocked tests that blocked tasks are excluded
-func TestFindReadyTaskFromListFiltersBlocked(t *testing.T) {
-	tasks := []Task{
-		{ID: "blocker", Status: "open", Priority: 2},
-		{ID: "blocked", Status: "open", Priority: 1, BlockedBy: []string{"blocker"}},
-	}
-
-	client := NewClient()
-	task, err := client.findReadyTaskFromList(tasks)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if task == nil {
-		t.Fatal("expected a task, got nil")
-	}
-	// blocker should be returned because blocked is blocked
-	if task.ID != "blocker" {
-		t.Errorf("expected 'blocker' (blocked task should be skipped), got %q", task.ID)
-	}
-}
-
-// TestFindReadyTaskFromListFiltersClosed tests that closed tasks are excluded
-func TestFindReadyTaskFromListFiltersClosed(t *testing.T) {
-	tasks := []Task{
-		{ID: "closed-task", Status: "closed", Priority: 1},
-		{ID: "open-task", Status: "open", Priority: 2},
-	}
-
-	client := NewClient()
-	task, err := client.findReadyTaskFromList(tasks)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if task == nil {
-		t.Fatal("expected a task, got nil")
-	}
-	if task.ID != "open-task" {
-		t.Errorf("expected 'open-task', got %q", task.ID)
-	}
-}
-
-// TestFindReadyTaskFromListAllFiltered tests returning nil when all tasks are filtered
-func TestFindReadyTaskFromListAllFiltered(t *testing.T) {
-	approval := "approval"
-	tasks := []Task{
-		{ID: "closed", Status: "closed"},
-		{ID: "awaiting", Status: "open", Awaiting: &approval},
-		{ID: "manual", Status: "open", Manual: true},
-	}
-
-	client := NewClient()
-	task, err := client.findReadyTaskFromList(tasks)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if task != nil {
-		t.Errorf("expected nil when all tasks are filtered, got %+v", task)
-	}
-}
-
-// TestFindReadyTaskFromListBlockedByClosedBlocker tests that tasks blocked by closed tasks are ready
-func TestFindReadyTaskFromListBlockedByClosedBlocker(t *testing.T) {
-	tasks := []Task{
-		{ID: "closed-blocker", Status: "closed", Priority: 2},
-		{ID: "unblocked", Status: "open", Priority: 1, BlockedBy: []string{"closed-blocker"}},
-	}
-
-	client := NewClient()
-	task, err := client.findReadyTaskFromList(tasks)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if task == nil {
-		t.Fatal("expected a task, got nil")
-	}
-	// unblocked should be returned because its blocker is closed
-	if task.ID != "unblocked" {
-		t.Errorf("expected 'unblocked' (blocker is closed), got %q", task.ID)
-	}
-}
-
 // TestNextStandaloneTaskFiltersParent tests that standalone filtering works
 func TestNextStandaloneTaskFiltersParent(t *testing.T) {
 	// Test the filtering logic directly on tasks
@@ -2280,27 +2107,6 @@ func TestNextStandaloneTaskFiltersParent(t *testing.T) {
 	}
 }
 
-// TestNextAnyTaskIncludesBoth tests that nextAnyTask includes both epic and standalone tasks
-func TestNextAnyTaskIncludesBoth(t *testing.T) {
-	// Test the logic: nextAnyTask should consider all tasks
-	tasks := []Task{
-		{ID: "with-parent", Status: "open", Priority: 2, Parent: "epic-123"},
-		{ID: "standalone", Status: "open", Priority: 1, Parent: ""},
-	}
-
-	client := NewClient()
-	task, err := client.findReadyTaskFromList(tasks)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if task == nil {
-		t.Fatal("expected a task, got nil")
-	}
-	// Higher priority (lower number) standalone task should be returned
-	if task.ID != "standalone" {
-		t.Errorf("expected highest priority task 'standalone', got %q", task.ID)
-	}
-}
 
 // TestNextTaskWithOptionsWithEpic tests WithEpic option delegates to NextTask
 func TestNextTaskWithOptionsWithEpic(t *testing.T) {
@@ -2334,61 +2140,6 @@ func TestNextTaskWithOptionsMultipleOptions(t *testing.T) {
 	}
 	if !opts.StandaloneOnly {
 		t.Error("expected StandaloneOnly to be true")
-	}
-}
-
-// TestFindReadyTaskFromListComplexScenario tests a realistic scenario
-func TestFindReadyTaskFromListComplexScenario(t *testing.T) {
-	approval := "approval"
-	tasks := []Task{
-		// P0 task but blocked
-		{ID: "blocked-p0", Status: "open", Priority: 0, BlockedBy: []string{"blocker"}},
-		// P1 task but awaiting approval
-		{ID: "awaiting-p1", Status: "open", Priority: 1, Awaiting: &approval},
-		// P2 task but manual
-		{ID: "manual-p2", Status: "open", Priority: 2, Manual: true},
-		// P3 task - the blocker (ready)
-		{ID: "blocker", Status: "open", Priority: 3},
-		// P4 task - also ready
-		{ID: "ready-p4", Status: "open", Priority: 4},
-	}
-
-	client := NewClient()
-	task, err := client.findReadyTaskFromList(tasks)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if task == nil {
-		t.Fatal("expected a task, got nil")
-	}
-	// blocker should be returned as it's the highest priority ready task
-	if task.ID != "blocker" {
-		t.Errorf("expected 'blocker' (P3, first ready), got %q (P%d)", task.ID, task.Priority)
-	}
-}
-
-// TestFindReadyTaskFromListStableSort tests that sorting is stable for same priority
-func TestFindReadyTaskFromListStableSort(t *testing.T) {
-	// When priorities are equal, the first in original order should be returned
-	// Note: sort.Slice is not guaranteed to be stable, but we can test the behavior
-	tasks := []Task{
-		{ID: "task-a", Status: "open", Priority: 1},
-		{ID: "task-b", Status: "open", Priority: 1},
-		{ID: "task-c", Status: "open", Priority: 1},
-	}
-
-	client := NewClient()
-	task, err := client.findReadyTaskFromList(tasks)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if task == nil {
-		t.Fatal("expected a task, got nil")
-	}
-	// We just verify we got one of them
-	validIDs := map[string]bool{"task-a": true, "task-b": true, "task-c": true}
-	if !validIDs[task.ID] {
-		t.Errorf("unexpected task ID: %q", task.ID)
 	}
 }
 
@@ -2455,69 +2206,6 @@ func TestOrphanedTasksFilterLogic(t *testing.T) {
 		if !expectedIDs[task.ID] {
 			t.Errorf("unexpected task in orphaned list: %s", task.ID)
 		}
-	}
-}
-
-// TestOrphanedTasksPriorityOrdering tests that orphaned tasks respect priority
-func TestOrphanedTasksPriorityOrdering(t *testing.T) {
-	// Create orphaned tasks with different priorities
-	tasks := []Task{
-		{ID: "low-priority-orphan", Status: "open", Priority: 3},
-		{ID: "high-priority-orphan", Status: "open", Priority: 1},
-		{ID: "medium-priority-orphan", Status: "open", Priority: 2},
-	}
-
-	client := NewClient()
-	task, err := client.findReadyTaskFromList(tasks)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if task == nil {
-		t.Fatal("expected a task, got nil")
-	}
-	if task.ID != "high-priority-orphan" {
-		t.Errorf("expected highest priority orphaned task 'high-priority-orphan', got %q", task.ID)
-	}
-}
-
-// TestOrphanedTasksFiltersAwaiting tests that orphaned tasks exclude awaiting tasks
-func TestOrphanedTasksFiltersAwaiting(t *testing.T) {
-	approval := "approval"
-	tasks := []Task{
-		{ID: "awaiting-orphan", Status: "open", Priority: 1, Awaiting: &approval},
-		{ID: "ready-orphan", Status: "open", Priority: 2},
-	}
-
-	client := NewClient()
-	task, err := client.findReadyTaskFromList(tasks)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if task == nil {
-		t.Fatal("expected a task, got nil")
-	}
-	if task.ID != "ready-orphan" {
-		t.Errorf("expected 'ready-orphan', got %q", task.ID)
-	}
-}
-
-// TestOrphanedTasksFiltersManual tests that orphaned tasks exclude manual tasks
-func TestOrphanedTasksFiltersManual(t *testing.T) {
-	tasks := []Task{
-		{ID: "manual-orphan", Status: "open", Priority: 1, Manual: true},
-		{ID: "ready-orphan", Status: "open", Priority: 2},
-	}
-
-	client := NewClient()
-	task, err := client.findReadyTaskFromList(tasks)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if task == nil {
-		t.Fatal("expected a task, got nil")
-	}
-	if task.ID != "ready-orphan" {
-		t.Errorf("expected 'ready-orphan', got %q", task.ID)
 	}
 }
 

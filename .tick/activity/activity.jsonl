@@ -250,3 +250,32 @@
 {"ts":"2026-01-18T06:34:58.194849Z","tick":"vlo","action":"close","actor":"peter@engelbrecht.dk","epic":"ote","data":{"title":"Update all internal imports to ticks module path"}}
 {"ts":"2026-01-18T06:37:32.657138Z","tick":"ghy","action":"close","actor":"peter@engelbrecht.dk","epic":"ote","data":{"title":"Verify packages compile and tests pass"}}
 {"ts":"2026-01-18T06:38:03.243529Z","tick":"ote","action":"close","actor":"peter@engelbrecht.dk","data":{"title":"Phase 2: Package Merge (Engine + Runner)"}}
+{"ts":"2026-01-18T06:42:57.909256Z","tick":"h66","action":"create","actor":"peter@engelbrecht.dk","data":{"priority":2,"title":"Phase 3: Replace tk Exec with In-Process Store Access","type":"epic"}}
+{"ts":"2026-01-18T06:43:23.145295Z","tick":"0q9","action":"create","actor":"peter@engelbrecht.dk","epic":"h66","data":{"priority":2,"title":"Create DirectClient that uses tick store directly","type":"task"}}
+{"ts":"2026-01-18T06:43:35.591611Z","tick":"vf0","action":"create","actor":"peter@engelbrecht.dk","epic":"h66","data":{"priority":2,"title":"Implement GetTask and GetEpic with direct store access","type":"task"}}
+{"ts":"2026-01-18T06:43:35.628186Z","tick":"0jd","action":"create","actor":"peter@engelbrecht.dk","epic":"h66","data":{"priority":2,"title":"Implement ListTasks and ListAllTasks with direct store access","type":"task"}}
+{"ts":"2026-01-18T06:43:35.661511Z","tick":"0jq","action":"create","actor":"peter@engelbrecht.dk","epic":"h66","data":{"priority":2,"title":"Implement NextTask with direct store access","type":"task"}}
+{"ts":"2026-01-18T06:43:35.691503Z","tick":"sq2","action":"create","actor":"peter@engelbrecht.dk","epic":"h66","data":{"priority":2,"title":"Implement CloseTask and status updates with direct store access","type":"task"}}
+{"ts":"2026-01-18T06:43:35.722906Z","tick":"qq0","action":"create","actor":"peter@engelbrecht.dk","epic":"h66","data":{"priority":2,"title":"Implement AddNote operations with direct store access","type":"task"}}
+{"ts":"2026-01-18T06:43:35.753689Z","tick":"2qk","action":"create","actor":"peter@engelbrecht.dk","epic":"h66","data":{"priority":2,"title":"Update engine to use DirectClient","type":"task"}}
+{"ts":"2026-01-18T06:43:35.785697Z","tick":"udf","action":"create","actor":"peter@engelbrecht.dk","epic":"h66","data":{"priority":2,"title":"Remove shelling out code and deprecate old Client","type":"task"}}
+{"ts":"2026-01-18T06:43:43.478993Z","tick":"vf0","action":"block","actor":"peter@engelbrecht.dk","epic":"h66","data":{"blockers":["0q9"],"title":"Implement GetTask and GetEpic with direct store access"}}
+{"ts":"2026-01-18T06:43:43.509405Z","tick":"0jd","action":"block","actor":"peter@engelbrecht.dk","epic":"h66","data":{"blockers":["0q9"],"title":"Implement ListTasks and ListAllTasks with direct store access"}}
+{"ts":"2026-01-18T06:43:43.560864Z","tick":"0jq","action":"block","actor":"peter@engelbrecht.dk","epic":"h66","data":{"blockers":["0q9"],"title":"Implement NextTask with direct store access"}}
+{"ts":"2026-01-18T06:43:43.594232Z","tick":"sq2","action":"block","actor":"peter@engelbrecht.dk","epic":"h66","data":{"blockers":["0q9"],"title":"Implement CloseTask and status updates with direct store access"}}
+{"ts":"2026-01-18T06:43:43.625179Z","tick":"qq0","action":"block","actor":"peter@engelbrecht.dk","epic":"h66","data":{"blockers":["0q9"],"title":"Implement AddNote operations with direct store access"}}
+{"ts":"2026-01-18T06:43:43.65727Z","tick":"2qk","action":"block","actor":"peter@engelbrecht.dk","epic":"h66","data":{"blockers":["vf0"],"title":"Update engine to use DirectClient"}}
+{"ts":"2026-01-18T06:43:43.687815Z","tick":"2qk","action":"block","actor":"peter@engelbrecht.dk","epic":"h66","data":{"blockers":["vf0","0jd"],"title":"Update engine to use DirectClient"}}
+{"ts":"2026-01-18T06:43:43.718303Z","tick":"2qk","action":"block","actor":"peter@engelbrecht.dk","epic":"h66","data":{"blockers":["vf0","0jd","0jq"],"title":"Update engine to use DirectClient"}}
+{"ts":"2026-01-18T06:43:43.749334Z","tick":"2qk","action":"block","actor":"peter@engelbrecht.dk","epic":"h66","data":{"blockers":["vf0","0jd","0jq","sq2"],"title":"Update engine to use DirectClient"}}
+{"ts":"2026-01-18T06:43:43.779679Z","tick":"2qk","action":"block","actor":"peter@engelbrecht.dk","epic":"h66","data":{"blockers":["vf0","0jd","0jq","sq2","qq0"],"title":"Update engine to use DirectClient"}}
+{"ts":"2026-01-18T06:43:43.811107Z","tick":"udf","action":"block","actor":"peter@engelbrecht.dk","epic":"h66","data":{"blockers":["2qk"],"title":"Remove shelling out code and deprecate old Client"}}
+{"ts":"2026-01-18T06:44:46.899133Z","tick":"0q9","action":"close","actor":"peter@engelbrecht.dk","epic":"h66","data":{"title":"Create DirectClient that uses tick store directly"}}
+{"ts":"2026-01-18T06:46:12.90162Z","tick":"sq2","action":"close","actor":"peter@engelbrecht.dk","epic":"h66","data":{"title":"Implement CloseTask and status updates with direct store access"}}
+{"ts":"2026-01-18T06:46:14.80339Z","tick":"vf0","action":"close","actor":"peter@engelbrecht.dk","epic":"h66","data":{"title":"Implement GetTask and GetEpic with direct store access"}}
+{"ts":"2026-01-18T06:46:16.276044Z","tick":"0jd","action":"close","actor":"peter@engelbrecht.dk","epic":"h66","data":{"title":"Implement ListTasks and ListAllTasks with direct store access"}}
+{"ts":"2026-01-18T06:46:26.181115Z","tick":"0jq","action":"close","actor":"peter@engelbrecht.dk","epic":"h66","data":{"title":"Implement NextTask with direct store access"}}
+{"ts":"2026-01-18T06:49:49.482108Z","tick":"qq0","action":"close","actor":"peter@engelbrecht.dk","epic":"h66","data":{"title":"Implement AddNote operations with direct store access"}}
+{"ts":"2026-01-18T06:53:08.212735Z","tick":"2qk","action":"close","actor":"peter@engelbrecht.dk","epic":"h66","data":{"title":"Update engine to use DirectClient"}}
+{"ts":"2026-01-18T07:04:15.115506Z","tick":"udf","action":"close","actor":"peter@engelbrecht.dk","epic":"h66","data":{"title":"Remove shelling out code and deprecate old Client"}}
+{"ts":"2026-01-18T07:04:50.837555Z","tick":"h66","action":"close","actor":"peter@engelbrecht.dk","data":{"title":"Phase 3: Replace tk Exec with In-Process Store Access"}}

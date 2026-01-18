@@ -1,76 +1,17 @@
 package ticks
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/pengelbrecht/ticks/internal/agent"
+	"github.com/pengelbrecht/ticks/internal/query"
+	"github.com/pengelbrecht/ticks/internal/tick"
 )
-
-// Client wraps the tk CLI for programmatic access to the Ticks issue tracker.
-type Client struct {
-	// Command is the path to the tk binary. Defaults to "tk".
-	Command string
-}
-
-// NewClient creates a new Ticks client with default settings.
-func NewClient() *Client {
-	return &Client{Command: "tk"}
-}
-
-// isNoTasksError returns true if the error indicates no tasks were found.
-func isNoTasksError(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := err.Error()
-	return strings.Contains(msg, "no open") ||
-		strings.Contains(msg, "No tasks") ||
-		strings.Contains(msg, "no ready") ||
-		strings.Contains(msg, "No ready") ||
-		strings.Contains(msg, "no awaiting") ||
-		strings.Contains(msg, "No awaiting")
-}
-
-// parseTaskJSON parses JSON output into a Task. Returns nil for empty output or empty ID.
-func parseTaskJSON(out []byte) (*Task, error) {
-	out = bytes.TrimSpace(out)
-	if len(out) == 0 {
-		return nil, nil
-	}
-
-	var task Task
-	if err := json.Unmarshal(out, &task); err != nil {
-		return nil, fmt.Errorf("parse task JSON: %w", err)
-	}
-	if task.ID == "" {
-		return nil, nil
-	}
-	return &task, nil
-}
-
-// parseEpicJSON parses JSON output into an Epic. Returns nil for empty output or empty ID.
-func parseEpicJSON(out []byte) (*Epic, error) {
-	out = bytes.TrimSpace(out)
-	if len(out) == 0 {
-		return nil, nil
-	}
-
-	var epic Epic
-	if err := json.Unmarshal(out, &epic); err != nil {
-		return nil, fmt.Errorf("parse epic JSON: %w", err)
-	}
-	if epic.ID == "" {
-		return nil, nil
-	}
-	return &epic, nil
-}
 
 // NextTaskOptions configures the behavior of NextTask.
 type NextTaskOptions struct {
@@ -106,42 +47,91 @@ func OrphanedOnly() NextTaskOption {
 	}
 }
 
+// splitNonEmpty splits a string by newlines and returns non-empty trimmed lines.
+func splitNonEmpty(s string) []string {
+	lines := strings.Split(s, "\n")
+	result := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
+}
+
+// Client provides direct access to the Ticks issue tracker via the tick.Store.
+// This avoids the overhead of exec'ing the tk CLI for each operation.
+type Client struct {
+	store *tick.Store
+}
+
+// NewClient creates a new Client using the given tick directory.
+func NewClient(tickDir string) *Client {
+	return &Client{
+		store: tick.NewStore(tickDir),
+	}
+}
+
+// convertTickToTask converts a tick.Tick to a Task.
+func convertTickToTask(t tick.Tick) Task {
+	return Task{
+		ID:          t.ID,
+		Title:       t.Title,
+		Description: t.Description,
+		Status:      t.Status,
+		Priority:    t.Priority,
+		Type:        t.Type,
+		Owner:       t.Owner,
+		BlockedBy:   t.BlockedBy,
+		Parent:      t.Parent,
+		Manual:      t.Manual,
+		Requires:    t.Requires,
+		Awaiting:    t.Awaiting,
+		Verdict:     t.Verdict,
+		CreatedBy:   t.CreatedBy,
+		CreatedAt:   t.CreatedAt,
+		UpdatedAt:   t.UpdatedAt,
+	}
+}
+
+// convertTickToEpic converts a tick.Tick to an Epic.
+func convertTickToEpic(t tick.Tick) Epic {
+	return Epic{
+		ID:          t.ID,
+		Title:       t.Title,
+		Description: t.Description,
+		Notes:       t.Notes,
+		Status:      t.Status,
+		Priority:    t.Priority,
+		Type:        t.Type,
+		Owner:       t.Owner,
+		CreatedBy:   t.CreatedBy,
+		CreatedAt:   t.CreatedAt,
+		UpdatedAt:   t.UpdatedAt,
+	}
+}
+
 // NextTask returns the next open, unblocked task for the given epic that is ready for agent work.
 // Returns nil if no tasks are available.
-// Uses --all to see tasks from all owners (important for blockers check).
-// Excludes tasks where awaiting is set or manual=true (backwards compat).
 func (c *Client) NextTask(epicID string) (*Task, error) {
-	out, err := c.run("next", epicID, "--all", "--json")
-	if err != nil {
-		if isNoTasksError(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("tk next %s: %w", epicID, err)
-	}
-
-	task, err := parseTaskJSON(out)
+	allTicks, err := c.store.List()
 	if err != nil {
 		return nil, err
 	}
-	if task == nil {
-		return nil, nil
+
+	// Filter to tasks under the given epic
+	var candidates []tick.Tick
+	for _, t := range allTicks {
+		if t.Type != tick.TypeEpic && t.Parent == epicID {
+			candidates = append(candidates, t)
+		}
 	}
 
-	// If the task is awaiting human action, find the next ready task
-	if task.IsAwaitingHuman() {
-		return c.findNextReadyTask(epicID)
-	}
-	return task, nil
+	return c.findNextReadyTask(candidates, allTicks)
 }
 
 // NextTaskWithOptions returns the next open, unblocked task ready for agent work.
-// Uses functional options to configure behavior:
-//   - WithEpic(epicID): search within a specific epic (default behavior of NextTask)
-//   - StandaloneOnly(): only return tasks without a parent epic
-//   - OrphanedOnly(): only return tasks whose parent epic is closed
-//
-// If no options are provided, searches all tasks (any epic or standalone).
-// Returns nil if no tasks are available.
+// Uses functional options to configure behavior.
 func (c *Client) NextTaskWithOptions(opts ...NextTaskOption) (*Task, error) {
 	options := &NextTaskOptions{}
 	for _, opt := range opts {
@@ -153,160 +143,74 @@ func (c *Client) NextTaskWithOptions(opts ...NextTaskOption) (*Task, error) {
 		return c.NextTask(options.EpicID)
 	}
 
-	// If standalone only, search for tasks without a parent
-	if options.StandaloneOnly {
-		return c.nextStandaloneTask()
-	}
-
-	// If orphaned only, search for tasks with a closed parent epic
-	if options.OrphanedOnly {
-		return c.nextOrphanedTask()
-	}
-
-	// Otherwise, search all tasks (any epic or standalone)
-	return c.nextAnyTask()
-}
-
-// nextAnyTask finds the next ready task from all open tasks, regardless of epic.
-// Tasks are evaluated in priority order (lowest number = highest priority).
-// Returns nil if no tasks are available.
-func (c *Client) nextAnyTask() (*Task, error) {
-	tasks, err := c.ListAllTasks()
+	allTicks, err := c.store.List()
 	if err != nil {
 		return nil, err
 	}
 
-	return c.findReadyTaskFromList(tasks)
-}
-
-// nextStandaloneTask finds the next ready task that has no parent epic.
-// Tasks are evaluated in priority order (lowest number = highest priority).
-// Returns nil if no standalone tasks are available.
-func (c *Client) nextStandaloneTask() (*Task, error) {
-	tasks, err := c.ListAllTasks()
-	if err != nil {
-		return nil, err
-	}
-
-	// Filter to only standalone tasks (no parent)
-	var standaloneTasks []Task
-	for _, t := range tasks {
-		if t.Parent == "" {
-			standaloneTasks = append(standaloneTasks, t)
+	// Build index of epics for orphan detection
+	epicStatus := make(map[string]string)
+	for _, t := range allTicks {
+		if t.Type == tick.TypeEpic {
+			epicStatus[t.ID] = t.Status
 		}
 	}
 
-	return c.findReadyTaskFromList(standaloneTasks)
-}
-
-// nextOrphanedTask finds the next ready task whose parent epic is closed.
-// Tasks are evaluated in priority order (lowest number = highest priority).
-// Returns nil if no orphaned tasks are available.
-func (c *Client) nextOrphanedTask() (*Task, error) {
-	tasks, err := c.ListAllTasks()
-	if err != nil {
-		return nil, err
-	}
-
-	// Build a cache of parent epic statuses to avoid repeated lookups
-	epicStatusCache := make(map[string]string)
-
-	// Filter to only orphaned tasks (parent exists but is closed)
-	var orphanedTasks []Task
-	for _, t := range tasks {
-		if t.Parent == "" {
-			continue // No parent = standalone, not orphaned
+	// Filter tasks based on options
+	var candidates []tick.Tick
+	for _, t := range allTicks {
+		if t.Type == tick.TypeEpic {
+			continue // Skip epics, we want tasks only
 		}
 
-		// Check if parent epic is closed (cache the result)
-		parentStatus, ok := epicStatusCache[t.Parent]
-		if !ok {
-			parent, err := c.GetEpic(t.Parent)
-			if err != nil {
-				// If we can't get the parent, skip this task
+		if options.StandaloneOnly {
+			// Only tasks without a parent
+			if t.Parent != "" {
 				continue
 			}
-			parentStatus = parent.Status
-			epicStatusCache[t.Parent] = parentStatus
+		} else if options.OrphanedOnly {
+			// Only tasks whose parent epic is closed
+			if t.Parent == "" {
+				continue // No parent = standalone, not orphaned
+			}
+			parentStatus, exists := epicStatus[t.Parent]
+			if !exists || parentStatus != tick.StatusClosed {
+				continue // Parent doesn't exist or is not closed
+			}
 		}
 
-		if parentStatus == "closed" {
-			orphanedTasks = append(orphanedTasks, t)
-		}
+		candidates = append(candidates, t)
 	}
 
-	return c.findReadyTaskFromList(orphanedTasks)
+	return c.findNextReadyTask(candidates, allTicks)
 }
 
-// findReadyTaskFromList finds the first ready task from a list of tasks.
-// A task is ready if it is:
-// 1. Open (not closed)
-// 2. Not blocked by any open task
-// 3. Not awaiting human action (awaiting=nil AND manual=false)
-// Tasks are sorted by priority (lowest number = highest priority) before selection.
-func (c *Client) findReadyTaskFromList(tasks []Task) (*Task, error) {
-	if len(tasks) == 0 {
+// findNextReadyTask finds the first ready task from candidates.
+// Uses query.Ready to filter by readiness and sorts by priority.
+func (c *Client) findNextReadyTask(candidates []tick.Tick, allTicks []tick.Tick) (*Task, error) {
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+
+	// Use query.Ready to filter to ready tasks (excludes awaiting human by default)
+	readyTicks := query.Ready(candidates, allTicks)
+	if len(readyTicks) == 0 {
 		return nil, nil
 	}
 
 	// Sort by priority (lowest number = highest priority)
-	sort.Slice(tasks, func(i, j int) bool {
-		return tasks[i].Priority < tasks[j].Priority
+	sort.Slice(readyTicks, func(i, j int) bool {
+		return readyTicks[i].Priority < readyTicks[j].Priority
 	})
 
-	// Build a map of all task IDs for checking blocker status
-	taskMap := make(map[string]*Task)
-	for i := range tasks {
-		taskMap[tasks[i].ID] = &tasks[i]
-	}
-
-	// Build a set of blocked task IDs
-	blockedIDs := make(map[string]bool)
-	for _, t := range tasks {
-		for _, blockerID := range t.BlockedBy {
-			// A task is blocked if any of its blockers exist and are not closed
-			// We need to check all tasks, not just ones in our list
-			blocker, exists := taskMap[blockerID]
-			if exists && blocker.Status != "closed" {
-				blockedIDs[t.ID] = true
-				break
-			}
-			// For blockers not in our list, we need to fetch them
-			if !exists {
-				blockerTask, err := c.GetTask(blockerID)
-				if err == nil && blockerTask != nil && blockerTask.Status != "closed" {
-					blockedIDs[t.ID] = true
-					break
-				}
-			}
-		}
-	}
-
-	// Find the first task that is ready
-	for _, t := range tasks {
-		if t.Status != "open" {
-			continue
-		}
-		if blockedIDs[t.ID] {
-			continue
-		}
-		if t.IsAwaitingHuman() {
-			continue
-		}
-		// Found a ready task
-		taskCopy := t
-		return &taskCopy, nil
-	}
-
-	return nil, nil
+	// Return the first ready task
+	task := convertTickToTask(readyTicks[0])
+	return &task, nil
 }
 
 // ListAwaitingTasks returns all tasks awaiting human attention under the given epic.
-// If awaitingTypes are provided, filters to only those types (e.g., "approval", "review").
-// If no awaitingTypes are provided, returns all awaiting tasks.
-// This is implemented locally since tk list may not support --awaiting filter.
 func (c *Client) ListAwaitingTasks(epicID string, awaitingTypes ...string) ([]Task, error) {
-	tasks, err := c.ListTasks(epicID)
+	allTicks, err := c.store.List()
 	if err != nil {
 		return nil, err
 	}
@@ -318,7 +222,12 @@ func (c *Client) ListAwaitingTasks(epicID string, awaitingTypes ...string) ([]Ta
 	}
 
 	var result []Task
-	for _, t := range tasks {
+	for _, t := range allTicks {
+		// Skip if not under the given epic
+		if t.Parent != epicID {
+			continue
+		}
+		// Skip if not awaiting human
 		if !t.IsAwaitingHuman() {
 			continue
 		}
@@ -329,148 +238,163 @@ func (c *Client) ListAwaitingTasks(epicID string, awaitingTypes ...string) ([]Ta
 				continue
 			}
 		}
-		result = append(result, t)
+		result = append(result, convertTickToTask(t))
 	}
+
 	return result, nil
 }
 
 // NextAwaitingTask returns the next task awaiting human attention.
-// If epicID is empty, searches across all epics.
-// If awaitingTypes are provided, filters to only those types (e.g., "approval", "review").
-// Returns nil if no tasks are awaiting human attention.
 func (c *Client) NextAwaitingTask(epicID string, awaitingTypes ...string) (*Task, error) {
-	args := []string{"next"}
-	if epicID != "" {
-		args = append(args, epicID)
-	}
-	args = append(args, "--awaiting")
-	if len(awaitingTypes) > 0 {
-		args = append(args, strings.Join(awaitingTypes, ","))
-	}
-	args = append(args, "--json")
-
-	out, err := c.run(args...)
-	if err != nil {
-		if isNoTasksError(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("tk next --awaiting: %w", err)
-	}
-
-	return parseTaskJSON(out)
-}
-
-// findNextReadyTask finds the next task ready for agent work by filtering locally.
-// This handles the case where tk next returns a task that's awaiting human action.
-func (c *Client) findNextReadyTask(epicID string) (*Task, error) {
-	tasks, err := c.ListTasks(epicID)
+	allTicks, err := c.store.List()
 	if err != nil {
 		return nil, err
 	}
-	return c.findReadyTaskFromList(tasks)
+
+	// Build a set of awaiting types for efficient lookup
+	typeFilter := make(map[string]bool)
+	for _, t := range awaitingTypes {
+		typeFilter[t] = true
+	}
+
+	var candidates []tick.Tick
+	for _, t := range allTicks {
+		// Skip epics
+		if t.Type == tick.TypeEpic {
+			continue
+		}
+		// Skip if epic filter is set and task is not under it
+		if epicID != "" && t.Parent != epicID {
+			continue
+		}
+		// Skip if not awaiting human
+		if !t.IsAwaitingHuman() {
+			continue
+		}
+		// If types filter is provided, check if this task's awaiting type matches
+		if len(awaitingTypes) > 0 {
+			awaitingType := t.GetAwaitingType()
+			if !typeFilter[awaitingType] {
+				continue
+			}
+		}
+		candidates = append(candidates, t)
+	}
+
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+
+	// Sort by priority (lowest number = highest priority)
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].Priority < candidates[j].Priority
+	})
+
+	task := convertTickToTask(candidates[0])
+	return &task, nil
 }
 
 // GetTask returns details for a specific task.
 func (c *Client) GetTask(taskID string) (*Task, error) {
-	out, err := c.run("show", taskID, "--json")
+	t, err := c.store.Read(taskID)
 	if err != nil {
-		return nil, fmt.Errorf("tk show %s: %w", taskID, err)
+		return nil, fmt.Errorf("failed to read task: %w", err)
 	}
 
-	var task Task
-	if err := json.Unmarshal(out, &task); err != nil {
-		return nil, fmt.Errorf("parse task JSON: %w", err)
-	}
+	task := convertTickToTask(t)
 	return &task, nil
 }
 
 // GetEpic returns details for a specific epic.
 func (c *Client) GetEpic(epicID string) (*Epic, error) {
-	out, err := c.run("show", epicID, "--json")
+	t, err := c.store.Read(epicID)
 	if err != nil {
-		return nil, fmt.Errorf("tk show %s: %w", epicID, err)
+		return nil, fmt.Errorf("failed to read epic: %w", err)
 	}
 
-	var epic Epic
-	if err := json.Unmarshal(out, &epic); err != nil {
-		return nil, fmt.Errorf("parse epic JSON: %w", err)
-	}
+	epic := convertTickToEpic(t)
 	return &epic, nil
 }
 
 // ListTasks returns all tasks under the given parent epic.
 func (c *Client) ListTasks(epicID string) ([]Task, error) {
-	out, err := c.run("list", "--parent", epicID, "--all", "--json")
+	allTicks, err := c.store.List()
 	if err != nil {
-		return nil, fmt.Errorf("tk list --parent %s: %w", epicID, err)
+		return nil, err
 	}
 
-	out = bytes.TrimSpace(out)
-	if len(out) == 0 {
-		return nil, nil
+	var tasks []Task
+	for _, t := range allTicks {
+		if t.Type != tick.TypeEpic && t.Parent == epicID {
+			tasks = append(tasks, convertTickToTask(t))
+		}
 	}
 
-	// tk list --json returns {"ticks": [...]}
-	var wrapper listOutput
-	if err := json.Unmarshal(out, &wrapper); err != nil {
-		return nil, fmt.Errorf("parse tasks JSON: %w", err)
-	}
-	return wrapper.Ticks, nil
+	return tasks, nil
 }
 
 // ListAllTasks returns all tasks regardless of parent epic.
-// Tasks are returned sorted by priority (lowest number = highest priority).
 func (c *Client) ListAllTasks() ([]Task, error) {
-	out, err := c.run("list", "--type", "task", "--status", "open", "--all", "--json")
+	allTicks, err := c.store.List()
 	if err != nil {
-		return nil, fmt.Errorf("tk list --type task: %w", err)
+		return nil, err
 	}
 
-	out = bytes.TrimSpace(out)
-	if len(out) == 0 {
-		return nil, nil
+	var tasks []Task
+	for _, t := range allTicks {
+		if t.Type != tick.TypeEpic && t.Status == tick.StatusOpen {
+			tasks = append(tasks, convertTickToTask(t))
+		}
 	}
 
-	// tk list --json returns {"ticks": [...]}
-	var wrapper listOutput
-	if err := json.Unmarshal(out, &wrapper); err != nil {
-		return nil, fmt.Errorf("parse tasks JSON: %w", err)
-	}
-	return wrapper.Ticks, nil
+	return tasks, nil
 }
 
 // NextReadyEpic returns the next ready (unblocked) epic.
-// Returns nil if no epics are available.
 func (c *Client) NextReadyEpic() (*Epic, error) {
-	out, err := c.run("next", "--epic", "--all", "--json")
+	allTicks, err := c.store.List()
 	if err != nil {
-		if isNoTasksError(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("tk next --epic: %w", err)
+		return nil, err
 	}
 
-	return parseEpicJSON(out)
+	// Filter to epics only
+	var epics []tick.Tick
+	for _, t := range allTicks {
+		if t.Type == tick.TypeEpic {
+			epics = append(epics, t)
+		}
+	}
+
+	// Use query.Ready to find ready epics
+	readyEpics := query.Ready(epics, allTicks)
+	if len(readyEpics) == 0 {
+		return nil, nil
+	}
+
+	// Sort by priority (lowest number = highest priority)
+	sort.Slice(readyEpics, func(i, j int) bool {
+		return readyEpics[i].Priority < readyEpics[j].Priority
+	})
+
+	epic := convertTickToEpic(readyEpics[0])
+	return &epic, nil
 }
 
 // ListReadyEpics returns all open epics (for picker display).
 func (c *Client) ListReadyEpics() ([]Epic, error) {
-	out, err := c.run("list", "--type", "epic", "--status", "open", "--all", "--json")
+	allTicks, err := c.store.List()
 	if err != nil {
-		return nil, fmt.Errorf("tk list --type epic: %w", err)
+		return nil, err
 	}
 
-	out = bytes.TrimSpace(out)
-	if len(out) == 0 {
-		return nil, nil
+	var epics []Epic
+	for _, t := range allTicks {
+		if t.Type == tick.TypeEpic && t.Status == tick.StatusOpen {
+			epics = append(epics, convertTickToEpic(t))
+		}
 	}
 
-	// tk list --json returns {"ticks": [...]}
-	var wrapper epicListOutput
-	if err := json.Unmarshal(out, &wrapper); err != nil {
-		return nil, fmt.Errorf("parse epics JSON: %w", err)
-	}
-	return wrapper.Ticks, nil
+	return epics, nil
 }
 
 // HasOpenTasks returns true if the epic has any non-closed tasks.
@@ -489,36 +413,52 @@ func (c *Client) HasOpenTasks(epicID string) (bool, error) {
 
 // CloseTask closes a task with the given reason.
 func (c *Client) CloseTask(taskID, reason string) error {
-	_, err := c.run("close", taskID, "--reason", reason)
+	t, err := c.store.Read(taskID)
 	if err != nil {
-		return fmt.Errorf("tk close %s: %w", taskID, err)
+		return fmt.Errorf("failed to read task: %w", err)
+	}
+
+	t.Status = tick.StatusClosed
+	t.ClosedReason = reason
+	now := time.Now().UTC()
+	t.ClosedAt = &now
+	t.UpdatedAt = now
+
+	if err := c.store.Write(t); err != nil {
+		return fmt.Errorf("failed to close task: %w", err)
 	}
 	return nil
 }
 
 // CompleteTask handles task completion, respecting the requires field.
-// If the task has a requires field set (e.g., "approval", "review", "content"),
-// the task is routed to human review via SetAwaiting instead of closing.
-// Tasks without requires are closed directly with the provided summary.
 func (c *Client) CompleteTask(taskID string, summary string) error {
-	task, err := c.GetTask(taskID)
+	t, err := c.store.Read(taskID)
 	if err != nil {
-		return fmt.Errorf("getting task for completion: %w", err)
+		return fmt.Errorf("failed to read task: %w", err)
 	}
 
-	if task.Requires == nil || *task.Requires == "" {
+	if t.Requires == nil || *t.Requires == "" {
 		return c.CloseTask(taskID, summary)
 	}
 
-	note := fmt.Sprintf("Work complete, requires %s", *task.Requires)
-	return c.SetAwaiting(taskID, *task.Requires, note)
+	note := fmt.Sprintf("Work complete, requires %s", *t.Requires)
+	return c.SetAwaiting(taskID, *t.Requires, note)
 }
 
 // ReopenTask reopens a closed task.
 func (c *Client) ReopenTask(taskID string) error {
-	_, err := c.run("reopen", taskID)
+	t, err := c.store.Read(taskID)
 	if err != nil {
-		return fmt.Errorf("tk reopen %s: %w", taskID, err)
+		return fmt.Errorf("failed to read task: %w", err)
+	}
+
+	t.Status = tick.StatusOpen
+	t.ClosedAt = nil
+	t.ClosedReason = ""
+	t.UpdatedAt = time.Now().UTC()
+
+	if err := c.store.Write(t); err != nil {
+		return fmt.Errorf("failed to reopen task: %w", err)
 	}
 	return nil
 }
@@ -529,13 +469,49 @@ func (c *Client) CloseEpic(epicID, reason string) error {
 }
 
 // AddNote adds a note to an epic or task.
-// Optional extra args can be passed (e.g., "--from", "human").
+// extraArgs can include "--from", "human" to mark the note as from a human.
 func (c *Client) AddNote(issueID, message string, extraArgs ...string) error {
-	args := []string{"note", issueID, message}
-	args = append(args, extraArgs...)
-	_, err := c.run(args...)
+	if message == "" {
+		return fmt.Errorf("note message is required")
+	}
+
+	// Parse extraArgs for --from flag
+	fromHuman := false
+	for i := 0; i < len(extraArgs); i++ {
+		if extraArgs[i] == "--from" && i+1 < len(extraArgs) {
+			if extraArgs[i+1] == "human" {
+				fromHuman = true
+			}
+			i++ // Skip the value
+		}
+	}
+
+	// Read the tick
+	t, err := c.store.Read(issueID)
 	if err != nil {
-		return fmt.Errorf("tk note %s: %w", issueID, err)
+		return fmt.Errorf("failed to read tick: %w", err)
+	}
+
+	// Format the note line
+	timestamp := time.Now().Format("2006-01-02 15:04")
+	var line string
+	if fromHuman {
+		line = fmt.Sprintf("%s - [human] %s", timestamp, message)
+	} else {
+		line = fmt.Sprintf("%s - %s", timestamp, message)
+	}
+
+	// Append to notes
+	if strings.TrimSpace(t.Notes) == "" {
+		t.Notes = line
+	} else {
+		t.Notes = strings.TrimRight(t.Notes, "\n") + "\n" + line
+	}
+	t.UpdatedAt = time.Now().UTC()
+
+	// Write back
+	if err := c.store.Write(t); err != nil {
+		return fmt.Errorf("failed to update tick: %w", err)
 	}
 	return nil
 }
@@ -552,21 +528,34 @@ func (c *Client) AddHumanNote(issueID, message string) error {
 	return c.AddNote(issueID, message, "--from", "human")
 }
 
-// SetStatus updates the status of an issue (open, in_progress, closed).
+// SetStatus updates the status of an issue.
 func (c *Client) SetStatus(issueID, status string) error {
-	_, err := c.run("update", issueID, "--status", status)
+	t, err := c.store.Read(issueID)
 	if err != nil {
-		return fmt.Errorf("tk update %s --status %s: %w", issueID, status, err)
+		return fmt.Errorf("failed to read tick: %w", err)
+	}
+
+	t.Status = status
+	t.UpdatedAt = time.Now().UTC()
+
+	if err := c.store.Write(t); err != nil {
+		return fmt.Errorf("failed to update status: %w", err)
 	}
 	return nil
 }
 
-// SetAwaiting updates the awaiting field of a task via tk update.
-// If note is provided, it is added as a note to provide context.
+// SetAwaiting updates the awaiting field of a task.
 func (c *Client) SetAwaiting(taskID string, awaiting string, note string) error {
-	_, err := c.run("update", taskID, "--awaiting", awaiting)
+	t, err := c.store.Read(taskID)
 	if err != nil {
-		return fmt.Errorf("tk update %s --awaiting %s: %w", taskID, awaiting, err)
+		return fmt.Errorf("failed to read task: %w", err)
+	}
+
+	t.SetAwaiting(awaiting)
+	t.UpdatedAt = time.Now().UTC()
+
+	if err := c.store.Write(t); err != nil {
+		return fmt.Errorf("failed to update awaiting: %w", err)
 	}
 
 	// Add context as note if provided
@@ -576,18 +565,23 @@ func (c *Client) SetAwaiting(taskID string, awaiting string, note string) error 
 	return nil
 }
 
-// ClearAwaiting clears the awaiting field of a task, indicating it's ready for agent work.
+// ClearAwaiting clears the awaiting field of a task.
 func (c *Client) ClearAwaiting(taskID string) error {
-	_, err := c.run("update", taskID, "--awaiting=")
+	t, err := c.store.Read(taskID)
 	if err != nil {
-		return fmt.Errorf("tk update %s --awaiting=: %w", taskID, err)
+		return fmt.Errorf("failed to read task: %w", err)
+	}
+
+	t.ClearAwaiting()
+	t.UpdatedAt = time.Now().UTC()
+
+	if err := c.store.Write(t); err != nil {
+		return fmt.Errorf("failed to clear awaiting: %w", err)
 	}
 	return nil
 }
 
 // SetVerdict sets the verdict on a task and optionally adds feedback as a note.
-// The feedback note is added BEFORE setting the verdict to ensure the note is
-// available when the verdict triggers any downstream processing.
 func (c *Client) SetVerdict(taskID string, verdict string, feedback string) error {
 	// Add feedback note first (if provided) to avoid race condition
 	if feedback != "" {
@@ -596,149 +590,148 @@ func (c *Client) SetVerdict(taskID string, verdict string, feedback string) erro
 		}
 	}
 
-	// Set verdict - this triggers processing in tk CLI
-	_, err := c.run("update", taskID, "--verdict", verdict)
+	t, err := c.store.Read(taskID)
 	if err != nil {
-		return fmt.Errorf("tk update %s --verdict %s: %w", taskID, verdict, err)
+		return fmt.Errorf("failed to read task: %w", err)
+	}
+
+	t.Verdict = &verdict
+	t.UpdatedAt = time.Now().UTC()
+
+	if err := c.store.Write(t); err != nil {
+		return fmt.Errorf("failed to set verdict: %w", err)
 	}
 	return nil
 }
 
-// Approve sets verdict=approved on a task, triggering verdict processing.
-// This is a convenience method for human reviewers to approve awaiting tasks.
+// Approve sets verdict=approved on a task.
 func (c *Client) Approve(taskID string) error {
 	return c.SetVerdict(taskID, "approved", "")
 }
 
 // Reject sets verdict=rejected on a task with optional feedback.
-// The feedback is added as a note with --from human before setting the verdict.
-// This is a convenience method for human reviewers to reject awaiting tasks.
 func (c *Client) Reject(taskID string, feedback string) error {
 	return c.SetVerdict(taskID, "rejected", feedback)
 }
 
 // ProcessVerdict reads a task, processes its verdict, and saves the result.
-// This is used when ticker needs to process verdicts set by humans.
-// Returns the VerdictResult indicating what changes were made.
 func (c *Client) ProcessVerdict(taskID string) (VerdictResult, error) {
-	filePath, err := tickFilePath(taskID)
+	t, err := c.store.Read(taskID)
 	if err != nil {
-		return VerdictResult{}, err
+		return VerdictResult{}, fmt.Errorf("failed to read task: %w", err)
 	}
 
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return VerdictResult{}, fmt.Errorf("reading tick file %s: %w", taskID, err)
+	// Check if there's a verdict to process
+	if t.Verdict == nil || t.Awaiting == nil {
+		return VerdictResult{}, nil
 	}
 
-	// Parse into Task struct
-	var task Task
-	if err := json.Unmarshal(data, &task); err != nil {
-		return VerdictResult{}, fmt.Errorf("parsing tick file %s: %w", taskID, err)
+	// Determine the result based on awaiting type and verdict
+	awaiting := *t.Awaiting
+	verdict := *t.Verdict
+
+	var shouldClose bool
+	switch awaiting {
+	case tick.AwaitingWork, tick.AwaitingApproval, tick.AwaitingReview, tick.AwaitingContent:
+		shouldClose = verdict == tick.VerdictApproved
+	case tick.AwaitingInput, tick.AwaitingEscalation:
+		shouldClose = verdict == tick.VerdictRejected
+	case tick.AwaitingCheckpoint:
+		shouldClose = false
+	default:
+		shouldClose = false
 	}
 
-	// Process the verdict
-	result := task.ProcessVerdict()
+	// Clear transient fields
+	t.ClearAwaiting()
+	t.Verdict = nil
 
-	// If nothing was processed, return early
-	if !result.TransientCleared {
-		return result, nil
+	if shouldClose {
+		t.Status = tick.StatusClosed
+		now := time.Now().UTC()
+		t.ClosedAt = &now
 	}
 
-	// Save the updated task back to file
-	// Use a generic map to preserve any extra fields
-	var tickData map[string]interface{}
-	if err := json.Unmarshal(data, &tickData); err != nil {
-		return VerdictResult{}, fmt.Errorf("parsing tick file for save %s: %w", taskID, err)
+	t.UpdatedAt = time.Now().UTC()
+
+	if err := c.store.Write(t); err != nil {
+		return VerdictResult{}, fmt.Errorf("failed to save task: %w", err)
 	}
 
-	// Update the fields that ProcessVerdict modified
-	delete(tickData, "awaiting") // cleared
-	delete(tickData, "verdict")  // cleared
-	delete(tickData, "manual")   // cleared
-	tickData["status"] = task.Status
-
-	// Write back with indentation
-	output, err := json.MarshalIndent(tickData, "", "  ")
-	if err != nil {
-		return VerdictResult{}, fmt.Errorf("marshaling tick file %s: %w", taskID, err)
-	}
-
-	if err := os.WriteFile(filePath, output, 0600); err != nil {
-		return VerdictResult{}, fmt.Errorf("writing tick file %s: %w", taskID, err)
-	}
-
-	return result, nil
+	return VerdictResult{
+		ShouldClose:      shouldClose,
+		TransientCleared: true,
+	}, nil
 }
 
 // GetNotes returns the notes for an epic or task as newline-separated strings.
-func (c *Client) GetNotes(epicID string) ([]string, error) {
-	epic, err := c.GetEpic(epicID)
+func (c *Client) GetNotes(issueID string) ([]string, error) {
+	t, err := c.store.Read(issueID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read tick: %w", err)
 	}
-	if epic.Notes == "" {
+
+	if t.Notes == "" {
 		return nil, nil
 	}
 
-	return splitNonEmpty(epic.Notes), nil
-}
-
-// splitNonEmpty splits a string by newlines and returns non-empty trimmed lines.
-func splitNonEmpty(s string) []string {
-	lines := strings.Split(s, "\n")
-	result := make([]string, 0, len(lines))
-	for _, line := range lines {
-		if trimmed := strings.TrimSpace(line); trimmed != "" {
-			result = append(result, trimmed)
-		}
-	}
-	return result
+	return splitNonEmpty(t.Notes), nil
 }
 
 // GetStructuredNotes returns notes as structured Note objects with author metadata.
-// Reads from the "structured_notes" field if present, otherwise parses legacy "notes" string.
-// Each legacy note line is treated as an agent note (default author).
+// Parses the legacy "notes" string format, detecting [human] prefix for human notes.
 func (c *Client) GetStructuredNotes(issueID string) ([]Note, error) {
-	filePath, err := tickFilePath(issueID)
+	t, err := c.store.Read(issueID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read tick: %w", err)
 	}
 
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("reading tick file %s: %w", issueID, err)
-	}
-
-	var tickData struct {
-		Notes           string `json:"notes,omitempty"`
-		StructuredNotes []Note `json:"structured_notes,omitempty"`
-	}
-	if err := json.Unmarshal(data, &tickData); err != nil {
-		return nil, fmt.Errorf("parsing tick file %s: %w", issueID, err)
-	}
-
-	if len(tickData.StructuredNotes) > 0 {
-		return tickData.StructuredNotes, nil
-	}
-	if tickData.Notes == "" {
+	if t.Notes == "" {
 		return nil, nil
 	}
 
-	// Convert legacy notes to structured format
-	lines := splitNonEmpty(tickData.Notes)
-	notes := make([]Note, len(lines))
-	for i, line := range lines {
-		notes[i] = Note{Content: line, Author: "agent"}
+	// Parse notes string into structured notes
+	lines := splitNonEmpty(t.Notes)
+	notes := make([]Note, 0, len(lines))
+	for _, line := range lines {
+		note := parseNoteLine(line)
+		notes = append(notes, note)
 	}
+
 	return notes, nil
 }
 
+// parseNoteLine parses a note line into a structured Note.
+// Format: "TIMESTAMP - [human] MESSAGE" for human notes
+// Format: "TIMESTAMP - MESSAGE" for agent notes
+func parseNoteLine(line string) Note {
+	note := Note{
+		Content: line,
+		Author:  "agent", // Default to agent
+	}
+
+	// Try to parse timestamp and detect [human] prefix
+	// Format: "2026-01-17 22:39 - [human] Message" or "2026-01-17 22:39 - Message"
+	parts := strings.SplitN(line, " - ", 2)
+	if len(parts) == 2 {
+		// Try to parse timestamp
+		timestamp := strings.TrimSpace(parts[0])
+		if t, err := time.Parse("2006-01-02 15:04", timestamp); err == nil {
+			note.CreatedAt = t
+		}
+
+		message := parts[1]
+		// Check for [human] prefix
+		if strings.HasPrefix(message, "[human] ") {
+			note.Author = "human"
+			note.Content = line // Keep original line as content
+		}
+	}
+
+	return note
+}
+
 // GetNotesByAuthor returns notes filtered by author.
-// Pass "human" to get only human notes, "agent" (or empty) for agent notes.
 func (c *Client) GetNotesByAuthor(issueID string, author string) ([]Note, error) {
 	notes, err := c.GetStructuredNotes(issueID)
 	if err != nil {
@@ -767,18 +760,21 @@ func (c *Client) GetAgentNotes(issueID string) ([]Note, error) {
 	return c.GetNotesByAuthor(issueID, "agent")
 }
 
-// SetRunRecord stores a RunRecord on a task by updating the tick file directly.
-// Since the tk CLI doesn't support the run field, we read-modify-write the JSON file.
+// SetRunRecord stores a RunRecord on a task.
+// The RunRecord is stored as a "run" field in the tick JSON file.
 func (c *Client) SetRunRecord(taskID string, record *agent.RunRecord) error {
 	if record == nil {
 		return nil
 	}
 
-	filePath, err := tickFilePath(taskID)
+	// Read the tick file as raw JSON to preserve all fields
+	t, err := c.store.Read(taskID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read tick: %w", err)
 	}
 
+	// Read the raw JSON to get a map we can modify
+	filePath := c.tickPath(taskID)
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return fmt.Errorf("reading tick file %s: %w", taskID, err)
@@ -789,8 +785,13 @@ func (c *Client) SetRunRecord(taskID string, record *agent.RunRecord) error {
 		return fmt.Errorf("parsing tick file %s: %w", taskID, err)
 	}
 
+	// Add the run record
 	tickData["run"] = record
 
+	// Update the updated_at timestamp
+	tickData["updated_at"] = time.Now().UTC()
+
+	// Write back
 	output, err := json.MarshalIndent(tickData, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshaling tick file %s: %w", taskID, err)
@@ -799,16 +800,17 @@ func (c *Client) SetRunRecord(taskID string, record *agent.RunRecord) error {
 	if err := os.WriteFile(filePath, output, 0600); err != nil {
 		return fmt.Errorf("writing tick file %s: %w", taskID, err)
 	}
+
+	// Suppress unused variable warning - we verified the tick exists
+	_ = t
+
 	return nil
 }
 
-// GetRunRecord retrieves the RunRecord for a task by reading the tick file directly.
+// GetRunRecord retrieves the RunRecord for a task.
 // Returns nil if no RunRecord exists.
 func (c *Client) GetRunRecord(taskID string) (*agent.RunRecord, error) {
-	filePath, err := tickFilePath(taskID)
-	if err != nil {
-		return nil, err
-	}
+	filePath := c.tickPath(taskID)
 
 	data, err := os.ReadFile(filePath)
 	if err != nil {
@@ -828,49 +830,27 @@ func (c *Client) GetRunRecord(taskID string) (*agent.RunRecord, error) {
 	return tickData.Run, nil
 }
 
-// tickFilePath returns the path to a tick's JSON file.
-func tickFilePath(tickID string) (string, error) {
-	tickDir, err := findTickDir()
-	if err != nil {
-		return "", fmt.Errorf("finding .tick directory: %w", err)
-	}
-	return filepath.Join(tickDir, "issues", tickID+".json"), nil
+// tickPath returns the path to a tick's JSON file.
+func (c *Client) tickPath(tickID string) string {
+	return c.store.Root + "/issues/" + tickID + ".json"
 }
 
-// findTickDir locates the .tick directory by walking up from cwd.
-func findTickDir() (string, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-
-	for {
-		tickPath := filepath.Join(dir, ".tick")
-		if info, err := os.Stat(tickPath); err == nil && info.IsDir() {
-			return tickPath, nil
-		}
-
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", fmt.Errorf(".tick directory not found")
-		}
-		dir = parent
-	}
-}
-
-// run executes a tk command and returns the output.
-func (c *Client) run(args ...string) ([]byte, error) {
-	cmd := exec.Command(c.Command, args...)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		errMsg := strings.TrimSpace(stderr.String())
-		if errMsg == "" {
-			errMsg = err.Error()
-		}
-		return nil, fmt.Errorf("%s", errMsg)
-	}
-	return stdout.Bytes(), nil
-}
+// Compile-time assertion that Client implements TicksClient from the engine package.
+// This is done via a type assertion using the interface methods.
+// The actual interface is defined in internal/engine/engine.go.
+var _ interface {
+	GetEpic(epicID string) (*Epic, error)
+	GetTask(taskID string) (*Task, error)
+	NextTask(epicID string) (*Task, error)
+	ListTasks(epicID string) ([]Task, error)
+	HasOpenTasks(epicID string) (bool, error)
+	CloseTask(taskID, reason string) error
+	CloseEpic(epicID, reason string) error
+	ReopenTask(taskID string) error
+	AddNote(issueID, message string, extraArgs ...string) error
+	GetNotes(epicID string) ([]string, error)
+	GetHumanNotes(issueID string) ([]Note, error)
+	SetStatus(issueID, status string) error
+	SetAwaiting(taskID, awaiting, note string) error
+	SetRunRecord(taskID string, record *agent.RunRecord) error
+} = (*Client)(nil)

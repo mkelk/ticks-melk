@@ -6,10 +6,11 @@ import (
 	"testing"
 )
 
-// TestClientIntegration tests the ticks client against the real tk CLI.
+// TestClientIntegration tests the ticks client against real data.
 // Run with: go test -tags=integration ./internal/ticks/...
 func TestClientIntegration(t *testing.T) {
-	c := NewClient()
+	// Find .tick directory from current working directory
+	c := NewClient(".tick")
 
 	// Test GetEpic
 	t.Run("GetEpic", func(t *testing.T) {

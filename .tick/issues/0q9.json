@@ -1,0 +1,14 @@
+{
+  "id": "0q9",
+  "title": "Create DirectClient that uses tick store directly",
+  "description": "Create a new DirectClient in internal/ticks/direct_client.go that implements the same interface as Client but uses internal/tick and internal/query directly instead of shelling out to tk. Keep the existing Client for backwards compatibility initially.",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "h66",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-18T06:43:23.144836Z",
+  "updated_at": "2026-01-18T06:44:46.898474Z",
+  "closed_at": "2026-01-18T06:44:46.898474Z"
+}
