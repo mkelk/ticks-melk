@@ -1,5 +1,11 @@
-// Shoelace theme (must be first)
+// Shoelace dark theme base (must be first)
 import '@shoelace-style/shoelace/dist/themes/dark.css';
+
+// Catppuccin Mocha color palette
+import './styles/catppuccin.css';
+
+// Shoelace theme overrides using Catppuccin colors
+import './styles/shoelace-theme.css';
 
 // Register Shoelace components (cherry-picked for tree-shaking)
 import '@shoelace-style/shoelace/dist/components/button/button.js';
