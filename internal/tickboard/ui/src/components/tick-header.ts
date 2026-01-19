@@ -175,6 +175,17 @@ export class TickHeader extends LitElement {
     );
   }
 
+  private handleActivityClick(e: CustomEvent<{ tickId: string }>) {
+    // Re-dispatch the event so tick-board can handle it
+    this.dispatchEvent(
+      new CustomEvent('activity-click', {
+        detail: e.detail,
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
   disconnectedCallback() {
     super.disconnectedCallback();
     if (this.debounceTimeout) {
@@ -226,6 +237,12 @@ export class TickHeader extends LitElement {
         </div>
 
         <div class="header-right">
+          <sl-tooltip content="Activity feed">
+            <tick-activity-feed
+              @activity-click=${this.handleActivityClick}
+            ></tick-activity-feed>
+          </sl-tooltip>
+
           <sl-tooltip content="Create new tick">
             <sl-button
               variant="primary"

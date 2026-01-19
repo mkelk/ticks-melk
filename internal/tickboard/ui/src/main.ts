@@ -37,3 +37,4 @@ import './components/tick-header.js';
 import './components/tick-detail-drawer.js';
 import './components/tick-create-dialog.js';
 import './components/tick-toast-stack.js';
+import './components/tick-activity-feed.js';

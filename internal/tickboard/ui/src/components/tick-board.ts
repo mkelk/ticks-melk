@@ -248,10 +248,9 @@ export class TickBoard extends LitElement {
   private async handleRealtimeUpdate(data: { type: string; tickId?: string }) {
     const { type, tickId } = data;
 
-    // Activity updates - reload all data for now
+    // Activity updates - dispatch event for activity feed component
     if (type === 'activity') {
-      // Activity changed, but we don't currently display activity in the board
-      // Could add activity indicator in the future
+      window.dispatchEvent(new CustomEvent('activity-update'));
       return;
     }
 
@@ -353,6 +352,23 @@ export class TickBoard extends LitElement {
     console.log('Menu toggle clicked');
   }
 
+  // Handle activity item click - find and select the tick
+  private handleActivityClick(e: CustomEvent<{ tickId: string }>) {
+    const tickId = e.detail.tickId;
+    const tick = this.ticks.find(t => t.id === tickId);
+    if (tick) {
+      this.selectedTick = tick;
+    } else {
+      // Tick not in current view, show toast
+      if (window.showToast) {
+        window.showToast({
+          message: `Tick ${tickId} not found in current view`,
+          variant: 'warning',
+        });
+      }
+    }
+  }
+
   // Handle tick selection from columns
   private handleTickSelected(e: CustomEvent<{ tick: BoardTick }>) {
     this.selectedTick = e.detail.tick;
@@ -438,6 +454,7 @@ export class TickBoard extends LitElement {
         @epic-filter-change=${this.handleEpicFilterChange}
         @create-click=${this.handleCreateClick}
         @menu-toggle=${this.handleMenuToggle}
+        @activity-click=${this.handleActivityClick}
       ></tick-header>
 
       <!-- Toast notification stack -->

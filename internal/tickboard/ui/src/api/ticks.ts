@@ -107,6 +107,16 @@ export interface EpicInfo {
   title: string;
 }
 
+/** Activity log entry from GET /api/activity */
+export interface Activity {
+  ts: string;        // ISO timestamp
+  tick: string;      // Tick ID
+  action: string;    // Action type (create, update, close, etc.)
+  actor: string;     // Who performed the action
+  epic?: string;     // Parent epic ID (optional)
+  data?: Record<string, unknown>; // Additional action-specific data
+}
+
 // ============================================================================
 // Request Types
 // ============================================================================
@@ -288,4 +298,19 @@ export async function reopenTick(id: string): Promise<GetTickResponse> {
  */
 export async function fetchInfo(): Promise<InfoResponse> {
   return request<InfoResponse>('/api/info');
+}
+
+/** Response from GET /api/activity */
+interface ActivityResponse {
+  activities: Activity[];
+}
+
+/**
+ * Fetches activity feed entries.
+ * Returns most recent activities first (up to limit).
+ */
+export async function fetchActivity(limit = 20): Promise<Activity[]> {
+  const url = buildUrl('/api/activity', { limit: String(limit) });
+  const response = await request<ActivityResponse>(url);
+  return response.activities;
 }
