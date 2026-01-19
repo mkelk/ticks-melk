@@ -41,3 +41,41 @@ import './components/tick-detail-drawer.js';
 import './components/tick-create-dialog.js';
 import './components/tick-toast-stack.js';
 import './components/tick-activity-feed.js';
+
+// Register service worker for PWA support
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      console.log('[PWA] Service worker registered:', registration.scope);
+
+      // Listen for updates
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        if (!newWorker) return;
+
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // New version available - show update toast
+            if (window.showToast) {
+              window.showToast({
+                message: 'A new version is available. Refresh to update.',
+                variant: 'primary',
+                duration: 10000,
+              });
+            }
+          }
+        });
+      });
+
+      // Listen for SW activation messages
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data?.type === 'SW_ACTIVATED') {
+          console.log('[PWA] Service worker activated:', event.data.version);
+        }
+      });
+    } catch (error) {
+      console.error('[PWA] Service worker registration failed:', error);
+    }
+  });
+}
