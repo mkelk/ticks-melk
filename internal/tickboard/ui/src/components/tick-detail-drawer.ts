@@ -2,7 +2,7 @@ import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { Tick, BoardTick } from '../types/tick.js';
 import type { Note, BlockerDetail } from '../api/ticks.js';
-import { approveTick, rejectTick, closeTick, reopenTick, ApiError } from '../api/ticks.js';
+import { approveTick, rejectTick, closeTick, reopenTick, addNote, ApiError } from '../api/ticks.js';
 
 // Priority labels for display
 const PRIORITY_LABELS: Record<number, string> = {
@@ -365,6 +365,62 @@ export class TickDetailDrawer extends LitElement {
     .error-alert {
       margin-bottom: 1rem;
     }
+
+    /* Notes scroll container */
+    .notes-scroll {
+      max-height: 200px;
+      overflow-y: auto;
+      margin-bottom: 0.75rem;
+    }
+
+    /* Optimistic note styling */
+    .note-optimistic {
+      opacity: 0.7;
+      border-style: dashed;
+    }
+
+    .note-sending {
+      font-size: 0.75rem;
+      color: var(--subtext0);
+      font-style: italic;
+      margin-top: 0.25rem;
+    }
+
+    /* Add note form */
+    .add-note-form {
+      margin-top: 0.75rem;
+    }
+
+    .add-note-form sl-textarea::part(base) {
+      background: var(--surface0);
+      border-color: var(--surface1);
+    }
+
+    .add-note-form sl-textarea::part(textarea) {
+      color: var(--text);
+      font-size: 0.875rem;
+    }
+
+    .add-note-form sl-textarea::part(textarea)::placeholder {
+      color: var(--subtext0);
+    }
+
+    .add-note-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 0.5rem;
+    }
+
+    .add-note-hint {
+      font-size: 0.75rem;
+      color: var(--subtext0);
+    }
+
+    .add-note-error {
+      margin-top: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
   `;
 
   @property({ attribute: false })
@@ -389,6 +445,12 @@ export class TickDetailDrawer extends LitElement {
   @state() private showCloseInput = false;
   @state() private rejectReason = '';
   @state() private closeReason = '';
+
+  // Internal state for add note
+  @state() private newNoteText = '';
+  @state() private addingNote = false;
+  @state() private addNoteError = '';
+  @state() private optimisticNote: Note | null = null;
 
   private handleDrawerHide() {
     // Reset action state when drawer closes
@@ -424,6 +486,11 @@ export class TickDetailDrawer extends LitElement {
     this.rejectReason = '';
     this.closeReason = '';
     this.errorMessage = '';
+    // Also reset note state
+    this.newNoteText = '';
+    this.addingNote = false;
+    this.addNoteError = '';
+    this.optimisticNote = null;
   }
 
   private emitTickUpdated(tick: BoardTick) {
@@ -554,6 +621,46 @@ export class TickDetailDrawer extends LitElement {
       }
     } finally {
       this.loading = false;
+    }
+  }
+
+  private async handleAddNote() {
+    if (!this.tick || !this.newNoteText.trim()) return;
+
+    const noteText = this.newNoteText.trim();
+    this.addingNote = true;
+    this.addNoteError = '';
+
+    // Create optimistic note
+    this.optimisticNote = {
+      timestamp: new Date().toISOString(),
+      author: 'You',
+      text: noteText,
+    };
+    this.newNoteText = '';
+
+    try {
+      const response = await addNote(this.tick.id, noteText);
+      // Update notesList with response from server
+      this.notesList = response.notesList;
+      this.optimisticNote = null;
+      // Emit tick-updated with updated tick
+      const updatedTick: BoardTick = {
+        ...response,
+        is_blocked: response.isBlocked,
+      };
+      this.emitTickUpdated(updatedTick);
+    } catch (error) {
+      // Revert optimistic update on error
+      this.optimisticNote = null;
+      this.newNoteText = noteText; // Restore the text so user can retry
+      if (error instanceof ApiError) {
+        this.addNoteError = error.body || error.message;
+      } else {
+        this.addNoteError = 'Failed to add note';
+      }
+    } finally {
+      this.addingNote = false;
     }
   }
 
@@ -795,29 +902,85 @@ export class TickDetailDrawer extends LitElement {
     `;
   }
 
+  private renderNoteItem(note: Note, isOptimistic = false) {
+    return html`
+      <li class="note-item ${isOptimistic ? 'note-optimistic' : ''}">
+        <div class="note-header">
+          <span class="note-author">${note.author ?? 'Unknown'}</span>
+          ${note.timestamp
+            ? html`<span class="note-timestamp"
+                >${this.formatTimestamp(note.timestamp)}</span
+              >`
+            : nothing}
+        </div>
+        <div class="note-text">${note.text}</div>
+        ${isOptimistic
+          ? html`<div class="note-sending">Sending...</div>`
+          : nothing}
+      </li>
+    `;
+  }
+
   private renderNotes() {
-    if (!this.notesList || this.notesList.length === 0) {
-      return html`<span class="empty-text">No notes yet</span>`;
-    }
+    const hasNotes = (this.notesList && this.notesList.length > 0) || this.optimisticNote;
 
     return html`
-      <ul class="notes-list">
-        ${this.notesList.map(
-          note => html`
-            <li class="note-item">
-              <div class="note-header">
-                <span class="note-author">${note.author ?? 'Unknown'}</span>
-                ${note.timestamp
-                  ? html`<span class="note-timestamp"
-                      >${this.formatTimestamp(note.timestamp)}</span
-                    >`
+      ${hasNotes
+        ? html`
+            <div class="notes-scroll">
+              <ul class="notes-list">
+                ${this.notesList.map(note => this.renderNoteItem(note))}
+                ${this.optimisticNote
+                  ? this.renderNoteItem(this.optimisticNote, true)
                   : nothing}
-              </div>
-              <div class="note-text">${note.text}</div>
-            </li>
+              </ul>
+            </div>
           `
-        )}
-      </ul>
+        : html`<span class="empty-text">No notes yet</span>`}
+
+      <!-- Add note error -->
+      ${this.addNoteError
+        ? html`
+            <sl-alert variant="danger" open class="add-note-error">
+              <sl-icon slot="icon" name="exclamation-triangle"></sl-icon>
+              ${this.addNoteError}
+            </sl-alert>
+          `
+        : nothing}
+
+      <!-- Add note form -->
+      <div class="add-note-form">
+        <sl-textarea
+          placeholder="Add a note..."
+          rows="2"
+          resize="none"
+          .value=${this.newNoteText}
+          ?disabled=${this.addingNote}
+          @sl-input=${(e: Event) => {
+            this.newNoteText = (e.target as HTMLTextAreaElement).value;
+          }}
+          @keydown=${(e: KeyboardEvent) => {
+            // Submit on Cmd/Ctrl+Enter
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              this.handleAddNote();
+            }
+          }}
+        ></sl-textarea>
+        <div class="add-note-actions">
+          <span class="add-note-hint">Ctrl+Enter to send</span>
+          <sl-button
+            variant="primary"
+            size="small"
+            ?loading=${this.addingNote}
+            ?disabled=${this.addingNote || !this.newNoteText.trim()}
+            @click=${this.handleAddNote}
+          >
+            <sl-icon slot="prefix" name="chat-left-text"></sl-icon>
+            Add Note
+          </sl-button>
+        </div>
+      </div>
     `;
   }
 
