@@ -1,0 +1,248 @@
+import { LitElement, html, css } from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
+
+// Interface for epic info from API
+export interface EpicInfo {
+  id: string;
+  title: string;
+}
+
+@customElement('tick-header')
+export class TickHeader extends LitElement {
+  static styles = css`
+    :host {
+      display: block;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem 1.5rem;
+      background-color: var(--surface0);
+      border-bottom: 1px solid var(--surface1);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .header-left h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--rosewater);
+      margin: 0;
+    }
+
+    .repo-badge {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      background: var(--surface1);
+      border-radius: 4px;
+      font-family: monospace;
+      color: var(--subtext0);
+    }
+
+    .header-center {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      gap: 0.75rem;
+      max-width: 600px;
+    }
+
+    .header-center sl-input {
+      flex: 1;
+      max-width: 250px;
+    }
+
+    .header-center sl-select {
+      min-width: 180px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Mobile menu button */
+    .menu-toggle {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 6px;
+    }
+
+    .menu-toggle:hover {
+      background: var(--surface1);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .header-center {
+        display: none;
+      }
+
+      .menu-toggle {
+        display: block;
+      }
+    }
+
+    @media (max-width: 480px) {
+      header {
+        padding: 0.75rem 1rem;
+      }
+
+      .repo-badge {
+        display: none;
+      }
+
+      .header-left h1 {
+        font-size: 1.125rem;
+      }
+    }
+  `;
+
+  @property({ type: String, attribute: 'repo-name' })
+  repoName = '';
+
+  @property({ attribute: false })
+  epics: EpicInfo[] = [];
+
+  @property({ type: String, attribute: 'selected-epic' })
+  selectedEpic = '';
+
+  @property({ type: String, attribute: 'search-term' })
+  searchTerm = '';
+
+  @state()
+  private debounceTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  private handleSearchInput(e: CustomEvent) {
+    const input = e.target as HTMLInputElement;
+    const value = input.value;
+
+    // Debounce search input
+    if (this.debounceTimeout) {
+      clearTimeout(this.debounceTimeout);
+    }
+
+    this.debounceTimeout = setTimeout(() => {
+      this.dispatchEvent(
+        new CustomEvent('search-change', {
+          detail: { value },
+          bubbles: true,
+          composed: true,
+        })
+      );
+    }, 300);
+  }
+
+  private handleEpicFilterChange(e: CustomEvent) {
+    const select = e.target as HTMLSelectElement;
+    this.dispatchEvent(
+      new CustomEvent('epic-filter-change', {
+        detail: { value: select.value },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  private handleCreateClick() {
+    this.dispatchEvent(
+      new CustomEvent('create-click', {
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  private handleMenuToggle() {
+    this.dispatchEvent(
+      new CustomEvent('menu-toggle', {
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this.debounceTimeout) {
+      clearTimeout(this.debounceTimeout);
+    }
+  }
+
+  render() {
+    return html`
+      <header>
+        <div class="header-left">
+          <button
+            class="menu-toggle"
+            aria-label="Menu"
+            @click=${this.handleMenuToggle}
+          >
+            ☰
+          </button>
+          <h1>Tick Board</h1>
+          ${this.repoName
+            ? html`<span class="repo-badge">${this.repoName}</span>`
+            : null}
+        </div>
+
+        <div class="header-center">
+          <sl-input
+            placeholder="Search by ID or title..."
+            size="small"
+            clearable
+            .value=${this.searchTerm}
+            @sl-input=${this.handleSearchInput}
+          >
+            <sl-icon name="search" slot="prefix"></sl-icon>
+          </sl-input>
+
+          <sl-select
+            placeholder="All Ticks"
+            size="small"
+            clearable
+            .value=${this.selectedEpic}
+            @sl-change=${this.handleEpicFilterChange}
+          >
+            ${this.epics.map(
+              epic => html`
+                <sl-option value=${epic.id}>${epic.title}</sl-option>
+              `
+            )}
+          </sl-select>
+        </div>
+
+        <div class="header-right">
+          <sl-tooltip content="Create new tick">
+            <sl-button
+              variant="primary"
+              size="small"
+              @click=${this.handleCreateClick}
+            >
+              <sl-icon name="plus-lg"></sl-icon>
+            </sl-button>
+          </sl-tooltip>
+        </div>
+      </header>
+    `;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'tick-header': TickHeader;
+  }
+}
