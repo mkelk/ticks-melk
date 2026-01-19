@@ -1,0 +1,12 @@
+{
+  "id": "u5u",
+  "title": "Tickboard Lit/Shoelace Migration - Phase 4: Polish",
+  "description": "Add polish features: toast notifications, activity feed, keyboard navigation, mobile responsive layout with tabs, and PWA service worker.",
+  "status": "open",
+  "priority": 2,
+  "type": "epic",
+  "owner": "peter@engelbrecht.dk",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-19T20:02:24.698235Z",
+  "updated_at": "2026-01-19T20:02:24.698235Z"
+}

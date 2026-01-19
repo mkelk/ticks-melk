@@ -84,6 +84,22 @@ func (s *Server) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to access static files: %w", err)
 	}
+
+	// Serve Vite-bundled assets at /assets/ (JS/CSS bundles with hashed names)
+	assetsContent, err := fs.Sub(staticFS, "static/assets")
+	if err != nil {
+		return fmt.Errorf("failed to access assets files: %w", err)
+	}
+	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(assetsContent))))
+
+	// Serve Shoelace icons at /shoelace/ (used by Shoelace components)
+	shoelaceContent, err := fs.Sub(staticFS, "static/shoelace")
+	if err != nil {
+		return fmt.Errorf("failed to access shoelace files: %w", err)
+	}
+	mux.Handle("/shoelace/", http.StripPrefix("/shoelace/", http.FileServer(http.FS(shoelaceContent))))
+
+	// Serve remaining static files (PWA assets, favicons) at /static/
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticContent))))
 
 	// API endpoint: list ticks with filters
@@ -101,20 +117,52 @@ func (s *Server) Run(ctx context.Context) error {
 	// API endpoint: activity feed
 	mux.HandleFunc("/api/activity", s.handleActivity)
 
-	// Root handler - serve index.html
+	// Root handler - serve index.html and PWA assets at root paths
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.NotFound(w, r)
+		path := r.URL.Path
+
+		// Serve index.html for root path
+		if path == "/" {
+			data, err := staticFS.ReadFile("static/index.html")
+			if err != nil {
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Write(data)
 			return
 		}
-		// Serve index.html from static files
-		data, err := staticFS.ReadFile("static/index.html")
-		if err != nil {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+
+		// Serve PWA and favicon files from root paths
+		// These files are commonly requested at root level by browsers
+		rootFiles := map[string]string{
+			"/manifest.json":        "application/manifest+json",
+			"/sw.js":                "application/javascript",
+			"/favicon.ico":          "image/x-icon",
+			"/favicon.svg":          "image/svg+xml",
+			"/favicon-16x16.png":    "image/png",
+			"/favicon-32x32.png":    "image/png",
+			"/apple-touch-icon.png": "image/png",
+			"/icon.svg":             "image/svg+xml",
+			"/icon-192.png":         "image/png",
+			"/icon-512.png":         "image/png",
+			"/icon-maskable.svg":    "image/svg+xml",
+			"/icon-maskable-192.png": "image/png",
+			"/icon-maskable-512.png": "image/png",
+		}
+
+		if contentType, ok := rootFiles[path]; ok {
+			data, err := staticFS.ReadFile("static" + path)
+			if err != nil {
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Content-Type", contentType)
+			w.Write(data)
 			return
 		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write(data)
+
+		http.NotFound(w, r)
 	})
 
 	s.srv = &http.Server{

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -111,10 +112,9 @@ func TestServer_Run(t *testing.T) {
 
 func TestStaticFS_Embedded(t *testing.T) {
 	// Verify that static files are properly embedded
+	// New Lit/Shoelace build outputs: index.html, assets/*.js, assets/*.css, shoelace/icons/*
 	files := []string{
 		"static/index.html",
-		"static/style.css",
-		"static/app.js",
 	}
 
 	for _, f := range files {
@@ -126,6 +126,20 @@ func TestStaticFS_Embedded(t *testing.T) {
 		if len(data) == 0 {
 			t.Errorf("embedded file %q is empty", f)
 		}
+	}
+
+	// Verify assets directory exists with JS/CSS bundles (hashed names)
+	entries, err := fs.ReadDir(staticFS, "static/assets")
+	if err != nil {
+		t.Errorf("failed to read assets directory: %v", err)
+	} else if len(entries) < 2 {
+		t.Errorf("expected at least 2 files in assets (js + css), got %d", len(entries))
+	}
+
+	// Verify shoelace icons directory exists
+	_, err = fs.ReadDir(staticFS, "static/shoelace/icons")
+	if err != nil {
+		t.Errorf("failed to read shoelace/icons directory: %v", err)
 	}
 }
 

@@ -1,0 +1,12 @@
+{
+  "id": "x0x",
+  "title": "Tickboard Lit/Shoelace Migration - Phase 2: Core Components",
+  "description": "Build the core UI components: tick-card, tick-column, tick-header. Wire up API fetching and render the board with real data.",
+  "status": "open",
+  "priority": 2,
+  "type": "epic",
+  "owner": "peter@engelbrecht.dk",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-19T20:02:15.95792Z",
+  "updated_at": "2026-01-19T20:02:15.95792Z"
+}

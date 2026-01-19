@@ -1,0 +1,17 @@
+{
+  "id": "ulo",
+  "title": "Update documentation for new UI architecture",
+  "description": "Update documentation to reflect Lit/Shoelace migration:\n\n1. Update README.md:\n   - New UI development setup instructions\n   - pnpm commands for dev/build\n   - Component architecture overview\n\n2. Create internal/tickboard/ui/README.md:\n   - Component hierarchy diagram\n   - How to add new components\n   - Theming customization guide\n   - Shoelace components used\n\n3. Update any existing tickboard docs:\n   - Remove references to old static files\n   - Add new file structure\n\n4. Add inline code comments:\n   - JSDoc for public component APIs\n   - Complex logic explanations\n\nTest: Follow README to set up dev environment from scratch",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "blocked_by": [
+    "hjp"
+  ],
+  "parent": "2kk",
+  "acceptance_criteria": "README allows new developer to set up and run UI, component docs are accurate and helpful",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-19T20:06:18.263884Z",
+  "updated_at": "2026-01-19T20:06:18.263884Z"
+}

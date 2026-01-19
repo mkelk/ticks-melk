@@ -1,0 +1,17 @@
+{
+  "id": "i4a",
+  "title": "Add WebSocket real-time updates",
+  "description": "Add WebSocket connection to tick-board for real-time updates:\n\nImplementation in tick-board.ts:\nprivate ws: WebSocket | null = null;\n\nprivate connectWebSocket() {\n  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';\n  this.ws = new WebSocket(`${protocol}//${location.host}/ws`);\n  this.ws.onmessage = (event) =\u003e this.handleRealtimeUpdate(JSON.parse(event.data));\n  this.ws.onclose = () =\u003e setTimeout(() =\u003e this.connectWebSocket(), 1000);\n}\n\nHandle message types:\n- tick_created: add to ticks array\n- tick_updated: update tick in array\n- tick_deleted: remove from array\n\nTest: Open board in two tabs, update tick in one, verify other updates",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "blocked_by": [
+    "r8q"
+  ],
+  "parent": "hd4",
+  "acceptance_criteria": "WebSocket connects on load, reconnects on close, real-time updates reflect in UI without refresh",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-19T20:05:12.312836Z",
+  "updated_at": "2026-01-19T20:05:12.312836Z"
+}

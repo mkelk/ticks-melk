@@ -1,0 +1,17 @@
+{
+  "id": "wbv",
+  "title": "Create tick-card component",
+  "description": "Create src/components/tick-card.ts:\n\n@customElement('tick-card')\nexport class TickCard extends LitElement {\n  @property() tick!: Tick;\n  @property({ type: Boolean }) selected = false;\n}\n\nFeatures to port from existing UI:\n- Display tick ID, title, type badge\n- Priority indicator (color-coded: critical=red, high=peach, medium=yellow, low=green)\n- Status badge (open/closed)\n- Epic name if has parent\n- Blocked indicator if blocked\n- Manual task indicator\n- Click handler to emit 'tick-selected' event\n\nStyles: Use Shoelace sl-card or custom card with Catppuccin surface colors\n\nTest: Render tick-card with mock tick data, verify all fields display correctly",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "blocked_by": [
+    "snb"
+  ],
+  "parent": "x0x",
+  "acceptance_criteria": "tick-card renders all tick fields, priority colors match Catppuccin palette, click emits tick-selected event",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-19T20:04:00.4618Z",
+  "updated_at": "2026-01-19T20:04:00.4618Z"
+}

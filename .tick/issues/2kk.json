@@ -1,0 +1,12 @@
+{
+  "id": "2kk",
+  "title": "Tickboard Lit/Shoelace Migration - Phase 5: Cleanup",
+  "description": "Remove old static files, update documentation, run performance testing, ensure bundle size meets the 70KB gzipped budget.",
+  "status": "open",
+  "priority": 2,
+  "type": "epic",
+  "owner": "peter@engelbrecht.dk",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-19T20:02:29.161988Z",
+  "updated_at": "2026-01-19T20:02:29.161988Z"
+}

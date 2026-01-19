@@ -1,0 +1,17 @@
+{
+  "id": "r8q",
+  "title": "Add notes functionality to detail drawer",
+  "description": "Add notes section to tick-detail-drawer:\n\nFeatures:\n- Display existing notes in chronological order\n- Each note shows: timestamp, author (if available), content\n- sl-textarea for new note input\n- sl-button to add note (calls addNote API)\n- Optimistic UI: show note immediately, revert on error\n\nUI layout in drawer:\n- Notes section below tick details\n- Scrollable if many notes\n- New note form at bottom\n\nTest: View existing notes, add new note, verify appears in list",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "blocked_by": [
+    "b14"
+  ],
+  "parent": "hd4",
+  "acceptance_criteria": "Existing notes display with timestamps, new note adds via API and appears in list, optimistic update with rollback on error",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-19T20:05:04.957887Z",
+  "updated_at": "2026-01-19T20:05:04.957887Z"
+}

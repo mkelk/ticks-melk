@@ -1,0 +1,12 @@
+{
+  "id": "hd4",
+  "title": "Tickboard Lit/Shoelace Migration - Phase 3: Interactions",
+  "description": "Build interactive components: detail drawer, create dialog. Add CRUD actions (approve/reject/close) and notes functionality.",
+  "status": "open",
+  "priority": 2,
+  "type": "epic",
+  "owner": "peter@engelbrecht.dk",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-19T20:02:20.4329Z",
+  "updated_at": "2026-01-19T20:02:20.4329Z"
+}
