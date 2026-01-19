@@ -29,4 +29,4 @@ import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path.j
 setBasePath('/shoelace');
 
 // Register custom components
-// Components will be added in subsequent tasks
+import './components/tick-board.js';
