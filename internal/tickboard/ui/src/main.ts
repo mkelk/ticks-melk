@@ -33,3 +33,4 @@ import './components/tick-board.js';
 import './components/tick-card.js';
 import './components/tick-column.js';
 import './components/tick-header.js';
+import './components/tick-detail-drawer.js';
