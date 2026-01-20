@@ -1,0 +1,16 @@
+{
+  "id": "ins",
+  "title": "Add hello world test file",
+  "description": "Create a simple test file at internal/testutil/hello.go with a Hello function that returns 'Hello, World!' and a test file hello_test.go with TestHello.\n\nTest: go test ./internal/testutil/...",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "zix",
+  "acceptance_criteria": "go test ./internal/testutil/... passes",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-20T20:44:34.300665Z",
+  "updated_at": "2026-01-20T20:45:22.409531Z",
+  "closed_at": "2026-01-20T20:45:22.409531Z",
+  "closed_reason": "Created internal/testutil/hello.go with Hello() function returning 'Hello, World\\!' and hello_test.go with TestHello. All tests pass."
+}

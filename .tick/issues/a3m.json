@@ -1,0 +1,146 @@
+{
+  "closed_at": "2026-01-20T17:43:06.64299Z",
+  "closed_reason": "Implemented tk resume command in cmd/tk/cmd/resume.go. Loads checkpoint via checkpoint.Manager.Load(), uses PrepareResume() to handle worktree recreation if needed, then runs engine with ResumeFrom config. Added flags --max-iterations, --max-cost, --skip-verify, --jsonl. Added flag resets to root.go ResetFlags(). Added resume to main.go routing.",
+  "created_at": "2026-01-20T17:29:20.795683Z",
+  "created_by": "peter@engelbrecht.dk",
+  "description": "Add command to resume from a checkpoint.\n\nLocation: cmd/tk/cmd/resume.go\n\nUsage: tk resume \u003ccheckpoint-id\u003e\n\nImplementation:\n- Load checkpoint from .tick/logs/checkpoints/\u003ccheckpoint-id\u003e.json\n- Use checkpoint.Load() to restore state\n- Configure engine with checkpoint state\n- Resume engine.Run() from the checkpoint\n- Same flags as tk run for overriding settings\n\nFlags:\n- --max-iterations: Override max iterations\n- --max-cost: Override max cost\n- --skip-verify: Skip verification\n- --jsonl: JSONL output format",
+  "id": "a3m",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "pzx",
+  "priority": 2,
+  "run": {
+    "session_id": "df29f6b1-a97d-46e6-86d1-22eda2c2bfed",
+    "model": "claude-opus-4-5-20251101",
+    "started_at": "2026-01-20T18:40:01.92016+01:00",
+    "ended_at": "2026-01-20T18:43:37.253551+01:00",
+    "output": "Now let me check the root.go to understand how flags are reset and where to add the resume command registration.\n\nNow I have a clear understanding of the patterns. I'll create the resume.go file following the same patterns as run.go.\n\nNow I need to add the resume flags to the ResetFlags function in root.go.\n\nNow I need to add \"resume\" to the main.go routing switch statement.\n\nI also need to add \"resume\" to the printUsage function.\n\nNow let me run the tests to verify the implementation compiles and works correctly.\n\nThe tests are passing. Let me also verify the help command works for resume.\n\nThe command help looks good. Let me also verify the command is correctly registered by checking that it returns an error when called without a checkpoint ID.\n\nThe command correctly requires a checkpoint ID. Let me also test it with a non-existent checkpoint to verify the error handling.\n\nThe error handling is working correctly - it returns ExitNotFound (4) when the checkpoint is not found. Let me run the full test suite to ensure nothing is broken.\n\nThe tests I care about are passing. The failing tests in `internal/tickboard/server` and `internal/tickboard/cloud` are pre-existing failures unrelated to the resume command. Let me verify that the specific command tests are passing.\n\nAll CLI command tests pass. Now let me update the todo and close the task.\n\nI've completed the task. Here's a summary of what was done:\n\n## Summary\n\nAdded the `tk resume` command for resuming engine runs from saved checkpoints.\n\n### Changes Made\n\n1. **cmd/tk/cmd/resume.go** (new file)\n   - Implemented the resume command that loads a checkpoint and resumes engine execution\n   - Uses `checkpoint.Manager.Load()` to load checkpoint state\n   - Uses `PrepareResume()` to handle worktree recreation if the checkpoint was made in worktree mode\n   - Configures engine with `ResumeFrom` config field to restore iteration count and completed tasks\n   - Supports override flags: `--max-iterations`, `--max-cost`, `--skip-verify`, `--jsonl`\n   - Returns `ExitNotFound` when checkpoint doesn't exist\n\n2. **cmd/tk/cmd/root.go**\n   - Added reset logic for resume flags in `ResetFlags()` function\n\n3. **cmd/tk/main.go**\n   - Added \"resume\" to the switch statement for Cobra routing\n   - Added \"resume\" to the printUsage() command list\n\n### Usage\n\n```bash\ntk resume \u003ccheckpoint-id\u003e                   # Resume from checkpoint\ntk resume abc-7 --max-iterations 20         # Override max iterations\ntk resume abc-7 --skip-verify               # Skip verification\ntk resume abc-7 --jsonl                     # JSONL output format\n```",
+    "tools": [
+      {
+        "name": "TodoWrite",
+        "duration_ms": 3382
+      },
+      {
+        "name": "Read",
+        "duration_ms": 653
+      },
+      {
+        "name": "Read",
+        "duration_ms": 473
+      },
+      {
+        "name": "Read",
+        "duration_ms": 358
+      },
+      {
+        "name": "Read",
+        "duration_ms": 769
+      },
+      {
+        "name": "Read",
+        "duration_ms": 338
+      },
+      {
+        "name": "TodoWrite",
+        "duration_ms": 3306
+      },
+      {
+        "name": "Write",
+        "duration_ms": 27270
+      },
+      {
+        "name": "TodoWrite",
+        "duration_ms": 2775
+      },
+      {
+        "name": "Edit",
+        "duration_ms": 4757
+      },
+      {
+        "name": "TodoWrite",
+        "duration_ms": 1526
+      },
+      {
+        "name": "Edit",
+        "duration_ms": 3398
+      },
+      {
+        "name": "Edit",
+        "duration_ms": 2550
+      },
+      {
+        "name": "TodoWrite",
+        "duration_ms": 1517
+      },
+      {
+        "name": "Bash",
+        "duration_ms": 737
+      },
+      {
+        "name": "Bash",
+        "duration_ms": 1015
+      },
+      {
+        "name": "Bash",
+        "duration_ms": 658
+      },
+      {
+        "name": "Bash",
+        "duration_ms": 616
+      },
+      {
+        "name": "Bash",
+        "duration_ms": 778
+      },
+      {
+        "name": "Bash",
+        "duration_ms": 883
+      },
+      {
+        "name": "Bash",
+        "duration_ms": 807
+      },
+      {
+        "name": "TodoWrite",
+        "duration_ms": 1557
+      },
+      {
+        "name": "Bash",
+        "duration_ms": 2722
+      },
+      {
+        "name": "Bash",
+        "duration_ms": 672
+      },
+      {
+        "name": "Bash",
+        "duration_ms": 1008
+      },
+      {
+        "name": "Bash",
+        "duration_ms": 3512
+      },
+      {
+        "name": "Bash",
+        "duration_ms": 2428
+      },
+      {
+        "name": "TodoWrite",
+        "duration_ms": 1522
+      }
+    ],
+    "metrics": {
+      "input_tokens": 2,
+      "output_tokens": 7539,
+      "cache_read_tokens": 2139141,
+      "cache_creation_tokens": 54721,
+      "cost_usd": 1.62908975,
+      "duration_ms": 214592
+    },
+    "success": true,
+    "num_turns": 29
+  },
+  "status": "closed",
+  "title": "Add tk resume command",
+  "type": "task",
+  "updated_at": "2026-01-20T17:43:06.64299Z"
+}

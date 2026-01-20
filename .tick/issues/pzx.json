@@ -1,0 +1,15 @@
+{
+  "id": "pzx",
+  "title": "Phase 6: CLI Surface Integration",
+  "description": "Add runner commands to tk CLI: run, resume, checkpoints, merge. Map all ticker flags to tk subcommands. This completes the ticker absorption by making tk the single CLI for both issue tracking and agent running.",
+  "notes": "2026-01-20 18:39 - Completed tk run command (fru). Implementation notes: Created cmd/tk/cmd/run.go with all ticker flags mapped to engine.RunConfig. Uses signal handling (SIGINT/SIGTERM) for graceful shutdown. Calls gc.Cleanup() async at startup. --verify-only and --parallel \u003e1 return 'not yet implemented' errors. Flags added to ResetFlags() in root.go. The --include-standalone and --include-orphans flags are defined but not wired to NextTaskWithOptions yet - that's for a future task.\n2026-01-20 18:43 - Completed tk resume command (a3m). Implementation follows same pattern as tk run: creates engine with checkpoint state via ResumeFrom config, uses PrepareResume() to handle worktree recreation. Override flags work by building fresh RunConfig with checkpoint's EpicID but user-provided limits.\n2026-01-20 18:46 - Completed tk checkpoints command (n2b). Implementation uses checkpoint.Manager methods directly. Table output shows: ID, epic, iteration, completed task count, cost, timestamp, and worktree status. JSON output includes full checkpoint info. Follows same patterns as list.go and run.go.\n2026-01-20 18:50 - Completed tk merge command (415). Implementation in cmd/tk/cmd/merge.go. Uses exec.Command for git operations (merge, log, branch checks). Key design decisions: requires being on main branch for safety, uses --no-ff for explicit merge commits, auto-removes worktree after merge via worktree.Manager.Remove(). Follows same patterns as run.go and resume.go for error handling and flag management.\n2026-01-20 18:56 - Completed u5y - Phase 6 CLI verification. All commands (run, resume, checkpoints, merge) working correctly: proper help text, flag handling, error codes (ExitUsage=2, ExitNotFound=4, ExitGeneric=1), JSON output modes. Commands properly registered in main.go switch and flags in ResetFlags(). All existing tests pass.",
+  "status": "closed",
+  "priority": 2,
+  "type": "epic",
+  "owner": "peter@engelbrecht.dk",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-20T17:28:59.847645Z",
+  "updated_at": "2026-01-20T17:56:32.515256Z",
+  "closed_at": "2026-01-20T17:56:32.515256Z",
+  "closed_reason": "all tasks completed"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "r1n",
+  "title": "Consolidate ticker config into .tick/config.json",
+  "description": "The runner config is still using .ticker/config.json but ticks already has .tick/config.json. Consolidate:\n\n**1. Merge config structures:**\n- Add verification/context fields to internal/config/config.go\n- verification.enabled (bool)\n- context.enabled, max_tokens, auto_refresh_days, generation_timeout, generation_model\n\n**2. Update internal/verify/config.go:**\n- Remove LoadTickerConfig, use internal/config.Load instead\n- Update LoadConfig/LoadContextConfig to use merged config\n\n**3. Change branch prefix:**\n- internal/worktree/worktree.go: BranchPrefix = \"ticker/\" → \"tick/\"\n- Update merge.go and other references to ticker/\u003cepic\u003e branches\n\n**4. Update git_verifier.go:**\n- Remove .ticker/ from exclusions (no longer needed)\n- Ensure .tick/ is properly excluded\n\n**5. Update comments/docs referencing .ticker/ or ticker/",
+  "status": "closed",
+  "priority": 1,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-20T19:17:39.659805Z",
+  "updated_at": "2026-01-20T19:31:05.156642Z",
+  "closed_at": "2026-01-20T19:31:05.156642Z",
+  "closed_reason": "Consolidated ticker config into .tick/config.json and removed all ticker references"
+}
