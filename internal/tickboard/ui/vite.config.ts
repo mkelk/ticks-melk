@@ -19,7 +19,7 @@ export default defineConfig({
       targets: [
         {
           src: 'node_modules/@shoelace-style/shoelace/dist/assets/icons/*',
-          dest: 'shoelace/icons',
+          dest: 'shoelace/assets/icons',
         },
       ],
     }),
