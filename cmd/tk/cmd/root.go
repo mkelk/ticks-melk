@@ -333,6 +333,9 @@ func ResetFlags() {
 	resumeMaxCost = 0
 	resumeSkipVerify = false
 	resumeJSONL = false
+
+	// Reset checkpoints flags
+	checkpointsJSON = false
 }
 
 // SetVersion allows main.go to set the version at initialization
