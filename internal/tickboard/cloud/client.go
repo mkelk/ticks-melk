@@ -423,6 +423,9 @@ func (c *Client) handleMessages(ctx context.Context) error {
 			// Respond with pong
 			c.sendMessage(Message{Type: "pong"})
 
+		case "registered":
+			// Registration confirmed by server - no action needed
+
 		case "request":
 			// Handle relayed HTTP request
 			var req RequestMessage
