@@ -1,13 +1,13 @@
 // Package worktree manages git worktrees for parallel epic execution.
 //
-// Worktrees allow ticker to run multiple epics simultaneously in isolated
+// Worktrees allow tk run to execute multiple epics simultaneously in isolated
 // working directories, each with its own branch. This prevents conflicts
 // between concurrent agents working on different tasks.
 //
 // # Worktree Lifecycle
 //
 // Each epic gets its own worktree under .worktrees/<epic-id>/ with a
-// corresponding branch named ticker/<epic-id>. The branch is created from
+// corresponding branch named tick/<epic-id>. The branch is created from
 // the current HEAD (usually main) when the worktree is created.
 //
 // After an epic completes successfully, its worktree can be merged back

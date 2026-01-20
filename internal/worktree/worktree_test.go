@@ -61,8 +61,8 @@ func TestManager_Create(t *testing.T) {
 		if wt.EpicID != "abc123" {
 			t.Errorf("Worktree.EpicID = %q, want %q", wt.EpicID, "abc123")
 		}
-		if wt.Branch != "ticker/abc123" {
-			t.Errorf("Worktree.Branch = %q, want %q", wt.Branch, "ticker/abc123")
+		if wt.Branch != "tick/abc123" {
+			t.Errorf("Worktree.Branch = %q, want %q", wt.Branch, "tick/abc123")
 		}
 		expectedPath := filepath.Join(dir, DefaultWorktreeDir, "abc123")
 		if wt.Path != expectedPath {
@@ -78,8 +78,8 @@ func TestManager_Create(t *testing.T) {
 		}
 
 		// Verify branch exists
-		if !m.branchExists("ticker/abc123") {
-			t.Error("Branch ticker/abc123 should exist")
+		if !m.branchExists("tick/abc123") {
+			t.Error("Branch tick/abc123 should exist")
 		}
 	})
 
@@ -91,7 +91,7 @@ func TestManager_Create(t *testing.T) {
 		}
 
 		// Create branch first
-		cmd := exec.Command("git", "branch", "ticker/existing")
+		cmd := exec.Command("git", "branch", "tick/existing")
 		cmd.Dir = dir
 		if err := cmd.Run(); err != nil {
 			t.Fatalf("failed to create branch: %v", err)
@@ -102,8 +102,8 @@ func TestManager_Create(t *testing.T) {
 			t.Fatalf("Create() error = %v", err)
 		}
 
-		if wt.Branch != "ticker/existing" {
-			t.Errorf("Worktree.Branch = %q, want %q", wt.Branch, "ticker/existing")
+		if wt.Branch != "tick/existing" {
+			t.Errorf("Worktree.Branch = %q, want %q", wt.Branch, "tick/existing")
 		}
 	})
 
@@ -180,8 +180,8 @@ func TestManager_Remove(t *testing.T) {
 		}
 
 		// Verify branch is deleted
-		if m.branchExists("ticker/rem123") {
-			t.Error("Branch ticker/rem123 should not exist after Remove()")
+		if m.branchExists("tick/rem123") {
+			t.Error("Branch tick/rem123 should not exist after Remove()")
 		}
 	})
 
@@ -283,7 +283,7 @@ func TestManager_Get(t *testing.T) {
 }
 
 func TestManager_List(t *testing.T) {
-	t.Run("returns empty list when no ticker worktrees", func(t *testing.T) {
+	t.Run("returns empty list when no tick worktrees", func(t *testing.T) {
 		dir := createTempGitRepo(t)
 		m, err := NewManager(dir)
 		if err != nil {
@@ -299,7 +299,7 @@ func TestManager_List(t *testing.T) {
 		}
 	})
 
-	t.Run("returns all ticker worktrees", func(t *testing.T) {
+	t.Run("returns all tick worktrees", func(t *testing.T) {
 		dir := createTempGitRepo(t)
 		m, err := NewManager(dir)
 		if err != nil {
@@ -340,25 +340,25 @@ func TestManager_List(t *testing.T) {
 		}
 	})
 
-	t.Run("ignores non-ticker worktrees", func(t *testing.T) {
+	t.Run("ignores non-tick worktrees", func(t *testing.T) {
 		dir := createTempGitRepo(t)
 		m, err := NewManager(dir)
 		if err != nil {
 			t.Fatalf("NewManager() error = %v", err)
 		}
 
-		// Create a ticker worktree
-		_, err = m.Create("ticker1")
+		// Create a tick worktree
+		_, err = m.Create("epic1")
 		if err != nil {
-			t.Fatalf("Create(ticker1) error = %v", err)
+			t.Fatalf("Create(epic1) error = %v", err)
 		}
 
-		// Create a non-ticker worktree directly
+		// Create a non-tick worktree directly
 		otherPath := filepath.Join(dir, ".worktrees", "other")
 		cmd := exec.Command("git", "worktree", "add", otherPath, "-b", "feature/other")
 		cmd.Dir = dir
 		if err := cmd.Run(); err != nil {
-			t.Fatalf("failed to create non-ticker worktree: %v", err)
+			t.Fatalf("failed to create non-tick worktree: %v", err)
 		}
 
 		worktrees, err := m.List()
@@ -366,10 +366,10 @@ func TestManager_List(t *testing.T) {
 			t.Fatalf("List() error = %v", err)
 		}
 		if len(worktrees) != 1 {
-			t.Errorf("List() returned %d worktrees, want 1 (should ignore non-ticker)", len(worktrees))
+			t.Errorf("List() returned %d worktrees, want 1 (should ignore non-tick)", len(worktrees))
 		}
-		if worktrees[0].EpicID != "ticker1" {
-			t.Errorf("List()[0].EpicID = %q, want %q", worktrees[0].EpicID, "ticker1")
+		if worktrees[0].EpicID != "epic1" {
+			t.Errorf("List()[0].EpicID = %q, want %q", worktrees[0].EpicID, "epic1")
 		}
 	})
 }
@@ -474,8 +474,8 @@ func TestBranchNaming(t *testing.T) {
 		if !strings.HasPrefix(wt.Branch, BranchPrefix) {
 			t.Errorf("Branch %q should have prefix %q", wt.Branch, BranchPrefix)
 		}
-		if wt.Branch != "ticker/abc123" {
-			t.Errorf("Branch = %q, want %q", wt.Branch, "ticker/abc123")
+		if wt.Branch != "tick/abc123" {
+			t.Errorf("Branch = %q, want %q", wt.Branch, "tick/abc123")
 		}
 	})
 }
@@ -576,19 +576,19 @@ func TestManager_IsDirty(t *testing.T) {
 		}
 	})
 
-	t.Run("ignores .ticker/ directory", func(t *testing.T) {
+	t.Run("ignores .tick/ directory", func(t *testing.T) {
 		dir := createTempGitRepo(t)
 		m, err := NewManager(dir)
 		if err != nil {
 			t.Fatalf("NewManager() error = %v", err)
 		}
 
-		// Create .ticker/ directory with file
-		tickDir := filepath.Join(dir, ".ticker")
+		// Create .tick/ directory with file
+		tickDir := filepath.Join(dir, ".tick")
 		if err := os.MkdirAll(tickDir, 0755); err != nil {
-			t.Fatalf("failed to create .ticker: %v", err)
+			t.Fatalf("failed to create .tick: %v", err)
 		}
-		if err := os.WriteFile(filepath.Join(tickDir, "checkpoint.json"), []byte("{}"), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tickDir, "config.json"), []byte("{}"), 0644); err != nil {
 			t.Fatalf("failed to create file: %v", err)
 		}
 
@@ -597,7 +597,7 @@ func TestManager_IsDirty(t *testing.T) {
 			t.Fatalf("IsDirty() error = %v", err)
 		}
 		if isDirty {
-			t.Errorf("IsDirty() = true, want false (should ignore .ticker/)")
+			t.Errorf("IsDirty() = true, want false (should ignore .tick/)")
 		}
 		if len(files) != 0 {
 			t.Errorf("IsDirty() files = %v, want empty", files)

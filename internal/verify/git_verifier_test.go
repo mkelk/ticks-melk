@@ -234,12 +234,12 @@ func TestFilterChanges(t *testing.T) {
 		},
 		{
 			name:     "only tick files",
-			input:    " M .tick/issues/abc.json\n?? .ticker/checkpoints/xyz.json",
+			input:    " M .tick/issues/abc.json\n?? .tick/logs/xyz.json",
 			expected: "",
 		},
 		{
 			name:     "mixed paths",
-			input:    " M src/main.go\n M .tick/issues/abc.json\n?? .ticker/checkpoints/xyz.json\n?? readme.txt",
+			input:    " M src/main.go\n M .tick/issues/abc.json\n?? .tick/logs/xyz.json\n?? readme.txt",
 			expected: " M src/main.go\n?? readme.txt",
 		},
 		{
@@ -378,36 +378,36 @@ func TestGitVerifier_Baseline(t *testing.T) {
 	})
 }
 
-func TestGitVerifier_IgnoresTickerMetadata(t *testing.T) {
-	t.Run("ignores untracked .tick and .ticker files", func(t *testing.T) {
+func TestGitVerifier_IgnoresTickMetadata(t *testing.T) {
+	t.Run("ignores untracked .tick files", func(t *testing.T) {
 		dir := createTempGitRepo(t)
 		v := NewGitVerifier(dir)
 		if v == nil {
 			t.Fatal("NewGitVerifier returned nil")
 		}
 
-		// Create .tick and .ticker directories with files
+		// Create .tick directories with files (issues and logs)
 		tickDir := filepath.Join(dir, ".tick", "issues")
 		if err := os.MkdirAll(tickDir, 0755); err != nil {
-			t.Fatalf("failed to create .tick dir: %v", err)
+			t.Fatalf("failed to create .tick/issues dir: %v", err)
 		}
 		if err := os.WriteFile(filepath.Join(tickDir, "abc.json"), []byte("{}"), 0644); err != nil {
 			t.Fatalf("failed to create tick file: %v", err)
 		}
 
-		tickerDir := filepath.Join(dir, ".ticker", "checkpoints")
-		if err := os.MkdirAll(tickerDir, 0755); err != nil {
-			t.Fatalf("failed to create .ticker dir: %v", err)
+		logsDir := filepath.Join(dir, ".tick", "logs")
+		if err := os.MkdirAll(logsDir, 0755); err != nil {
+			t.Fatalf("failed to create .tick/logs dir: %v", err)
 		}
-		if err := os.WriteFile(filepath.Join(tickerDir, "cp.json"), []byte("{}"), 0644); err != nil {
-			t.Fatalf("failed to create checkpoint file: %v", err)
+		if err := os.WriteFile(filepath.Join(logsDir, "run.jsonl"), []byte("{}"), 0644); err != nil {
+			t.Fatalf("failed to create log file: %v", err)
 		}
 
-		// Verify should pass because .tick/ and .ticker/ are excluded
+		// Verify should pass because .tick/ is excluded
 		result := v.Verify(context.Background(), "test-task", "")
 
 		if !result.Passed {
-			t.Errorf("Verify() should pass when only .tick/ and .ticker/ have changes, got output: %s", result.Output)
+			t.Errorf("Verify() should pass when only .tick/ has changes, got output: %s", result.Output)
 		}
 	})
 

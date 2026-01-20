@@ -11,7 +11,7 @@ import (
 const gitignoreEntry = ".worktrees/"
 
 // gitignoreComment is the comment added before the entry.
-const gitignoreComment = "# Ticker worktrees"
+const gitignoreComment = "# tk worktrees"
 
 // EnsureGitignore checks if .worktrees/ is in .gitignore and adds it if not.
 // Creates .gitignore if it doesn't exist.

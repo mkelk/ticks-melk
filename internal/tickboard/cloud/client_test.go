@@ -11,6 +11,14 @@ func TestLoadConfig_NoToken(t *testing.T) {
 	os.Unsetenv(EnvToken)
 	os.Unsetenv(EnvCloudURL)
 
+	// Check if user has a config file - if so, test would pass with that token
+	home, err := os.UserHomeDir()
+	if err == nil {
+		if _, err := os.Stat(filepath.Join(home, ConfigFileName)); err == nil {
+			t.Skip("skipping: user has ~/.tickboardrc config file")
+		}
+	}
+
 	cfg := LoadConfig("/tmp/test/.tick", 3000)
 	if cfg != nil {
 		t.Error("expected nil config when no token is set")

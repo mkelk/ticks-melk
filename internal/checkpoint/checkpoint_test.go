@@ -328,14 +328,14 @@ func TestGetGitCommit(t *testing.T) {
 	// The actual value depends on whether we're in a git repo
 	commit := GetGitCommit()
 	t.Logf("GetGitCommit() = %q", commit)
-	// In the ticker repo, we should get a commit
+	// In this repo, we should get a commit
 	if commit == "" {
 		t.Log("Warning: GetGitCommit() returned empty string (may not be in git repo)")
 	}
 }
 
 func TestNewCheckpointWithWorktree(t *testing.T) {
-	cp := NewCheckpointWithWorktree("abc", 5, 10000, 1.50, []string{"task1"}, "/path/to/worktree", "ticker/abc")
+	cp := NewCheckpointWithWorktree("abc", 5, 10000, 1.50, []string{"task1"}, "/path/to/worktree", "tick/abc")
 
 	if cp.ID != "abc-5" {
 		t.Errorf("ID = %q, want %q", cp.ID, "abc-5")
@@ -343,8 +343,8 @@ func TestNewCheckpointWithWorktree(t *testing.T) {
 	if cp.WorktreePath != "/path/to/worktree" {
 		t.Errorf("WorktreePath = %q, want %q", cp.WorktreePath, "/path/to/worktree")
 	}
-	if cp.WorktreeBranch != "ticker/abc" {
-		t.Errorf("WorktreeBranch = %q, want %q", cp.WorktreeBranch, "ticker/abc")
+	if cp.WorktreeBranch != "tick/abc" {
+		t.Errorf("WorktreeBranch = %q, want %q", cp.WorktreeBranch, "tick/abc")
 	}
 }
 
@@ -362,7 +362,7 @@ func TestManager_SaveAndLoad_WithWorktree(t *testing.T) {
 		CompletedTasks: []string{"task1", "task2"},
 		GitCommit:      "abc123def456",
 		WorktreePath:   "/home/test/.worktrees/abc",
-		WorktreeBranch: "ticker/abc",
+		WorktreeBranch: "tick/abc",
 	}
 
 	// Save
@@ -418,7 +418,7 @@ func TestPrepareResume_WorktreeExists(t *testing.T) {
 		ID:             "abc-5",
 		EpicID:         "abc",
 		WorktreePath:   worktreePath,
-		WorktreeBranch: "ticker/abc",
+		WorktreeBranch: "tick/abc",
 	}
 
 	workDir, err := m.PrepareResume(cp, dir)
@@ -488,7 +488,7 @@ func TestPrepareResume_RecreatesWorktreeFromBranch(t *testing.T) {
 	}
 
 	// Create a branch that we can recreate the worktree from
-	branchCmd := exec.Command("git", "branch", "ticker/abc")
+	branchCmd := exec.Command("git", "branch", "tick/abc")
 	branchCmd.Dir = repoDir
 	if output, err := branchCmd.CombinedOutput(); err != nil {
 		t.Fatalf("git branch failed: %s: %v", output, err)
@@ -500,7 +500,7 @@ func TestPrepareResume_RecreatesWorktreeFromBranch(t *testing.T) {
 		ID:             "abc-5",
 		EpicID:         "abc",
 		WorktreePath:   filepath.Join(repoDir, ".worktrees", "old-path"), // Doesn't exist
-		WorktreeBranch: "ticker/abc",
+		WorktreeBranch: "tick/abc",
 	}
 
 	// PrepareResume should recreate the worktree from the branch
@@ -571,7 +571,7 @@ func TestPrepareResume_BranchGone(t *testing.T) {
 		ID:             "abc-5",
 		EpicID:         "abc",
 		WorktreePath:   filepath.Join(repoDir, ".worktrees", "abc"), // Doesn't exist
-		WorktreeBranch: "ticker/abc",                                // Branch doesn't exist either
+		WorktreeBranch: "tick/abc",                                // Branch doesn't exist either
 	}
 
 	_, err := m.PrepareResume(cp, repoDir)

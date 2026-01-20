@@ -542,11 +542,11 @@ func TestWorktree_ParallelEpicsIsolated(t *testing.T) {
 	if wt1.Branch == wt2.Branch {
 		t.Error("epic1 and epic2 should have different branches")
 	}
-	if wt1.Branch != "ticker/epic1" {
-		t.Errorf("wt1.Branch = %q, want %q", wt1.Branch, "ticker/epic1")
+	if wt1.Branch != "tick/epic1" {
+		t.Errorf("wt1.Branch = %q, want %q", wt1.Branch, "tick/epic1")
 	}
-	if wt2.Branch != "ticker/epic2" {
-		t.Errorf("wt2.Branch = %q, want %q", wt2.Branch, "ticker/epic2")
+	if wt2.Branch != "tick/epic2" {
+		t.Errorf("wt2.Branch = %q, want %q", wt2.Branch, "tick/epic2")
 	}
 }
 

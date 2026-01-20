@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// Checkpoint represents a saved state of a ticker run that can be resumed.
+// Checkpoint represents a saved state of a tk run that can be resumed.
 type Checkpoint struct {
 	// ID is the unique identifier for this checkpoint (e.g., "abc-7" for epic abc, iteration 7).
 	ID string `json:"id"`

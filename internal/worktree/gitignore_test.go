@@ -43,7 +43,7 @@ func TestEnsureGitignore(t *testing.T) {
 
 		// Should add our entry
 		if !strings.Contains(contentStr, gitignoreComment) {
-			t.Error(".gitignore should contain ticker comment")
+			t.Error(".gitignore should contain tk comment")
 		}
 		if !strings.Contains(contentStr, gitignoreEntry) {
 			t.Error(".gitignore should contain .worktrees/ entry")
@@ -76,7 +76,7 @@ func TestEnsureGitignore(t *testing.T) {
 		contentStr := string(content)
 
 		if !strings.Contains(contentStr, gitignoreComment) {
-			t.Error(".gitignore should contain ticker comment")
+			t.Error(".gitignore should contain tk comment")
 		}
 		if !strings.Contains(contentStr, gitignoreEntry) {
 			t.Error(".gitignore should contain .worktrees/ entry")

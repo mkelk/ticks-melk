@@ -16,7 +16,7 @@ import (
 const DefaultWorktreeDir = ".worktrees"
 
 // BranchPrefix is the prefix for worktree branch names.
-const BranchPrefix = "ticker/"
+const BranchPrefix = "tick/"
 
 // ErrNotGitRepo is returned when the directory is not a git repository.
 var ErrNotGitRepo = errors.New("not a git repository")
@@ -30,7 +30,7 @@ var ErrWorktreeNotFound = errors.New("worktree not found")
 // Worktree represents an active git worktree.
 type Worktree struct {
 	Path    string    // Absolute path to worktree directory
-	Branch  string    // Branch name (e.g., ticker/abc123)
+	Branch  string    // Branch name (e.g., tick/abc123)
 	EpicID  string    // Associated epic ID
 	Created time.Time // When worktree was created
 }
@@ -75,7 +75,7 @@ func (m *Manager) Prune() error {
 }
 
 // Create creates a new worktree for an epic.
-// Branch name: ticker/<epic-id>
+// Branch name: tick/<epic-id>
 // Path: <repoRoot>/.worktrees/<epic-id>
 // Creates branch from current HEAD if it doesn't exist.
 func (m *Manager) Create(epicID string) (*Worktree, error) {
@@ -206,7 +206,7 @@ func (m *Manager) Get(epicID string) (*Worktree, error) {
 	return nil, nil
 }
 
-// List returns all active ticker worktrees.
+// List returns all active tick worktrees.
 func (m *Manager) List() ([]*Worktree, error) {
 	cmd := exec.Command("git", "worktree", "list", "--porcelain")
 	cmd.Dir = m.repoRoot
@@ -267,7 +267,7 @@ func (m *Manager) parseWorktreeList(output []byte) ([]*Worktree, error) {
 			branch := strings.TrimPrefix(line, "branch refs/heads/")
 			current.Branch = branch
 
-			// Check if this is a ticker worktree
+			// Check if this is a tick worktree
 			if strings.HasPrefix(branch, BranchPrefix) {
 				current.EpicID = strings.TrimPrefix(branch, BranchPrefix)
 				worktrees = append(worktrees, current)
@@ -301,7 +301,7 @@ func (m *Manager) IsDirty() (bool, []string, error) {
 		return false, nil, nil
 	}
 
-	// Parse output and filter out .worktrees/ and .ticker/ (expected to be dirty)
+	// Parse output and filter out .worktrees/ and .tick/ (expected to be dirty)
 	var dirtyFiles []string
 	scanner := bufio.NewScanner(bytes.NewReader(output))
 	for scanner.Scan() {
@@ -311,8 +311,8 @@ func (m *Manager) IsDirty() (bool, []string, error) {
 		}
 		// Format: "XY filename" where XY is 2-char status
 		filename := strings.TrimSpace(line[2:])
-		// Skip .worktrees/ and .ticker/ directories
-		if strings.HasPrefix(filename, ".worktrees/") || strings.HasPrefix(filename, ".ticker/") {
+		// Skip .worktrees/ and .tick/ directories
+		if strings.HasPrefix(filename, ".worktrees/") || strings.HasPrefix(filename, ".tick/") {
 			continue
 		}
 		dirtyFiles = append(dirtyFiles, filename)

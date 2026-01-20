@@ -17,10 +17,9 @@ type GitVerifier struct {
 }
 
 // excludedPaths are paths that GitVerifier ignores.
-// These are ticker's own metadata files that change during execution.
+// These are tk's own metadata files that change during execution.
 var excludedPaths = []string{
 	".tick/",
-	".ticker/",
 }
 
 // NewGitVerifier creates a git verifier for the given directory.
@@ -132,7 +131,7 @@ func (v *GitVerifier) Verify(ctx context.Context, taskID string, agentOutput str
 		return result
 	}
 
-	// Filter out excluded paths (ticker metadata) and baseline files
+	// Filter out excluded paths (tk metadata) and baseline files
 	outputStr := strings.TrimSpace(v.filterChanges(string(output)))
 
 	// Empty output means clean working tree (or all changes pre-existing)
@@ -173,7 +172,7 @@ func (v *GitVerifier) filterChanges(output string) string {
 			path = line[3:] // Skip "XY " prefix
 		}
 
-		// Skip excluded paths (ticker metadata)
+		// Skip excluded paths (tk metadata)
 		excluded := false
 		for _, excludedPath := range excludedPaths {
 			if strings.HasPrefix(path, excludedPath) {

@@ -119,7 +119,7 @@ func TestConflictHandler_HandleConflict(t *testing.T) {
 		// Create a mock worktree (we don't need a real conflict for this test)
 		wt := &Worktree{
 			EpicID: "test-epic",
-			Branch: "ticker/test-epic",
+			Branch: "tick/test-epic",
 			Path:   "/path/to/worktree",
 		}
 		conflicts := []string{"file1.txt", "file2.txt"}
@@ -285,9 +285,9 @@ func TestConflictHandler_GetActiveConflicts(t *testing.T) {
 		ch := NewConflictHandler(dir, mm)
 
 		// Register multiple conflicts
-		wt1 := &Worktree{EpicID: "epic1", Branch: "ticker/epic1", Path: "/path/1"}
-		wt2 := &Worktree{EpicID: "epic2", Branch: "ticker/epic2", Path: "/path/2"}
-		wt3 := &Worktree{EpicID: "epic3", Branch: "ticker/epic3", Path: "/path/3"}
+		wt1 := &Worktree{EpicID: "epic1", Branch: "tick/epic1", Path: "/path/1"}
+		wt2 := &Worktree{EpicID: "epic2", Branch: "tick/epic2", Path: "/path/2"}
+		wt3 := &Worktree{EpicID: "epic3", Branch: "tick/epic3", Path: "/path/3"}
 
 		ch.HandleConflict(wt1, []string{"a.txt"})
 		ch.HandleConflict(wt2, []string{"b.txt", "c.txt"})
@@ -320,7 +320,7 @@ func TestConflictHandler_GetActiveConflicts(t *testing.T) {
 
 		ch := NewConflictHandler(dir, mm)
 
-		wt := &Worktree{EpicID: "copy-test", Branch: "ticker/copy-test", Path: "/path"}
+		wt := &Worktree{EpicID: "copy-test", Branch: "tick/copy-test", Path: "/path"}
 		ch.HandleConflict(wt, []string{"file.txt"})
 
 		// Get conflict and modify the returned slice
@@ -351,7 +351,7 @@ func TestConflictHandler_ClearConflict(t *testing.T) {
 
 		ch := NewConflictHandler(dir, mm)
 
-		wt := &Worktree{EpicID: "clear-test", Branch: "ticker/clear-test", Path: "/path"}
+		wt := &Worktree{EpicID: "clear-test", Branch: "tick/clear-test", Path: "/path"}
 		ch.HandleConflict(wt, []string{"file.txt"})
 
 		if !ch.HasConflict("clear-test") {
@@ -406,7 +406,7 @@ func TestConflictHandler_HasConflict(t *testing.T) {
 
 		ch := NewConflictHandler(dir, mm)
 
-		wt := &Worktree{EpicID: "has-test", Branch: "ticker/has-test", Path: "/path"}
+		wt := &Worktree{EpicID: "has-test", Branch: "tick/has-test", Path: "/path"}
 		ch.HandleConflict(wt, []string{"file.txt"})
 
 		if !ch.HasConflict("has-test") {
@@ -419,7 +419,7 @@ func TestConflictState_ConflictInfo(t *testing.T) {
 	t.Run("generates readable conflict info", func(t *testing.T) {
 		state := &ConflictState{
 			EpicID:       "info-epic",
-			Branch:       "ticker/info-epic",
+			Branch:       "tick/info-epic",
 			Conflicts:    []string{"file1.txt", "file2.txt"},
 			WorktreePath: "/path/to/worktree",
 			DetectedAt:   time.Now(),
@@ -431,7 +431,7 @@ func TestConflictState_ConflictInfo(t *testing.T) {
 		if !strings.Contains(info, "info-epic") {
 			t.Error("ConflictInfo should contain epic ID")
 		}
-		if !strings.Contains(info, "ticker/info-epic") {
+		if !strings.Contains(info, "tick/info-epic") {
 			t.Error("ConflictInfo should contain branch name")
 		}
 		if !strings.Contains(info, "/path/to/worktree") {
@@ -531,7 +531,7 @@ func TestConflictHandler_isBranchMerged(t *testing.T) {
 		ch := NewConflictHandler(dir, mm)
 
 		// Non-existent branch should be considered "merged"
-		if !ch.isBranchMerged("ticker/nonexistent") {
+		if !ch.isBranchMerged("tick/nonexistent") {
 			t.Error("isBranchMerged() should return true for non-existent branch")
 		}
 	})

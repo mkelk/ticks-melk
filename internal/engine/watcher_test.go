@@ -189,7 +189,7 @@ func TestTicksWatcher_EmptyWorkDir(t *testing.T) {
 	watcher := NewTicksWatcher("")
 	defer watcher.Close()
 
-	// Should fall back to no-op mode (unless running in a ticker repo)
+	// Should fall back to no-op mode (unless running in the ticks repo)
 	// This test mainly ensures no panic occurs
 }
 

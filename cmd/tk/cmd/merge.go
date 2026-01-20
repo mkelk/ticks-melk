@@ -98,7 +98,7 @@ func runMerge(cmd *cobra.Command, args []string) error {
 		branchToMerge = wt.Branch
 		hasWorktree = true
 	} else {
-		// No worktree - check if a ticker branch exists
+		// No worktree - check if a tick branch exists
 		branchToMerge = worktree.BranchPrefix + epicID
 		if !branchExists(root, branchToMerge) {
 			return NewExitError(ExitNotFound, "no worktree or branch found for epic %s", epicID)

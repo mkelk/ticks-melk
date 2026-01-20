@@ -579,7 +579,7 @@ func (e *Engine) Run(ctx context.Context, config RunConfig) (result *RunResult, 
 		if taskErr == nil && task.Parent != "" {
 			parentEpic, parentErr := e.ticks.GetEpic(task.Parent)
 			if parentErr == nil {
-				errMsg = fmt.Sprintf("%s\nParent epic: %s (%s)\nRun: ticker run %s",
+				errMsg = fmt.Sprintf("%s\nParent epic: %s (%s)\nRun: tk run %s",
 					errMsg, task.Parent, parentEpic.Title, task.Parent)
 			}
 		}
@@ -871,13 +871,13 @@ func (e *Engine) Run(ctx context.Context, config RunConfig) (result *RunResult, 
 				e.OnSignal(iterResult.Signal, iterResult.SignalReason)
 			}
 
-			// Special case: COMPLETE signal is ignored (ticker handles completion via tk next)
+			// Special case: COMPLETE signal is ignored (tk run handles completion via tk next)
 			if iterResult.Signal == SignalComplete {
 				if e.runLog != nil {
-					e.runLog.LogSignalHandled(iterResult.Signal.String(), task.ID, "ignored (ticker handles completion automatically)", "")
+					e.runLog.LogSignalHandled(iterResult.Signal.String(), task.ID, "ignored (tk run handles completion automatically)", "")
 				}
 				if e.OnOutput != nil {
-					e.OnOutput("\n[Warning: Agent emitted COMPLETE signal - ignoring. Ticker handles completion automatically.]\n")
+					e.OnOutput("\n[Warning: Agent emitted COMPLETE signal - ignoring. tk run handles completion automatically.]\n")
 				}
 				// Continue to next iteration - don't close epic
 			} else {

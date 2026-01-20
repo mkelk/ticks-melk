@@ -10,7 +10,7 @@ import (
 // ConflictState tracks an unresolved merge conflict.
 type ConflictState struct {
 	EpicID       string    // Epic that had the conflict
-	Branch       string    // Branch name (e.g., ticker/abc123)
+	Branch       string    // Branch name (e.g., tick/abc123)
 	Conflicts    []string  // List of conflicting files
 	WorktreePath string    // Worktree path (preserved for inspection)
 	DetectedAt   time.Time // When conflict was detected
@@ -62,7 +62,7 @@ func (h *ConflictHandler) HandleConflict(wt *Worktree, conflicts []string) *Conf
 // User resolves by:
 //  1. cd to main repo
 //  2. git checkout main
-//  3. git merge ticker/<epic-id>
+//  3. git merge tick/<epic-id>
 //  4. Resolve conflicts
 //  5. git commit
 //

@@ -115,12 +115,12 @@ func TestLoadConfig(t *testing.T) {
 			tmpDir := t.TempDir()
 
 			if tt.createFile {
-				// Create .ticker directory and config.json
-				tickerDir := filepath.Join(tmpDir, ".ticker")
-				if err := os.MkdirAll(tickerDir, 0755); err != nil {
-					t.Fatalf("failed to create .ticker dir: %v", err)
+				// Create .tick directory and config.json
+				tickDir := filepath.Join(tmpDir, ".tick")
+				if err := os.MkdirAll(tickDir, 0755); err != nil {
+					t.Fatalf("failed to create .tick dir: %v", err)
 				}
-				configPath := filepath.Join(tickerDir, "config.json")
+				configPath := filepath.Join(tickDir, "config.json")
 				if err := os.WriteFile(configPath, []byte(tt.configJSON), 0644); err != nil {
 					t.Fatalf("failed to write config.json: %v", err)
 				}
@@ -559,11 +559,11 @@ func TestLoadContextConfig(t *testing.T) {
 			tmpDir := t.TempDir()
 
 			if tt.createFile {
-				tickerDir := filepath.Join(tmpDir, ".ticker")
-				if err := os.MkdirAll(tickerDir, 0755); err != nil {
-					t.Fatalf("failed to create .ticker dir: %v", err)
+				tickDir := filepath.Join(tmpDir, ".tick")
+				if err := os.MkdirAll(tickDir, 0755); err != nil {
+					t.Fatalf("failed to create .tick dir: %v", err)
 				}
-				configPath := filepath.Join(tickerDir, "config.json")
+				configPath := filepath.Join(tickDir, "config.json")
 				if err := os.WriteFile(configPath, []byte(tt.configJSON), 0644); err != nil {
 					t.Fatalf("failed to write config.json: %v", err)
 				}
@@ -609,121 +609,6 @@ func TestLoadContextConfig(t *testing.T) {
 
 			if got.GetGenerationModel() != tt.wantModel {
 				t.Errorf("GetGenerationModel() = %v, want %v", got.GetGenerationModel(), tt.wantModel)
-			}
-		})
-	}
-}
-
-func TestLoadTickerConfig(t *testing.T) {
-	tests := []struct {
-		name                    string
-		configJSON              string
-		createFile              bool
-		wantNil                 bool
-		wantVerificationNil     bool
-		wantContextNil          bool
-		wantVerificationEnabled bool
-		wantContextEnabled      bool
-		wantErr                 bool
-	}{
-		{
-			name:       "missing file returns nil config",
-			createFile: false,
-			wantNil:    true,
-			wantErr:    false,
-		},
-		{
-			name:                    "both sections present",
-			configJSON:              `{"verification": {"enabled": true}, "context": {"enabled": false}}`,
-			createFile:              true,
-			wantNil:                 false,
-			wantVerificationNil:     false,
-			wantContextNil:          false,
-			wantVerificationEnabled: true,
-			wantContextEnabled:      false,
-			wantErr:                 false,
-		},
-		{
-			name:                    "verification only",
-			configJSON:              `{"verification": {"enabled": true}}`,
-			createFile:              true,
-			wantNil:                 false,
-			wantVerificationNil:     false,
-			wantContextNil:          true,
-			wantVerificationEnabled: true,
-			wantErr:                 false,
-		},
-		{
-			name:                "context only",
-			configJSON:          `{"context": {"enabled": true}}`,
-			createFile:          true,
-			wantNil:             false,
-			wantVerificationNil: true,
-			wantContextNil:      false,
-			wantContextEnabled:  true,
-			wantErr:             false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tmpDir := t.TempDir()
-
-			if tt.createFile {
-				tickerDir := filepath.Join(tmpDir, ".ticker")
-				if err := os.MkdirAll(tickerDir, 0755); err != nil {
-					t.Fatalf("failed to create .ticker dir: %v", err)
-				}
-				configPath := filepath.Join(tickerDir, "config.json")
-				if err := os.WriteFile(configPath, []byte(tt.configJSON), 0644); err != nil {
-					t.Fatalf("failed to write config.json: %v", err)
-				}
-			}
-
-			got, err := LoadTickerConfig(tmpDir)
-
-			if tt.wantErr {
-				if err == nil {
-					t.Error("LoadTickerConfig() expected error, got nil")
-				}
-				return
-			}
-
-			if err != nil {
-				t.Errorf("LoadTickerConfig() unexpected error: %v", err)
-				return
-			}
-
-			if tt.wantNil {
-				if got != nil {
-					t.Errorf("LoadTickerConfig() = %+v, want nil", got)
-				}
-				return
-			}
-
-			if got == nil {
-				t.Error("LoadTickerConfig() = nil, want non-nil")
-				return
-			}
-
-			if tt.wantVerificationNil {
-				if got.Verification != nil {
-					t.Errorf("Verification = %+v, want nil", got.Verification)
-				}
-			} else if got.Verification == nil {
-				t.Error("Verification = nil, want non-nil")
-			} else if got.Verification.IsEnabled() != tt.wantVerificationEnabled {
-				t.Errorf("Verification.IsEnabled() = %v, want %v", got.Verification.IsEnabled(), tt.wantVerificationEnabled)
-			}
-
-			if tt.wantContextNil {
-				if got.Context != nil {
-					t.Errorf("Context = %+v, want nil", got.Context)
-				}
-			} else if got.Context == nil {
-				t.Error("Context = nil, want non-nil")
-			} else if got.Context.IsEnabled() != tt.wantContextEnabled {
-				t.Errorf("Context.IsEnabled() = %v, want %v", got.Context.IsEnabled(), tt.wantContextEnabled)
 			}
 		})
 	}

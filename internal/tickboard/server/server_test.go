@@ -35,11 +35,12 @@ func TestNew(t *testing.T) {
 }
 
 func TestServer_Run(t *testing.T) {
-	// Create a temp .tick directory
+	// Create a temp .tick directory with issues subdirectory
 	tmpDir := t.TempDir()
 	tickDir := filepath.Join(tmpDir, ".tick")
-	if err := os.Mkdir(tickDir, 0755); err != nil {
-		t.Fatalf("failed to create .tick dir: %v", err)
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create .tick/issues dir: %v", err)
 	}
 
 	// Use port 0 to get a random available port
@@ -56,14 +57,25 @@ func TestServer_Run(t *testing.T) {
 		errChan <- srv.Run(ctx)
 	}()
 
-	// Give server time to start
-	time.Sleep(100 * time.Millisecond)
-
-	// Test that the server responds
-	resp, err := http.Get("http://localhost:18765/")
+	// Wait for server to be ready with retry loop
+	var resp *http.Response
+	for i := 0; i < 20; i++ {
+		// Check if server failed to start
+		select {
+		case serverErr := <-errChan:
+			cancel()
+			t.Fatalf("server failed to start: %v", serverErr)
+		default:
+		}
+		resp, err = http.Get("http://localhost:18765/")
+		if err == nil {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
 	if err != nil {
 		cancel()
-		t.Fatalf("failed to connect to server: %v", err)
+		t.Fatalf("failed to connect to server after retries: %v", err)
 	}
 	resp.Body.Close()
 
@@ -72,8 +84,8 @@ func TestServer_Run(t *testing.T) {
 		t.Errorf("GET / status = %d, want %d", resp.StatusCode, http.StatusOK)
 	}
 
-	// Test static files
-	resp, err = http.Get("http://localhost:18765/static/style.css")
+	// Test static files (favicon.ico exists in static directory)
+	resp, err = http.Get("http://localhost:18765/static/favicon.ico")
 	if err != nil {
 		cancel()
 		t.Fatalf("failed to get static file: %v", err)
@@ -82,7 +94,7 @@ func TestServer_Run(t *testing.T) {
 
 	if resp.StatusCode != http.StatusOK {
 		cancel()
-		t.Errorf("GET /static/style.css status = %d, want %d", resp.StatusCode, http.StatusOK)
+		t.Errorf("GET /static/favicon.ico status = %d, want %d", resp.StatusCode, http.StatusOK)
 	}
 
 	// Test 404 for unknown paths
@@ -138,10 +150,10 @@ func TestStaticFS_Embedded(t *testing.T) {
 		t.Errorf("expected at least 2 files in assets (js + css), got %d", len(entries))
 	}
 
-	// Verify shoelace icons directory exists
-	_, err = fs.ReadDir(staticFS, "static/shoelace/icons")
+	// Verify shoelace icons directory exists (under assets/)
+	_, err = fs.ReadDir(staticFS, "static/shoelace/assets/icons")
 	if err != nil {
-		t.Errorf("failed to read shoelace/icons directory: %v", err)
+		t.Errorf("failed to read shoelace/assets/icons directory: %v", err)
 	}
 }
 
@@ -845,8 +857,9 @@ func TestRejectTick_TerminalAwaiting(t *testing.T) {
 	if !strings.Contains(result.Notes, "Need more tests") {
 		t.Errorf("notes should contain feedback, got: %s", result.Notes)
 	}
-	if !strings.Contains(result.Notes, "(from: human)") {
-		t.Errorf("notes should contain '(from: human)', got: %s", result.Notes)
+	// Reject uses git user name, not "human"
+	if !strings.Contains(result.Notes, "(from: ") {
+		t.Errorf("notes should contain '(from: <user>)', got: %s", result.Notes)
 	}
 	// Verdict is cleared (per ProcessVerdict logic) so tick returns to ready state
 	// ProcessVerdict clears verdict when tick doesn't close, so column is ready
@@ -2676,4 +2689,286 @@ func TestRunStream_WithLiveRecord(t *testing.T) {
 	if !strings.Contains(data, "task-update") && !strings.Contains(data, "connected") {
 		t.Errorf("expected SSE data to contain task-update or connected event, got: %s", data)
 	}
+}
+
+// TestPhase5_EndToEnd_RunMonitoring verifies all Phase 5 features work together:
+// 1. SSE stream connects and receives updates
+// 2. Live file changes broadcast updates
+// 3. Tool activity data is included in updates
+// 4. Metrics (tokens, cost) are in real-time updates
+// 5. Run completion finalizes correctly
+// 6. Run history is accessible via /api/records/:tickId
+func TestPhase5_EndToEnd_RunMonitoring(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	logsDir := filepath.Join(tickDir, "logs", "records")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+	if err := os.MkdirAll(logsDir, 0755); err != nil {
+		t.Fatalf("failed to create logs dir: %v", err)
+	}
+
+	// Create an epic with multiple tasks
+	epic := baseTick("e2e-epic", "End-to-End Test Epic")
+	epic.Type = tick.TypeEpic
+	createTestTick(t, issuesDir, epic)
+
+	task1 := baseTick("e2e-task1", "First Task")
+	task1.Parent = "e2e-epic"
+	createTestTick(t, issuesDir, task1)
+
+	task2 := baseTick("e2e-task2", "Second Task")
+	task2.Parent = "e2e-epic"
+	createTestTick(t, issuesDir, task2)
+
+	store := runrecord.NewStore(tmpDir)
+
+	srv, err := New(tickDir, 18820)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(150 * time.Millisecond)
+
+	// ========== Test 1: Initial run status shows no active run ==========
+	t.Run("InitialRunStatus", func(t *testing.T) {
+		resp, err := http.Get("http://localhost:18820/api/run-status/e2e-epic")
+		if err != nil {
+			t.Fatalf("failed to get run status: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+		}
+
+		var status RunStatusResponse
+		if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+
+		if status.IsRunning {
+			t.Errorf("expected no active run initially")
+		}
+	})
+
+	// ========== Test 2: SSE stream connects ==========
+	t.Run("SSEStreamConnects", func(t *testing.T) {
+		resp, err := http.Get("http://localhost:18820/api/run-stream/e2e-epic")
+		if err != nil {
+			t.Fatalf("failed to connect to SSE stream: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+		}
+
+		// Verify SSE headers
+		if ct := resp.Header.Get("Content-Type"); ct != "text/event-stream" {
+			t.Errorf("Content-Type = %q, want %q", ct, "text/event-stream")
+		}
+		if cc := resp.Header.Get("Cache-Control"); cc != "no-cache" {
+			t.Errorf("Cache-Control = %q, want %q", cc, "no-cache")
+		}
+		if conn := resp.Header.Get("Connection"); conn != "keep-alive" {
+			t.Errorf("Connection = %q, want %q", conn, "keep-alive")
+		}
+
+		// Read initial connected event
+		buf := make([]byte, 4096)
+		n, err := resp.Body.Read(buf)
+		if err != nil {
+			t.Fatalf("failed to read SSE: %v", err)
+		}
+		data := string(buf[:n])
+		if !strings.Contains(data, "connected") {
+			t.Errorf("expected connected event, got: %s", data)
+		}
+	})
+
+	// ========== Test 3: Create live record with tool activity ==========
+	t.Run("LiveRecordWithToolActivity", func(t *testing.T) {
+		liveSnap := agent.AgentStateSnapshot{
+			SessionID: "e2e-session-1",
+			Model:     "claude-3-opus",
+			StartedAt: time.Now().Add(-time.Minute),
+			Output:    "Working on task 1...",
+			Status:    agent.StatusToolUse,
+			NumTurns:  3,
+			Metrics: agent.Metrics{
+				InputTokens:  1000,
+				OutputTokens: 500,
+				CostUSD:      0.05,
+			},
+			ActiveTool: &agent.ToolActivity{
+				ID:        "tool-1",
+				Name:      "Edit",
+				StartedAt: time.Now().Add(-5 * time.Second),
+			},
+		}
+		if err := store.WriteLive("e2e-task1", liveSnap); err != nil {
+			t.Fatalf("failed to write live record: %v", err)
+		}
+
+		// Verify run status now shows active
+		resp, err := http.Get("http://localhost:18820/api/run-status/e2e-epic")
+		if err != nil {
+			t.Fatalf("failed to get run status: %v", err)
+		}
+		defer resp.Body.Close()
+
+		var status RunStatusResponse
+		if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+
+		if !status.IsRunning {
+			t.Errorf("expected active run")
+		}
+		if status.ActiveTask == nil {
+			t.Fatalf("expected ActiveTask to be non-nil")
+		}
+		if status.ActiveTask.TickID != "e2e-task1" {
+			t.Errorf("ActiveTask.TickID = %q, want %q", status.ActiveTask.TickID, "e2e-task1")
+		}
+		if status.ActiveTask.Status != string(agent.StatusToolUse) {
+			t.Errorf("ActiveTask.Status = %q, want %q", status.ActiveTask.Status, agent.StatusToolUse)
+		}
+		// Verify tool activity is included
+		if status.ActiveTask.ActiveTool == nil {
+			t.Errorf("expected ActiveTool to be present")
+		} else if status.ActiveTask.ActiveTool.Name != "Edit" {
+			t.Errorf("ActiveTool.Name = %q, want %q", status.ActiveTask.ActiveTool.Name, "Edit")
+		}
+		// Verify metrics
+		if status.ActiveTask.Metrics.InputTokens != 1000 {
+			t.Errorf("InputTokens = %d, want %d", status.ActiveTask.Metrics.InputTokens, 1000)
+		}
+		if status.ActiveTask.Metrics.CostUSD != 0.05 {
+			t.Errorf("CostUSD = %f, want %f", status.ActiveTask.Metrics.CostUSD, 0.05)
+		}
+	})
+
+	// ========== Test 4: Update live record with new metrics ==========
+	t.Run("MetricsUpdateInRealTime", func(t *testing.T) {
+		// Update with new metrics
+		liveSnap := agent.AgentStateSnapshot{
+			SessionID: "e2e-session-1",
+			Model:     "claude-3-opus",
+			StartedAt: time.Now().Add(-2 * time.Minute),
+			Output:    "Still working on task 1... more output",
+			Status:    agent.StatusWriting,
+			NumTurns:  5,
+			Metrics: agent.Metrics{
+				InputTokens:  2500,
+				OutputTokens: 1200,
+				CostUSD:      0.12,
+			},
+		}
+		if err := store.WriteLive("e2e-task1", liveSnap); err != nil {
+			t.Fatalf("failed to update live record: %v", err)
+		}
+
+		// Verify updated metrics
+		resp, err := http.Get("http://localhost:18820/api/run-status/e2e-epic")
+		if err != nil {
+			t.Fatalf("failed to get run status: %v", err)
+		}
+		defer resp.Body.Close()
+
+		var status RunStatusResponse
+		if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+
+		if status.ActiveTask.Metrics.InputTokens != 2500 {
+			t.Errorf("InputTokens = %d, want %d", status.ActiveTask.Metrics.InputTokens, 2500)
+		}
+		if status.ActiveTask.Metrics.OutputTokens != 1200 {
+			t.Errorf("OutputTokens = %d, want %d", status.ActiveTask.Metrics.OutputTokens, 1200)
+		}
+		if status.ActiveTask.NumTurns != 5 {
+			t.Errorf("NumTurns = %d, want %d", status.ActiveTask.NumTurns, 5)
+		}
+	})
+
+	// ========== Test 5: Finalize run and verify history ==========
+	t.Run("RunCompletionAndHistory", func(t *testing.T) {
+		// Write a completed run record
+		record := &agent.RunRecord{
+			SessionID: "e2e-session-1",
+			Model:     "claude-3-opus",
+			StartedAt: time.Now().Add(-5 * time.Minute),
+			EndedAt:   time.Now(),
+			Output:    "Final output from the run",
+			Success:   true,
+			NumTurns:  10,
+			Metrics: agent.MetricsRecord{
+				InputTokens:  5000,
+				OutputTokens: 2500,
+				CostUSD:      0.25,
+			},
+		}
+		if err := store.Write("e2e-task1", record); err != nil {
+			t.Fatalf("failed to write run record: %v", err)
+		}
+
+		// Remove live record to simulate completion
+		liveFile := filepath.Join(logsDir, "e2e-task1.live.json")
+		_ = os.Remove(liveFile)
+
+		// Give the watcher time to process the finalization
+		time.Sleep(200 * time.Millisecond)
+
+		// Verify run history is accessible
+		resp, err := http.Get("http://localhost:18820/api/records/e2e-task1")
+		if err != nil {
+			t.Fatalf("failed to get records: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+		}
+
+		var record2 agent.RunRecord
+		if err := json.NewDecoder(resp.Body).Decode(&record2); err != nil {
+			t.Fatalf("failed to decode records: %v", err)
+		}
+
+		if record2.SessionID != "e2e-session-1" {
+			t.Errorf("SessionID = %q, want %q", record2.SessionID, "e2e-session-1")
+		}
+		if !record2.Success {
+			t.Errorf("Success = %v, want true", record2.Success)
+		}
+		if record2.Metrics.InputTokens != 5000 {
+			t.Errorf("InputTokens = %d, want %d", record2.Metrics.InputTokens, 5000)
+		}
+	})
+
+	// ========== Test 6: Verify run status shows no active after completion ==========
+	t.Run("NoActiveAfterCompletion", func(t *testing.T) {
+		resp, err := http.Get("http://localhost:18820/api/run-status/e2e-epic")
+		if err != nil {
+			t.Fatalf("failed to get run status: %v", err)
+		}
+		defer resp.Body.Close()
+
+		var status RunStatusResponse
+		if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+
+		if status.IsRunning {
+			t.Errorf("expected no active run after completion")
+		}
+	})
 }

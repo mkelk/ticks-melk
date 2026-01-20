@@ -363,7 +363,7 @@ func TestRunner_Callbacks(t *testing.T) {
 		})
 
 		conflict := &ConflictState{
-			Branch: "ticker/epic1",
+			Branch: "tick/epic1",
 			Files:  []string{"file1.go", "file2.go"},
 		}
 		r.updateStatus("epic1", "conflict", nil, nil, conflict)
@@ -543,7 +543,7 @@ func TestRunner_ConflictDoesNotBlockOthers(t *testing.T) {
 		// Simulate: epic1 completes, epic2 has conflict, epic3 completes
 		r.updateStatus("epic1", "completed", &engine.RunResult{EpicID: "epic1"}, nil, nil)
 		r.updateStatus("epic2", "conflict", nil, nil, &ConflictState{
-			Branch: "ticker/epic2",
+			Branch: "tick/epic2",
 			Files:  []string{"conflicting.go"},
 		})
 		r.updateStatus("epic3", "completed", &engine.RunResult{EpicID: "epic3"}, nil, nil)

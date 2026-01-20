@@ -1,4 +1,4 @@
-// Package runlog provides structured logging for ticker runs.
+// Package runlog provides structured logging for tk runs.
 // Each run creates a JSONL file in .tick/logs/runs/<run-id>.jsonl that documents
 // every decision and action in the control flow loop.
 package runlog
