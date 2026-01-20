@@ -204,6 +204,26 @@ export class TickCard extends LitElement {
     .priority-tooltip {
       font-size: 0.625rem;
     }
+
+    /* Verification badge styles */
+    .meta-badge.verified {
+      background: rgba(166, 227, 161, 0.2);
+      color: var(--green);
+    }
+
+    .meta-badge.verification-failed {
+      background: rgba(243, 139, 168, 0.2);
+      color: var(--red);
+    }
+
+    .meta-badge.verification-pending {
+      background: rgba(249, 226, 175, 0.15);
+      color: var(--yellow);
+    }
+
+    .verification-icon {
+      font-size: 0.625rem;
+    }
   `;
 
   @property({ attribute: false })
@@ -246,6 +266,24 @@ export class TickCard extends LitElement {
     return PRIORITY_LABELS[this.tick.priority] ?? 'Unknown';
   }
 
+  private renderVerificationBadge() {
+    const status = this.tick.verification_status;
+    if (!status) {
+      return null;
+    }
+
+    switch (status) {
+      case 'verified':
+        return html`<span class="meta-badge verified">✓ verified</span>`;
+      case 'failed':
+        return html`<span class="meta-badge verification-failed">✗ failed</span>`;
+      case 'pending':
+        return html`<span class="meta-badge verification-pending">⋯ pending</span>`;
+      default:
+        return null;
+    }
+  }
+
   render() {
     const { tick, selected, focused, epicName } = this;
 
@@ -282,6 +320,7 @@ export class TickCard extends LitElement {
           ${tick.awaiting
             ? html`<span class="meta-badge awaiting">⏳ ${tick.awaiting}</span>`
             : null}
+          ${this.renderVerificationBadge()}
         </div>
 
         ${epicName

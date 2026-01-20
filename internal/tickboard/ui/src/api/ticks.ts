@@ -38,6 +38,7 @@ export interface ListTicksResponse {
 export interface TickResponse extends Tick {
   isBlocked: boolean;
   column: TickColumn;
+  verificationStatus?: 'verified' | 'failed' | 'pending'; // For closed tasks only
 }
 
 /** Response from GET /api/ticks/:id */
@@ -136,6 +137,21 @@ export interface ToolRecord {
   is_error?: boolean;
 }
 
+/** Verifier result record (matching server response) */
+export interface VerifierResult {
+  verifier: string;
+  passed: boolean;
+  output?: string;
+  duration_ms: number;
+  error?: string;
+}
+
+/** Verification record for task verification results (matching server response) */
+export interface VerificationRecord {
+  all_passed: boolean;
+  results?: VerifierResult[];
+}
+
 /** Run record for a completed agent run (matching server response) */
 export interface RunRecord {
   session_id: string;
@@ -149,6 +165,7 @@ export interface RunRecord {
   success: boolean;
   num_turns: number;
   error_msg?: string;
+  verification?: VerificationRecord;
 }
 
 // ============================================================================
@@ -236,10 +253,11 @@ export async function fetchTicks(params?: ListTicksParams): Promise<BoardTick[]>
   const url = buildUrl('/api/ticks', params as Record<string, string | undefined>);
   const response = await request<ListTicksResponse>(url);
 
-  // Map TickResponse to BoardTick (field name difference: isBlocked -> is_blocked)
+  // Map TickResponse to BoardTick (field name differences: isBlocked -> is_blocked, verificationStatus -> verification_status)
   return response.ticks.map(tick => ({
     ...tick,
     is_blocked: tick.isBlocked,
+    verification_status: tick.verificationStatus,
   }));
 }
 

@@ -173,6 +173,10 @@ func (m *mockTicksClientForContext) SetRunRecord(taskID string, record *agent.Ru
 	return nil
 }
 
+func (m *mockTicksClientForContext) GetRunRecord(taskID string) (*agent.RunRecord, error) {
+	return nil, nil
+}
+
 // =============================================================================
 // Integration Tests for Engine Context Generation
 // =============================================================================

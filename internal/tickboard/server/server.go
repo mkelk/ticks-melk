@@ -737,8 +737,9 @@ const (
 // TickResponse is a tick with computed fields for the API response.
 type TickResponse struct {
 	tick.Tick
-	IsBlocked bool   `json:"isBlocked"`
-	Column    string `json:"column"`
+	IsBlocked          bool    `json:"isBlocked"`
+	Column             string  `json:"column"`
+	VerificationStatus *string `json:"verificationStatus,omitempty"` // "verified", "failed", "pending", or nil
 }
 
 // Note represents a parsed note entry.
@@ -814,6 +815,9 @@ func (s *Server) handleListTicksGet(w http.ResponseWriter, r *http.Request) {
 	// Apply filters
 	filtered := query.Apply(allTicks, filter)
 
+	// Create runrecord store for verification status lookup
+	recordStore := runrecord.NewStore(filepath.Dir(s.tickDir))
+
 	// Build response with computed fields
 	response := ListTicksResponse{
 		Ticks: make([]TickResponse, 0, len(filtered)),
@@ -822,11 +826,13 @@ func (s *Server) handleListTicksGet(w http.ResponseWriter, r *http.Request) {
 	for _, t := range filtered {
 		isBlocked := computeIsBlocked(t, tickIndex)
 		column := computeColumn(t, isBlocked)
+		verificationStatus := computeVerificationStatus(t, recordStore)
 
 		response.Ticks = append(response.Ticks, TickResponse{
-			Tick:      t,
-			IsBlocked: isBlocked,
-			Column:    column,
+			Tick:               t,
+			IsBlocked:          isBlocked,
+			Column:             column,
+			VerificationStatus: verificationStatus,
 		})
 	}
 
@@ -893,6 +899,44 @@ func computeColumn(t tick.Tick, isBlocked bool) string {
 	// ready: open + unblocked + !awaiting (all priorities)
 	// Note: Rejected+open ticks also go here so agent can see feedback and retry
 	return ColumnReady
+}
+
+// computeVerificationStatus returns the verification status for a tick.
+// Returns nil for non-tasks or open tasks.
+// Returns "verified", "failed", or "pending" for closed tasks based on run record.
+func computeVerificationStatus(t tick.Tick, store *runrecord.Store) *string {
+	// Only show verification for tasks
+	if t.Type != tick.TypeTask {
+		return nil
+	}
+
+	// Only show verification for closed tasks (verification runs on task close)
+	if t.Status != tick.StatusClosed {
+		return nil
+	}
+
+	// Try to read run record
+	record, err := store.Read(t.ID)
+	if err != nil || record == nil {
+		// No run record - verification pending or not run
+		pending := "pending"
+		return &pending
+	}
+
+	// Check verification results
+	if record.Verification == nil {
+		// Has run record but no verification results - pending
+		pending := "pending"
+		return &pending
+	}
+
+	if record.Verification.AllPassed {
+		verified := "verified"
+		return &verified
+	}
+
+	failed := "failed"
+	return &failed
 }
 
 // parseNotes parses the Notes string into a slice of Note structs.

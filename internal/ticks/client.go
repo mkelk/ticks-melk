@@ -803,4 +803,5 @@ var _ interface {
 	SetStatus(issueID, status string) error
 	SetAwaiting(taskID, awaiting, note string) error
 	SetRunRecord(taskID string, record *agent.RunRecord) error
+	GetRunRecord(taskID string) (*agent.RunRecord, error)
 } = (*Client)(nil)

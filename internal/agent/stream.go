@@ -131,6 +131,9 @@ type RunRecord struct {
 	Success  bool   `json:"success"`
 	NumTurns int    `json:"num_turns"`
 	ErrorMsg string `json:"error_msg,omitempty"`
+
+	// Verification results (set after verification runs)
+	Verification *VerificationRecord `json:"verification,omitempty"`
 }
 
 // ToolRecord is a serializable record of a tool invocation.
@@ -150,6 +153,28 @@ type MetricsRecord struct {
 	CacheCreationTokens int     `json:"cache_creation_tokens"`
 	CostUSD             float64 `json:"cost_usd"`
 	DurationMS          int     `json:"duration_ms"`
+}
+
+// VerificationRecord is a serializable record of verification results.
+type VerificationRecord struct {
+	// AllPassed indicates whether all verifications passed.
+	AllPassed bool `json:"all_passed"`
+	// Results contains individual verifier results.
+	Results []VerifierResult `json:"results,omitempty"`
+}
+
+// VerifierResult is a serializable record of a single verifier's result.
+type VerifierResult struct {
+	// Verifier is the name of the verifier (e.g., "git").
+	Verifier string `json:"verifier"`
+	// Passed indicates whether this verifier passed.
+	Passed bool `json:"passed"`
+	// Output contains the verifier's output (truncated for storage).
+	Output string `json:"output,omitempty"`
+	// DurationMS is how long verification took in milliseconds.
+	DurationMS int `json:"duration_ms"`
+	// Error holds error message if verification failed due to an error.
+	Error string `json:"error,omitempty"`
 }
 
 // ToRecord converts the current state to a persistable RunRecord.

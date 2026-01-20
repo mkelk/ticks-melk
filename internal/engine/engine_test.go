@@ -315,6 +315,10 @@ func (m *mockTicksClient) SetRunRecord(taskID string, record *agent.RunRecord) e
 	return nil
 }
 
+func (m *mockTicksClient) GetRunRecord(taskID string) (*agent.RunRecord, error) {
+	return nil, nil
+}
+
 func TestNewEngine(t *testing.T) {
 	a := &mockAgent{name: "test", available: true}
 	tmpDir := t.TempDir()

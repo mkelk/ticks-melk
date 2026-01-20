@@ -272,6 +272,10 @@ func (m *handoffMockTicksClient) SetRunRecord(taskID string, record *agent.RunRe
 	return nil
 }
 
+func (m *handoffMockTicksClient) GetRunRecord(taskID string) (*agent.RunRecord, error) {
+	return nil, nil
+}
+
 // SimulateHumanApproval simulates a human approving a task that is awaiting.
 func (m *handoffMockTicksClient) SimulateHumanApproval(taskID string) {
 	m.verdictState[taskID] = "approved"

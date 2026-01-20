@@ -36,6 +36,7 @@ type TicksClient interface {
 	SetStatus(issueID, status string) error
 	SetAwaiting(taskID, awaiting, note string) error
 	SetRunRecord(taskID string, record *agent.RunRecord) error
+	GetRunRecord(taskID string) (*agent.RunRecord, error)
 }
 
 // Engine orchestrates the Ralph iteration loop.
@@ -808,6 +809,14 @@ func (e *Engine) Run(ctx context.Context, config RunConfig) (result *RunResult, 
 					}
 				}
 
+				// Update RunRecord with verification results
+				if verifyResult != nil {
+					if record, err := e.ticks.GetRunRecord(task.ID); err == nil && record != nil {
+						record.Verification = verifyResultsToRecord(verifyResult)
+						_ = e.ticks.SetRunRecord(task.ID, record)
+					}
+				}
+
 				if verifyResult != nil && !verifyResult.AllPassed {
 					// Log verification failure
 					if e.runLog != nil {
@@ -1256,6 +1265,42 @@ func buildVerificationFailureNote(iteration int, taskID string, results *verify.
 
 	sb.WriteString(" Please fix and close the task again.")
 	return sb.String()
+}
+
+// verifyResultsToRecord converts verify.Results to agent.VerificationRecord for storage.
+func verifyResultsToRecord(results *verify.Results) *agent.VerificationRecord {
+	if results == nil {
+		return nil
+	}
+
+	record := &agent.VerificationRecord{
+		AllPassed: results.AllPassed,
+		Results:   make([]agent.VerifierResult, len(results.Results)),
+	}
+
+	for i, r := range results.Results {
+		errStr := ""
+		if r.Error != nil {
+			errStr = r.Error.Error()
+		}
+		record.Results[i] = agent.VerifierResult{
+			Verifier:   r.Verifier,
+			Passed:     r.Passed,
+			Output:     truncateOutput(r.Output, 1000), // Limit output size
+			DurationMS: int(r.Duration.Milliseconds()),
+			Error:      errStr,
+		}
+	}
+
+	return record
+}
+
+// truncateOutput truncates output to max length with ellipsis.
+func truncateOutput(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
 }
 
 // getNextTaskWithDebounce gets the next available task with optional debounce.

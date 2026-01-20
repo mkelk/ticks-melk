@@ -1,7 +1,7 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { Tick, BoardTick } from '../types/tick.js';
-import type { Note, BlockerDetail, RunRecord, ToolRecord } from '../api/ticks.js';
+import type { Note, BlockerDetail, RunRecord, ToolRecord, VerificationRecord, VerifierResult } from '../api/ticks.js';
 import { approveTick, rejectTick, closeTick, reopenTick, addNote, fetchRecord, ApiError } from '../api/ticks.js';
 
 // Priority labels for display
@@ -717,6 +717,123 @@ export class TickDetailDrawer extends LitElement {
       color: var(--subtext0);
       font-style: italic;
     }
+
+    /* Verification styles */
+    .verification-section {
+      margin-top: 0.75rem;
+    }
+
+    .verification-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.375rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.8125rem;
+      font-weight: 500;
+    }
+
+    .verification-badge.passed {
+      background: rgba(166, 227, 161, 0.2);
+      color: var(--green);
+    }
+
+    .verification-badge.failed {
+      background: rgba(243, 139, 168, 0.2);
+      color: var(--red);
+    }
+
+    .verification-badge.pending {
+      background: rgba(249, 226, 175, 0.2);
+      color: var(--yellow);
+    }
+
+    .verification-badge sl-icon {
+      font-size: 1rem;
+    }
+
+    .verifier-results {
+      margin-top: 0.75rem;
+    }
+
+    .verifier-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      background: var(--surface0);
+      border: 1px solid var(--surface1);
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
+    }
+
+    .verifier-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .verifier-item.passed {
+      border-left: 3px solid var(--green);
+    }
+
+    .verifier-item.failed {
+      border-left: 3px solid var(--red);
+    }
+
+    .verifier-icon {
+      flex-shrink: 0;
+      font-size: 1rem;
+    }
+
+    .verifier-icon.passed {
+      color: var(--green);
+    }
+
+    .verifier-icon.failed {
+      color: var(--red);
+    }
+
+    .verifier-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .verifier-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.25rem;
+    }
+
+    .verifier-name {
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .verifier-duration {
+      font-size: 0.6875rem;
+      font-family: monospace;
+      color: var(--subtext0);
+    }
+
+    .verifier-output {
+      font-size: 0.75rem;
+      color: var(--subtext1);
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+      background: var(--crust);
+      padding: 0.5rem;
+      border-radius: 4px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .verifier-error {
+      font-size: 0.75rem;
+      color: var(--red);
+      margin-top: 0.25rem;
+    }
   `;
 
   @property({ attribute: false })
@@ -1366,6 +1483,95 @@ export class TickDetailDrawer extends LitElement {
     return text.slice(0, maxLength) + '...';
   }
 
+  private renderVerification() {
+    // Only show for task type with a run record
+    if (this.tick?.type !== 'task' || !this.runRecord) {
+      return nothing;
+    }
+
+    const verification = this.runRecord.verification;
+
+    // No verification results yet
+    if (!verification) {
+      // Only show pending if task is closed (verification should have run)
+      if (this.tick.status === 'closed') {
+        return html`
+          <div class="section">
+            <div class="section-title">Verification</div>
+            <div class="verification-badge pending">
+              <sl-icon name="hourglass-split"></sl-icon>
+              <span>Pending</span>
+            </div>
+          </div>
+          <sl-divider></sl-divider>
+        `;
+      }
+      return nothing;
+    }
+
+    const passed = verification.all_passed;
+    const results = verification.results || [];
+
+    return html`
+      <div class="section">
+        <div class="section-title">Verification</div>
+        <div class="verification-badge ${passed ? 'passed' : 'failed'}">
+          <sl-icon name="${passed ? 'check-circle-fill' : 'x-circle-fill'}"></sl-icon>
+          <span>${passed ? 'Verified' : 'Failed'}</span>
+        </div>
+
+        ${results.length > 0
+          ? html`
+              <div class="verifier-results">
+                ${results.map(result => this.renderVerifierResult(result))}
+              </div>
+            `
+          : nothing}
+      </div>
+      <sl-divider></sl-divider>
+    `;
+  }
+
+  private renderVerifierResult(result: VerifierResult) {
+    const passed = result.passed;
+    const isExpanded = this.expandedSections.has(`verifier-${result.verifier}`);
+
+    return html`
+      <div class="verifier-item ${passed ? 'passed' : 'failed'}">
+        <span class="verifier-icon ${passed ? 'passed' : 'failed'}">
+          <sl-icon name="${passed ? 'check-lg' : 'x-lg'}"></sl-icon>
+        </span>
+        <div class="verifier-content">
+          <div class="verifier-header">
+            <span class="verifier-name">${result.verifier}</span>
+            <span class="verifier-duration">${this.formatDuration(result.duration_ms)}</span>
+          </div>
+          ${result.error
+            ? html`<div class="verifier-error">${result.error}</div>`
+            : nothing}
+          ${result.output
+            ? html`
+                <div
+                  class="run-collapsible-header"
+                  style="margin-top: 0.5rem;"
+                  @click=${() => this.toggleSection(`verifier-${result.verifier}`)}
+                >
+                  <span>Output</span>
+                  <sl-icon
+                    class="expand-icon ${isExpanded ? 'expanded' : ''}"
+                    name="chevron-down"
+                  ></sl-icon>
+                </div>
+                ${isExpanded
+                  ? html`<div class="verifier-output">${result.output}</div>`
+                  : nothing}
+              `
+            : nothing}
+        </div>
+      </div>
+    `;
+  }
+
   private renderRunHistory() {
     // Only show for task type
     if (this.tick?.type !== 'task') {
@@ -1722,6 +1928,9 @@ export class TickDetailDrawer extends LitElement {
                 </div>
 
                 <sl-divider></sl-divider>
+
+                <!-- Verification (for tasks only) -->
+                ${this.renderVerification()}
 
                 <!-- Run History (for tasks only) -->
                 ${this.renderRunHistory()}
