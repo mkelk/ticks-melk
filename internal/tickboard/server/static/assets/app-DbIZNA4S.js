@@ -4147,7 +4147,9 @@
               @sl-change=${this.handleMobileEpicFilterChange}
             >
               ${this.epics.map(e=>u`
-                <sl-option value=${e.id}>${e.title}</sl-option>
+                <sl-option value=${e.id}>
+                  <span class="epic-id">${e.id}</span> - ${e.title}
+                </sl-option>
               `)}
             </sl-select>
           </div>
@@ -4285,6 +4287,12 @@
     .filter-drawer-content sl-input,
     .filter-drawer-content sl-select {
       width: 100%;
+    }
+
+    .epic-id {
+      font-family: monospace;
+      color: var(--subtext0);
+      font-size: 0.85em;
     }
 
     /* Tablet - Horizontal scroll with snap (481-768px) */
@@ -4826,7 +4834,9 @@
             @sl-change=${this.handleEpicFilterChange}
           >
             ${this.epics.map(t=>u`
-                <sl-option value=${t.id}>${t.title}</sl-option>
+                <sl-option value=${t.id}>
+                  <span class="epic-id">${t.id}</span> - ${t.title}
+                </sl-option>
               `)}
           </sl-select>
         </div>
@@ -4900,7 +4910,13 @@
     }
 
     .header-center sl-select {
-      min-width: 180px;
+      min-width: 220px;
+    }
+
+    .epic-id {
+      font-family: monospace;
+      color: var(--subtext0);
+      font-size: 0.85em;
     }
 
     .header-right {
@@ -6075,7 +6091,7 @@
       <sl-dropdown @sl-show=${this.handleDropdownShow}>
         <div slot="trigger" class="trigger-button">
           <sl-button variant="text" size="small">
-            <sl-icon name="bell"></sl-icon>
+            <sl-icon slot="prefix" name="bell"></sl-icon>
           </sl-button>
           ${this.unreadCount>0?u`<span class="unread-badge">${this.unreadCount>9?"9+":this.unreadCount}</span>`:w}
         </div>
@@ -6085,7 +6101,7 @@
             <span>Activity</span>
             ${this.activities.length>0?u`
                   <sl-button size="small" variant="text" @click=${this.loadActivities}>
-                    <sl-icon name="arrow-clockwise"></sl-icon>
+                    <sl-icon slot="prefix" name="arrow-clockwise"></sl-icon>
                   </sl-button>
                 `:w}
           </div>

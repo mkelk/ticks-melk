@@ -3,8 +3,8 @@
  * Implements caching strategies for offline support
  */
 
-const CACHE_NAME = 'tickboard-v3';
-const STATIC_CACHE_NAME = 'tickboard-static-v3';
+const CACHE_NAME = 'tickboard-v4';
+const STATIC_CACHE_NAME = 'tickboard-static-v4';
 
 // Static assets to pre-cache on install
 const STATIC_ASSETS = [

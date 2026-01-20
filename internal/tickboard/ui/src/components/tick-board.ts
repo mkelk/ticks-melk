@@ -108,6 +108,12 @@ export class TickBoard extends LitElement {
       width: 100%;
     }
 
+    .epic-id {
+      font-family: monospace;
+      color: var(--subtext0);
+      font-size: 0.85em;
+    }
+
     /* Tablet - Horizontal scroll with snap (481-768px) */
     @media (max-width: 768px) and (min-width: 481px) {
       main {
@@ -1061,7 +1067,9 @@ export class TickBoard extends LitElement {
               @sl-change=${this.handleMobileEpicFilterChange}
             >
               ${this.epics.map(epic => html`
-                <sl-option value=${epic.id}>${epic.title}</sl-option>
+                <sl-option value=${epic.id}>
+                  <span class="epic-id">${epic.id}</span> - ${epic.title}
+                </sl-option>
               `)}
             </sl-select>
           </div>

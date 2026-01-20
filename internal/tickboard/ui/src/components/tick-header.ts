@@ -75,7 +75,13 @@ export class TickHeader extends LitElement {
     }
 
     .header-center sl-select {
-      min-width: 180px;
+      min-width: 220px;
+    }
+
+    .epic-id {
+      font-family: monospace;
+      color: var(--subtext0);
+      font-size: 0.85em;
     }
 
     .header-right {
@@ -260,7 +266,9 @@ export class TickHeader extends LitElement {
           >
             ${this.epics.map(
               epic => html`
-                <sl-option value=${epic.id}>${epic.title}</sl-option>
+                <sl-option value=${epic.id}>
+                  <span class="epic-id">${epic.id}</span> - ${epic.title}
+                </sl-option>
               `
             )}
           </sl-select>
