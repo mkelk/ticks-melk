@@ -79,7 +79,7 @@ and conflict-free merging across branches.
 
 Agent-Human Workflow:
   tk approve <id>              Set verdict=approved on awaiting tick
-  tk reject <id> [feedback]    Set verdict=rejected with optional note
+  tk reject <id> <feedback>    Set verdict=rejected with required feedback
   tk next --awaiting=          Get next task awaiting human (human mode)
   tk list --awaiting=          List all tasks awaiting human action
   tk note <id> "msg" --from human  Add human feedback note
