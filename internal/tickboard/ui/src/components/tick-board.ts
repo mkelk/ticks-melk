@@ -17,6 +17,21 @@ const COLUMNS = [
 // Column IDs in order for navigation
 const COLUMN_IDS: TickColumn[] = ['blocked', 'ready', 'agent', 'human', 'done'];
 
+/**
+ * Root component for the Tick Board kanban interface.
+ *
+ * Provides board context to all child components via Lit Context.
+ * Handles data fetching, real-time SSE updates, and keyboard navigation.
+ *
+ * @element tick-board
+ *
+ * Features:
+ * - Fetches ticks and epic info from API on mount
+ * - Connects to SSE endpoint for real-time updates
+ * - Provides BoardState context to child components
+ * - Keyboard navigation (hjkl, arrows, Enter, Esc, n, /, ?)
+ * - Responsive layout with mobile tab navigation
+ */
 @customElement('tick-board')
 export class TickBoard extends LitElement {
   static styles = css`

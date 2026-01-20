@@ -1,13 +1,19 @@
-// Tick status values
+/**
+ * TypeScript type definitions for tick data structures.
+ * These match the Go struct definitions in internal/core/types.go.
+ * @module tick
+ */
+
+/** Tick workflow status. */
 export type TickStatus = 'open' | 'in_progress' | 'closed';
 
-// Tick type values
+/** Tick category type. */
 export type TickType = 'bug' | 'feature' | 'task' | 'epic' | 'chore';
 
-// Requires values (pre-declared gates)
+/** Pre-declared gates that must be satisfied before closing. */
 export type TickRequires = 'approval' | 'review' | 'content';
 
-// Awaiting values (current wait state)
+/** Current handoff state when waiting for human action. */
 export type TickAwaiting =
   | 'work'
   | 'approval'
@@ -17,13 +23,13 @@ export type TickAwaiting =
   | 'escalation'
   | 'checkpoint';
 
-// Verdict values (human response to awaiting state)
+/** Human response to an awaiting tick. */
 export type TickVerdict = 'approved' | 'rejected';
 
-// Board column values (computed by server)
+/** Kanban column assignment (computed by server based on tick state). */
 export type TickColumn = 'blocked' | 'ready' | 'agent' | 'human' | 'done';
 
-// Tick represents a single work item
+/** Core tick data structure matching server response. */
 export interface Tick {
   id: string;
   title: string;
@@ -51,13 +57,15 @@ export interface Tick {
   closed_reason?: string;
 }
 
-// Extended tick with computed board fields (from API response)
+/** Tick with computed board fields (returned from API). */
 export interface BoardTick extends Tick {
+  /** Whether this tick is blocked by unresolved dependencies. */
   is_blocked: boolean;
+  /** Computed kanban column based on status, awaiting, and blocked state. */
   column: TickColumn;
 }
 
-// Epic type (used for filtering)
+/** Epic type (parent container for related tasks). */
 export interface Epic extends Tick {
   type: 'epic';
 }

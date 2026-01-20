@@ -22,6 +22,16 @@ const PRIORITY_COLORS: Record<number, string> = {
   4: 'var(--subtext0)',
 };
 
+/**
+ * Slide-out drawer displaying detailed tick information and actions.
+ *
+ * @element tick-detail-drawer
+ * @fires close - Fired when the drawer is closed
+ * @fires tick-updated - Fired when a tick action succeeds (approve/reject/close/reopen/note)
+ *
+ * @prop {BoardTick | null} tick - The tick to display, or null to close drawer
+ * @prop {Record<string, string>} epicNames - Map of epic IDs to display names
+ */
 @customElement('tick-detail-drawer')
 export class TickDetailDrawer extends LitElement {
   static styles = css`

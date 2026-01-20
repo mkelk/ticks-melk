@@ -1,12 +1,27 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
-// Interface for epic info from API
+/** Epic info structure from the API */
 export interface EpicInfo {
   id: string;
   title: string;
 }
 
+/**
+ * Header component with search, epic filter, activity feed, and create button.
+ *
+ * @element tick-header
+ * @fires search-change - Fired when search input changes (debounced 300ms), with `{ value: string }`
+ * @fires epic-filter-change - Fired when epic filter selection changes, with `{ value: string }`
+ * @fires create-click - Fired when the create button is clicked
+ * @fires menu-toggle - Fired when the mobile menu button is clicked
+ * @fires activity-click - Bubbled from tick-activity-feed when an activity item is clicked
+ *
+ * @prop {string} repoName - Repository name to display in header badge
+ * @prop {EpicInfo[]} epics - List of epics for the filter dropdown
+ * @prop {string} selectedEpic - Currently selected epic ID
+ * @prop {string} searchTerm - Current search input value
+ */
 @customElement('tick-header')
 export class TickHeader extends LitElement {
   static styles = css`

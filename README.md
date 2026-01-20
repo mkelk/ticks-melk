@@ -200,6 +200,7 @@ tk note <id> "Use Stripe for payments" --from human
 | `tk block <id> <blocker>` | Add a dependency |
 | `tk list` | List issues with filters |
 | `tk view` | Interactive TUI |
+| `tk board` | Web kanban board |
 | `tk approve <id>` | Approve awaiting tick |
 | `tk reject <id>` | Reject with feedback |
 | `tk snippet` | Output CLAUDE.md content |
@@ -219,6 +220,22 @@ tk view
 - `a`: approve awaiting tick
 - `x`: reject awaiting tick
 - `q`: quit
+
+## Web Board
+
+```bash
+tk board
+```
+
+Opens a web kanban board at `http://localhost:3000` with real-time updates. Built with Lit web components and Shoelace UI.
+
+- Drag-free kanban columns: Blocked, Agent Queue, In Progress, Needs Human, Done
+- Real-time SSE updates when ticks change
+- Mobile-responsive with tab navigation
+- Keyboard navigation (`hjkl`, `?` for help)
+- PWA support for offline use
+
+See `internal/tickboard/ui/README.md` for development docs.
 
 ## Search and Filtering
 

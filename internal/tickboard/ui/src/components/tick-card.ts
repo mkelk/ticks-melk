@@ -28,6 +28,17 @@ const TYPE_VARIANTS: Record<TickType, string> = {
   chore: 'neutral',
 };
 
+/**
+ * Card component displaying a single tick in a kanban column.
+ *
+ * @element tick-card
+ * @fires tick-selected - Fired when the card is clicked, with `{ tick: BoardTick }` detail
+ *
+ * @prop {BoardTick} tick - The tick data to display (required)
+ * @prop {boolean} selected - Whether this card is currently selected
+ * @prop {boolean} focused - Whether this card has keyboard focus
+ * @prop {string} epicName - Display name of the parent epic (optional)
+ */
 @customElement('tick-card')
 export class TickCard extends LitElement {
   static styles = css`

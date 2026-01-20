@@ -29,6 +29,18 @@ const COLUMN_ICONS: Record<TickColumnType, string> = {
   done: '✓',
 };
 
+/**
+ * Column component for the kanban board, displaying a list of tick cards.
+ *
+ * @element tick-column
+ * @fires tick-selected - Bubbled from tick-card when a tick is clicked
+ *
+ * @prop {TickColumn} name - Column type: 'blocked' | 'ready' | 'agent' | 'human' | 'done'
+ * @prop {string} color - Optional custom color override for the column header
+ * @prop {BoardTick[]} ticks - Array of ticks to display in this column
+ * @prop {Record<string, string>} epicNames - Map of epic IDs to display names
+ * @prop {string} focusedTickId - ID of the tick that should show keyboard focus
+ */
 @customElement('tick-column')
 export class TickColumn extends LitElement {
   static styles = css`
