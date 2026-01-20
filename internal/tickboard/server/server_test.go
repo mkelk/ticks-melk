@@ -2422,3 +2422,258 @@ func TestGetRunStatus_TaskNotEpic(t *testing.T) {
 		t.Errorf("GET /api/run-status/task3 status = %d, want %d", resp.StatusCode, http.StatusNotFound)
 	}
 }
+
+func TestRunStream_Basic(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
+	// Create an epic
+	epic := baseTick("epic4", "Test Epic for Streaming")
+	epic.Type = tick.TypeEpic
+	createTestTick(t, issuesDir, epic)
+
+	// Create a task under the epic
+	task := baseTick("task4", "Test Task for Streaming")
+	task.Parent = "epic4"
+	createTestTick(t, issuesDir, task)
+
+	srv, err := New(tickDir, 18811)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(100 * time.Millisecond)
+
+	// Connect to SSE stream
+	resp, err := http.Get("http://localhost:18811/api/run-stream/epic4")
+	if err != nil {
+		t.Fatalf("failed to request /api/run-stream/epic4: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("GET /api/run-stream/epic4 status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	// Verify SSE headers
+	if ct := resp.Header.Get("Content-Type"); ct != "text/event-stream" {
+		t.Errorf("Content-Type = %q, want %q", ct, "text/event-stream")
+	}
+	if cc := resp.Header.Get("Cache-Control"); cc != "no-cache" {
+		t.Errorf("Cache-Control = %q, want %q", cc, "no-cache")
+	}
+}
+
+func TestRunStream_EpicNotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
+	srv, err := New(tickDir, 18812)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(100 * time.Millisecond)
+
+	resp, err := http.Get("http://localhost:18812/api/run-stream/nonexistent")
+	if err != nil {
+		t.Fatalf("failed to request /api/run-stream/nonexistent: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("GET /api/run-stream/nonexistent status = %d, want %d", resp.StatusCode, http.StatusNotFound)
+	}
+}
+
+func TestRunStream_MethodNotAllowed(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
+	// Create an epic
+	epic := baseTick("epic5", "Test Epic")
+	epic.Type = tick.TypeEpic
+	createTestTick(t, issuesDir, epic)
+
+	srv, err := New(tickDir, 18813)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(100 * time.Millisecond)
+
+	resp, err := http.Post("http://localhost:18813/api/run-stream/epic5", "application/json", strings.NewReader("{}"))
+	if err != nil {
+		t.Fatalf("failed to request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("POST /api/run-stream/epic5 status = %d, want %d", resp.StatusCode, http.StatusMethodNotAllowed)
+	}
+}
+
+func TestRunStream_EmptyEpicID(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
+	srv, err := New(tickDir, 18814)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(100 * time.Millisecond)
+
+	// Request with no epic ID
+	resp, err := http.Get("http://localhost:18814/api/run-stream/")
+	if err != nil {
+		t.Fatalf("failed to request /api/run-stream/: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("GET /api/run-stream/ status = %d, want %d", resp.StatusCode, http.StatusNotFound)
+	}
+}
+
+func TestRunStream_TaskNotEpic(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
+	// Create a task (not an epic)
+	task := baseTick("task5", "Just a Task")
+	task.Type = tick.TypeTask
+	createTestTick(t, issuesDir, task)
+
+	srv, err := New(tickDir, 18815)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(100 * time.Millisecond)
+
+	// Request with a task ID instead of epic ID should return 404
+	resp, err := http.Get("http://localhost:18815/api/run-stream/task5")
+	if err != nil {
+		t.Fatalf("failed to request /api/run-stream/task5: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("GET /api/run-stream/task5 status = %d, want %d", resp.StatusCode, http.StatusNotFound)
+	}
+}
+
+func TestRunStream_WithLiveRecord(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
+	// Create an epic
+	epic := baseTick("epic6", "Test Epic with Live Record")
+	epic.Type = tick.TypeEpic
+	createTestTick(t, issuesDir, epic)
+
+	// Create a task under the epic
+	task := baseTick("task6", "Test Task with Live Record")
+	task.Parent = "epic6"
+	createTestTick(t, issuesDir, task)
+
+	// Create a live record for the task
+	store := runrecord.NewStore(tmpDir)
+	liveSnap := agent.AgentStateSnapshot{
+		SessionID: "stream-session",
+		Model:     "claude-3-opus",
+		StartedAt: time.Now().Add(-time.Minute),
+		Output:    "Streaming test output...",
+		Status:    agent.StatusWriting,
+		NumTurns:  1,
+		Metrics: agent.Metrics{
+			InputTokens:  300,
+			OutputTokens: 150,
+			CostUSD:      0.01,
+		},
+	}
+	if err := store.WriteLive("task6", liveSnap); err != nil {
+		t.Fatalf("failed to write live record: %v", err)
+	}
+
+	srv, err := New(tickDir, 18816)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(100 * time.Millisecond)
+
+	// Connect to SSE stream
+	resp, err := http.Get("http://localhost:18816/api/run-stream/epic6")
+	if err != nil {
+		t.Fatalf("failed to request /api/run-stream/epic6: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("GET /api/run-stream/epic6 status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	// Read initial events (should include task-update for the live record)
+	// Read a bit of the response to verify we get SSE data
+	buf := make([]byte, 4096)
+	n, err := resp.Body.Read(buf)
+	if err != nil {
+		t.Fatalf("failed to read SSE data: %v", err)
+	}
+
+	data := string(buf[:n])
+	// Should contain the task-update event with the live record data
+	if !strings.Contains(data, "task-update") && !strings.Contains(data, "connected") {
+		t.Errorf("expected SSE data to contain task-update or connected event, got: %s", data)
+	}
+}

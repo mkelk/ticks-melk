@@ -40,11 +40,24 @@ type Server struct {
 	sseClients   map[chan string]struct{}
 	sseClientsMu sync.RWMutex
 
+	// Run stream SSE clients (per epic)
+	runStreamClients   map[string]map[chan RunStreamEvent]struct{}
+	runStreamClientsMu sync.RWMutex
+
 	// File watcher
 	watcher *fsnotify.Watcher
 
+	// Separate watcher for records directory (run streaming)
+	recordsWatcher *fsnotify.Watcher
+
 	// Cloud client for event broadcasting
 	cloudClient EventPusher
+}
+
+// RunStreamEvent represents an SSE event for run streaming.
+type RunStreamEvent struct {
+	Type string      `json:"type"`
+	Data interface{} `json:"data"`
 }
 
 // New creates a new tickboard server.
@@ -54,11 +67,19 @@ func New(tickDir string, port int) (*Server, error) {
 		return nil, fmt.Errorf("failed to create file watcher: %w", err)
 	}
 
+	recordsWatcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		watcher.Close()
+		return nil, fmt.Errorf("failed to create records watcher: %w", err)
+	}
+
 	s := &Server{
-		tickDir:    tickDir,
-		port:       port,
-		sseClients: make(map[chan string]struct{}),
-		watcher:    watcher,
+		tickDir:          tickDir,
+		port:             port,
+		sseClients:       make(map[chan string]struct{}),
+		runStreamClients: make(map[string]map[chan RunStreamEvent]struct{}),
+		watcher:          watcher,
+		recordsWatcher:   recordsWatcher,
 	}
 	return s, nil
 }
@@ -125,6 +146,9 @@ func (s *Server) Run(ctx context.Context) error {
 
 	// API endpoint: run status for an epic
 	mux.HandleFunc("/api/run-status/", s.handleRunStatus)
+
+	// API endpoint: SSE stream for run updates
+	mux.HandleFunc("/api/run-stream/", s.handleRunStream)
 
 	// Root handler - serve index.html and PWA assets at root paths
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -193,8 +217,19 @@ func (s *Server) Run(ctx context.Context) error {
 		fmt.Fprintf(os.Stderr, "warning: failed to watch activity directory: %v\n", err)
 	}
 
+	// Watch records directory for run streaming
+	recordsDir := filepath.Join(s.tickDir, "logs", "records")
+	os.MkdirAll(recordsDir, 0o755) // Ensure it exists
+	if err := s.recordsWatcher.Add(recordsDir); err != nil {
+		// Non-fatal: records watching is optional
+		fmt.Fprintf(os.Stderr, "warning: failed to watch records directory: %v\n", err)
+	}
+
 	// Start watching for file changes
 	go s.watchFiles(ctx)
+
+	// Start watching for records changes (run streaming)
+	go s.watchRecords(ctx)
 
 	// Start server in goroutine
 	errChan := make(chan error, 1)
@@ -212,9 +247,11 @@ func (s *Server) Run(ctx context.Context) error {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		s.watcher.Close()
+		s.recordsWatcher.Close()
 		return s.srv.Shutdown(shutdownCtx)
 	case err := <-errChan:
 		s.watcher.Close()
+		s.recordsWatcher.Close()
 		return err
 	}
 }
@@ -1822,5 +1859,378 @@ func (s *Server) handleCreateTick(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to encode response: %v", err), http.StatusInternalServerError)
 		return
+	}
+}
+
+// RunStreamEventData contains the event data for run stream SSE events.
+type RunStreamEventData struct {
+	TaskID     string                   `json:"taskId,omitempty"`
+	EpicID     string                   `json:"epicId,omitempty"`
+	Iteration  int                      `json:"iteration,omitempty"`
+	Delta      string                   `json:"delta,omitempty"`
+	Timestamp  string                   `json:"timestamp,omitempty"`
+	Tool       *agent.ToolRecord        `json:"tool,omitempty"`
+	Status     string                   `json:"status,omitempty"`
+	Success    bool                     `json:"success,omitempty"`
+	Metrics    *agent.MetricsRecord     `json:"metrics,omitempty"`
+	Output     string                   `json:"output,omitempty"`
+	NumTurns   int                      `json:"numTurns,omitempty"`
+	ActiveTool *agent.ToolRecord        `json:"activeTool,omitempty"`
+}
+
+// handleRunStream handles GET /api/run-stream/:epicId for SSE streaming of run updates.
+func (s *Server) handleRunStream(w http.ResponseWriter, r *http.Request) {
+	// Parse path: /api/run-stream/:epicId
+	path := strings.TrimPrefix(r.URL.Path, "/api/run-stream/")
+	if path == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Remove any trailing slash
+	epicID := strings.TrimSuffix(path, "/")
+	if epicID == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Only GET method is supported
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Verify the epic exists
+	issuesDir := filepath.Join(s.tickDir, "issues")
+	allTicks, err := query.LoadTicksParallel(issuesDir)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to load ticks: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	epicExists := false
+	var epicTasks []tick.Tick
+	for _, t := range allTicks {
+		if t.ID == epicID && t.Type == tick.TypeEpic {
+			epicExists = true
+		}
+		if t.Parent == epicID {
+			epicTasks = append(epicTasks, t)
+		}
+	}
+	if !epicExists {
+		http.Error(w, "Epic not found", http.StatusNotFound)
+		return
+	}
+
+	// Set SSE headers
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	// Create channel for this client
+	clientChan := make(chan RunStreamEvent, 20)
+
+	// Register client for this epic
+	s.runStreamClientsMu.Lock()
+	if s.runStreamClients[epicID] == nil {
+		s.runStreamClients[epicID] = make(map[chan RunStreamEvent]struct{})
+	}
+	s.runStreamClients[epicID][clientChan] = struct{}{}
+	s.runStreamClientsMu.Unlock()
+
+	// Unregister on disconnect
+	defer func() {
+		s.runStreamClientsMu.Lock()
+		delete(s.runStreamClients[epicID], clientChan)
+		if len(s.runStreamClients[epicID]) == 0 {
+			delete(s.runStreamClients, epicID)
+		}
+		close(clientChan)
+		s.runStreamClientsMu.Unlock()
+	}()
+
+	// Get flusher for streaming
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "SSE not supported", http.StatusInternalServerError)
+		return
+	}
+
+	// Send initial connection message with current state
+	store := runrecord.NewStore(filepath.Dir(s.tickDir))
+	for _, t := range epicTasks {
+		if store.LiveExists(t.ID) {
+			liveRecord, err := store.ReadLive(t.ID)
+			if err != nil {
+				continue
+			}
+			// Send current state as task-update event
+			eventData := RunStreamEventData{
+				TaskID:    t.ID,
+				Status:    liveRecord.Status,
+				Output:    liveRecord.Output,
+				NumTurns:  liveRecord.NumTurns,
+				Metrics:   &liveRecord.Metrics,
+				Timestamp: liveRecord.LastUpdated.Format(time.RFC3339),
+			}
+			if liveRecord.ActiveTool != nil {
+				eventData.ActiveTool = liveRecord.ActiveTool
+			}
+			data, _ := json.Marshal(eventData)
+			fmt.Fprintf(w, "event: task-update\ndata: %s\n\n", data)
+		}
+	}
+
+	// Send connected event
+	connectedData, _ := json.Marshal(map[string]string{"epicId": epicID})
+	fmt.Fprintf(w, "event: connected\ndata: %s\n\n", connectedData)
+	flusher.Flush()
+
+	// Stream events to client
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case event, ok := <-clientChan:
+			if !ok {
+				return
+			}
+			data, err := json.Marshal(event.Data)
+			if err != nil {
+				continue
+			}
+			fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event.Type, data)
+			flusher.Flush()
+		}
+	}
+}
+
+// broadcastRunStreamEvent sends an event to all connected run stream clients for an epic.
+func (s *Server) broadcastRunStreamEvent(epicID string, eventType string, data interface{}) {
+	s.runStreamClientsMu.RLock()
+	defer s.runStreamClientsMu.RUnlock()
+
+	clients, ok := s.runStreamClients[epicID]
+	if !ok {
+		return
+	}
+
+	event := RunStreamEvent{
+		Type: eventType,
+		Data: data,
+	}
+
+	for clientChan := range clients {
+		select {
+		case clientChan <- event:
+		default:
+			// Client buffer full, skip
+		}
+	}
+}
+
+// watchRecords watches the records directory for .live.json changes and broadcasts updates.
+func (s *Server) watchRecords(ctx context.Context) {
+	debounceTimers := make(map[string]*time.Timer)
+	debounceDelay := 100 * time.Millisecond
+
+	// Track previous live file states to detect changes
+	previousStates := make(map[string]string) // tickID -> last known status
+
+	for {
+		select {
+		case <-ctx.Done():
+			for _, timer := range debounceTimers {
+				timer.Stop()
+			}
+			return
+		case event, ok := <-s.recordsWatcher.Events:
+			if !ok {
+				return
+			}
+
+			filename := filepath.Base(event.Name)
+
+			// Handle .live.json files
+			if strings.HasSuffix(filename, ".live.json") {
+				tickID := strings.TrimSuffix(filename, ".live.json")
+
+				// Debounce per tick
+				if timer, exists := debounceTimers[tickID]; exists {
+					timer.Stop()
+				}
+
+				// Capture for closure
+				capturedTickID := tickID
+				capturedEvent := event
+
+				debounceTimers[tickID] = time.AfterFunc(debounceDelay, func() {
+					s.handleLiveRecordChange(capturedTickID, capturedEvent.Op, previousStates)
+				})
+				continue
+			}
+
+			// Handle finalized .json files (when .live.json is renamed to .json)
+			if strings.HasSuffix(filename, ".json") && !strings.HasSuffix(filename, ".live.json") {
+				// This might be a finalization (rename from .live.json to .json)
+				if event.Op&fsnotify.Create == fsnotify.Create || event.Op&fsnotify.Rename == fsnotify.Rename {
+					tickID := strings.TrimSuffix(filename, ".json")
+
+					// Debounce per tick
+					if timer, exists := debounceTimers[tickID+"_final"]; exists {
+						timer.Stop()
+					}
+
+					capturedTickID := tickID
+
+					debounceTimers[tickID+"_final"] = time.AfterFunc(debounceDelay, func() {
+						s.handleRecordFinalized(capturedTickID, previousStates)
+					})
+				}
+			}
+
+		case err, ok := <-s.recordsWatcher.Errors:
+			if !ok {
+				return
+			}
+			fmt.Fprintf(os.Stderr, "records watcher error: %v\n", err)
+		}
+	}
+}
+
+// handleLiveRecordChange processes a change to a .live.json file.
+func (s *Server) handleLiveRecordChange(tickID string, op fsnotify.Op, previousStates map[string]string) {
+	store := runrecord.NewStore(filepath.Dir(s.tickDir))
+
+	// Check if live file was deleted (task ending)
+	if op&fsnotify.Remove == fsnotify.Remove {
+		delete(previousStates, tickID)
+		return
+	}
+
+	// Read the live record
+	liveRecord, err := store.ReadLive(tickID)
+	if err != nil {
+		return
+	}
+
+	// Find which epic this task belongs to
+	issuesDir := filepath.Join(s.tickDir, "issues")
+	allTicks, err := query.LoadTicksParallel(issuesDir)
+	if err != nil {
+		return
+	}
+
+	var parentEpicID string
+	for _, t := range allTicks {
+		if t.ID == tickID {
+			parentEpicID = t.Parent
+			break
+		}
+	}
+
+	if parentEpicID == "" {
+		return
+	}
+
+	// Determine event type based on status changes
+	prevStatus := previousStates[tickID]
+	currentStatus := liveRecord.Status
+
+	eventData := RunStreamEventData{
+		TaskID:    tickID,
+		Status:    currentStatus,
+		NumTurns:  liveRecord.NumTurns,
+		Metrics:   &liveRecord.Metrics,
+		Timestamp: liveRecord.LastUpdated.Format(time.RFC3339),
+	}
+
+	// If this is a new run (no previous state)
+	if prevStatus == "" {
+		eventData.Iteration = liveRecord.NumTurns
+		s.broadcastRunStreamEvent(parentEpicID, "task-started", eventData)
+	}
+
+	// Update with current output delta and tool activity
+	eventData.Output = liveRecord.Output
+	if liveRecord.ActiveTool != nil {
+		eventData.ActiveTool = liveRecord.ActiveTool
+		s.broadcastRunStreamEvent(parentEpicID, "tool-activity", RunStreamEventData{
+			TaskID:    tickID,
+			Tool:      liveRecord.ActiveTool,
+			Status:    liveRecord.ActiveTool.Name,
+			Timestamp: time.Now().Format(time.RFC3339),
+		})
+	}
+
+	// Broadcast general update
+	s.broadcastRunStreamEvent(parentEpicID, "task-update", eventData)
+
+	// Update previous state
+	previousStates[tickID] = currentStatus
+}
+
+// handleRecordFinalized processes when a run record is finalized (task completed).
+func (s *Server) handleRecordFinalized(tickID string, previousStates map[string]string) {
+	store := runrecord.NewStore(filepath.Dir(s.tickDir))
+
+	// Read the finalized record
+	record, err := store.Read(tickID)
+	if err != nil {
+		return
+	}
+
+	// Find which epic this task belongs to
+	issuesDir := filepath.Join(s.tickDir, "issues")
+	allTicks, err := query.LoadTicksParallel(issuesDir)
+	if err != nil {
+		return
+	}
+
+	var parentEpicID string
+	var epicTasks []tick.Tick
+	for _, t := range allTicks {
+		if t.ID == tickID {
+			parentEpicID = t.Parent
+		}
+		if t.Parent != "" {
+			epicTasks = append(epicTasks, t)
+		}
+	}
+
+	if parentEpicID == "" {
+		return
+	}
+
+	// Broadcast task-completed event
+	eventData := RunStreamEventData{
+		TaskID:    tickID,
+		Success:   record.Success,
+		Metrics:   &record.Metrics,
+		NumTurns:  record.NumTurns,
+		Timestamp: record.EndedAt.Format(time.RFC3339),
+	}
+	s.broadcastRunStreamEvent(parentEpicID, "task-completed", eventData)
+
+	// Clean up previous state
+	delete(previousStates, tickID)
+
+	// Check if all tasks in the epic are complete
+	allComplete := true
+	for _, t := range epicTasks {
+		if t.Parent == parentEpicID && t.Status != tick.StatusClosed {
+			allComplete = false
+			break
+		}
+	}
+
+	if allComplete {
+		s.broadcastRunStreamEvent(parentEpicID, "epic-completed", RunStreamEventData{
+			EpicID:    parentEpicID,
+			Success:   true,
+			Timestamp: time.Now().Format(time.RFC3339),
+		})
 	}
 }
