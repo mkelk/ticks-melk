@@ -7,7 +7,7 @@ import (
 )
 
 // Store manages reading and writing epic context documents.
-// Context documents are stored as markdown files in .ticker/context/<epic-id>.md
+// Context documents are stored as markdown files in .tick/logs/context/<epic-id>.md
 type Store struct {
 	// dir is the directory where context documents are stored.
 	dir string
@@ -15,7 +15,7 @@ type Store struct {
 
 // NewStore creates a new context store with the default directory.
 func NewStore() *Store {
-	return &Store{dir: ".ticker/context"}
+	return &Store{dir: ".tick/logs/context"}
 }
 
 // NewStoreWithDir creates a new context store with a custom directory.

@@ -12,8 +12,8 @@ func TestNewStore(t *testing.T) {
 	if s == nil {
 		t.Fatal("NewStore() returned nil")
 	}
-	if s.Dir() != ".ticker/context" {
-		t.Errorf("Dir() = %q, want %q", s.Dir(), ".ticker/context")
+	if s.Dir() != ".tick/logs/context" {
+		t.Errorf("Dir() = %q, want %q", s.Dir(), ".tick/logs/context")
 	}
 }
 
