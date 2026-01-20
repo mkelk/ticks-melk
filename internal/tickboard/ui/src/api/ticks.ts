@@ -117,6 +117,40 @@ export interface Activity {
   data?: Record<string, unknown>; // Additional action-specific data
 }
 
+/** Metrics record for run records (matching server response) */
+export interface MetricsRecord {
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_creation_tokens: number;
+  cost_usd: number;
+  duration_ms: number;
+}
+
+/** Tool invocation record (matching server response) */
+export interface ToolRecord {
+  name: string;
+  input?: string;
+  output?: string;
+  duration_ms: number;
+  is_error?: boolean;
+}
+
+/** Run record for a completed agent run (matching server response) */
+export interface RunRecord {
+  session_id: string;
+  model: string;
+  started_at: string;  // ISO timestamp
+  ended_at: string;    // ISO timestamp
+  output: string;
+  thinking?: string;
+  tools?: ToolRecord[];
+  metrics: MetricsRecord;
+  success: boolean;
+  num_turns: number;
+  error_msg?: string;
+}
+
 // ============================================================================
 // Request Types
 // ============================================================================
@@ -315,4 +349,19 @@ export async function fetchActivity(limit = 20): Promise<Activity[]> {
   const url = buildUrl('/api/activity', { limit: String(limit) });
   const response = await request<ActivityResponse>(url);
   return response.activities;
+}
+
+/**
+ * Fetches run record for a completed task.
+ * Returns null if no record exists (404 response).
+ */
+export async function fetchRecord(tickId: string): Promise<RunRecord | null> {
+  try {
+    return await request<RunRecord>(`/api/records/${encodeURIComponent(tickId)}`);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
 }
