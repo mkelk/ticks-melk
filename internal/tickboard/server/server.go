@@ -150,6 +150,9 @@ func (s *Server) Run(ctx context.Context) error {
 	// API endpoint: SSE stream for run updates
 	mux.HandleFunc("/api/run-stream/", s.handleRunStream)
 
+	// API endpoint: context documents
+	mux.HandleFunc("/api/context/", s.handleContext)
+
 	// Root handler - serve index.html and PWA assets at root paths
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
@@ -2277,4 +2280,43 @@ func (s *Server) handleRecordFinalized(tickID string, previousStates map[string]
 			Timestamp: time.Now().Format(time.RFC3339),
 		})
 	}
+}
+
+// handleContext handles GET /api/context/:epicId.
+// Returns the raw markdown content of the context document for an epic.
+func (s *Server) handleContext(w http.ResponseWriter, r *http.Request) {
+	// Parse path: /api/context/:epicId
+	path := strings.TrimPrefix(r.URL.Path, "/api/context/")
+	if path == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Remove any trailing slash
+	epicID := strings.TrimSuffix(path, "/")
+	if epicID == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Only GET method is supported
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Read the context file
+	contextPath := filepath.Join(s.tickDir, "logs", "context", epicID+".md")
+	data, err := os.ReadFile(contextPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			http.Error(w, "Context document not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, fmt.Sprintf("Failed to read context document: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+	w.Write(data)
 }

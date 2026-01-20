@@ -2972,3 +2972,152 @@ func TestPhase5_EndToEnd_RunMonitoring(t *testing.T) {
 		}
 	})
 }
+
+func TestContext_ExistingFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	contextDir := filepath.Join(tickDir, "logs", "context")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+	if err := os.MkdirAll(contextDir, 0755); err != nil {
+		t.Fatalf("failed to create context dir: %v", err)
+	}
+
+	// Create a context document
+	contextContent := "# Epic Context\n\nThis is the context document for the epic.\n\n## Summary\n\nSome important information here."
+	if err := os.WriteFile(filepath.Join(contextDir, "ctx-epic.md"), []byte(contextContent), 0644); err != nil {
+		t.Fatalf("failed to write context file: %v", err)
+	}
+
+	srv, err := New(tickDir, 18821)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(150 * time.Millisecond)
+
+	resp, err := http.Get("http://localhost:18821/api/context/ctx-epic")
+	if err != nil {
+		t.Fatalf("failed to get context: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	// Verify Content-Type header
+	contentType := resp.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "text/markdown") {
+		t.Errorf("Content-Type = %q, want text/markdown", contentType)
+	}
+
+	// Verify body content
+	body := make([]byte, 1024)
+	n, _ := resp.Body.Read(body)
+	if string(body[:n]) != contextContent {
+		t.Errorf("body = %q, want %q", string(body[:n]), contextContent)
+	}
+}
+
+func TestContext_MissingFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	contextDir := filepath.Join(tickDir, "logs", "context")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+	if err := os.MkdirAll(contextDir, 0755); err != nil {
+		t.Fatalf("failed to create context dir: %v", err)
+	}
+
+	srv, err := New(tickDir, 18822)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(150 * time.Millisecond)
+
+	resp, err := http.Get("http://localhost:18822/api/context/nonexistent-epic")
+	if err != nil {
+		t.Fatalf("failed to get context: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusNotFound)
+	}
+}
+
+func TestContext_InvalidEpicID(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
+	srv, err := New(tickDir, 18823)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(150 * time.Millisecond)
+
+	// Test empty epic ID (just /api/context/)
+	resp, err := http.Get("http://localhost:18823/api/context/")
+	if err != nil {
+		t.Fatalf("failed to get context: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusNotFound)
+	}
+}
+
+func TestContext_MethodNotAllowed(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
+	srv, err := New(tickDir, 18824)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(150 * time.Millisecond)
+
+	// Test POST method
+	resp, err := http.Post("http://localhost:18824/api/context/some-epic", "text/plain", strings.NewReader("test"))
+	if err != nil {
+		t.Fatalf("failed to post context: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusMethodNotAllowed)
+	}
+}
