@@ -6141,6 +6141,20 @@
       display: inline-block;
     }
 
+    /* Constrain the dropdown panel width */
+    sl-dropdown {
+      --panel-width: 360px;
+    }
+
+    sl-dropdown::part(panel) {
+      width: var(--panel-width);
+      max-width: calc(100vw - 2rem);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--surface1);
+      background: var(--mantle);
+    }
+
     .trigger-button {
       position: relative;
     }
@@ -6163,10 +6177,12 @@
     }
 
     sl-menu {
-      min-width: 320px;
-      max-width: 400px;
+      width: 100%;
       max-height: 400px;
       overflow-y: auto;
+      background: transparent;
+      border: none;
+      box-shadow: none;
     }
 
     .menu-header {
