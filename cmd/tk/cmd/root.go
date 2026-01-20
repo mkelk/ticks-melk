@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -307,6 +308,25 @@ func ResetFlags() {
 	// Reset gc flags
 	gcDryRun = false
 	gcMaxAge = "30d"
+
+	// Reset run flags
+	runMaxIterations = 50
+	runMaxCost = 0
+	runCheckpointEvery = 5
+	runMaxTaskRetries = 3
+	runAuto = false
+	runJSONL = false
+	runSkipVerify = false
+	runVerifyOnly = false
+	runWorktree = false
+	runParallel = 1
+	runWatch = false
+	runTimeout = 30 * time.Minute
+	runPoll = 10 * time.Second
+	runDebounce = 0
+	runIncludeStandalone = false
+	runIncludeOrphans = false
+	runAll = false
 }
 
 // SetVersion allows main.go to set the version at initialization
