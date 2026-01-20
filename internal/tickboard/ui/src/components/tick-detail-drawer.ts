@@ -523,7 +523,7 @@ export class TickDetailDrawer extends LitElement {
     this.optimisticNote = null;
   }
 
-  private emitTickUpdated(tick: BoardTick) {
+  private emitTickUpdated(tick: BoardTick & { notesList?: Note[]; blockerDetails?: BlockerDetail[] }) {
     this.dispatchEvent(
       new CustomEvent('tick-updated', {
         detail: { tick },
@@ -671,13 +671,13 @@ export class TickDetailDrawer extends LitElement {
 
     try {
       const response = await addNote(this.tick.id, noteText);
-      // Update notesList with response from server
-      this.notesList = response.notesList;
+      // Clear optimistic note - real data will come from parent via tick-updated event
       this.optimisticNote = null;
-      // Emit tick-updated with updated tick
-      const updatedTick: BoardTick = {
+      // Emit tick-updated with updated tick, including notesList for parent to update
+      const updatedTick: BoardTick & { notesList: Note[] } = {
         ...response,
         is_blocked: response.isBlocked,
+        notesList: response.notesList,
       };
       this.emitTickUpdated(updatedTick);
     } catch (error) {

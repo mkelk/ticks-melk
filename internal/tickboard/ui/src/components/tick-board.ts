@@ -494,6 +494,13 @@ export class TickBoard extends LitElement {
             }
           }
 
+          // If this is the currently selected tick, update drawer details
+          if (this.selectedTick?.id === tickId) {
+            this.selectedTick = updatedTick;
+            this.selectedTickNotes = response.notesList || [];
+            this.selectedTickBlockers = response.blockerDetails || [];
+          }
+
           this.updateBoardState();
         } catch (err) {
           console.error(`[SSE] Failed to fetch tick ${tickId}:`, err);
