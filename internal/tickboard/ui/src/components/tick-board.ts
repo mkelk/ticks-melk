@@ -526,28 +526,43 @@ export class TickBoard extends LitElement {
   /**
    * Check if an input element is currently focused.
    * Keyboard navigation should be disabled when user is typing.
+   * Traverses shadow DOM to handle Shoelace components properly.
    */
   private isInputFocused(): boolean {
-    const activeElement = document.activeElement;
+    // Get the deepest active element, traversing shadow DOMs
+    let activeElement: Element | null = document.activeElement;
+    while (activeElement?.shadowRoot?.activeElement) {
+      activeElement = activeElement.shadowRoot.activeElement;
+    }
+
     if (!activeElement) return false;
 
     const tagName = activeElement.tagName.toLowerCase();
-    // Check for standard inputs, textareas, selects, and Shoelace components
+    // Check for standard inputs, textareas, selects
     if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
-      return true;
-    }
-    // Shoelace input components
-    if (tagName.startsWith('sl-') && (
-      tagName.includes('input') ||
-      tagName.includes('textarea') ||
-      tagName.includes('select')
-    )) {
       return true;
     }
     // Check if element is contenteditable
     if (activeElement.getAttribute('contenteditable') === 'true') {
       return true;
     }
+
+    // Also check the host chain for Shoelace input components
+    let host: Element | null = activeElement;
+    while (host) {
+      const hostTag = host.tagName.toLowerCase();
+      if (hostTag.startsWith('sl-') && (
+        hostTag.includes('input') ||
+        hostTag.includes('textarea') ||
+        hostTag.includes('select')
+      )) {
+        return true;
+      }
+      // Walk up to parent or shadow host
+      const root = host.getRootNode();
+      host = root instanceof ShadowRoot ? root.host : null;
+    }
+
     return false;
   }
 
