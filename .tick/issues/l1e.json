@@ -1,0 +1,16 @@
+{
+  "id": "l1e",
+  "title": "Add run-record component for displaying RunRecord details",
+  "description": "Create a new Lit component run-record.ts to display RunRecord data with collapsible sections.\n\nSections to display:\n- Summary: model, session ID, success/error status, duration\n- Metrics: input/output/cache tokens, cost\n- Output: agent output text (collapsible)\n- Thinking: agent thinking (collapsible)\n- Tools: list of tool calls with name, input preview, duration\n- Verification: verification status and output if present\n\nUse existing patterns from tick-detail-drawer.ts collapsible sections.\nUse Shoelace components (sl-details, sl-badge, sl-icon).\nStyle with Catppuccin Mocha theme colors.\n\nRun: npm test -- --grep 'run-record'",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "do3",
+  "acceptance_criteria": "Component renders RunRecord data with all sections",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-20T20:54:42.621413Z",
+  "updated_at": "2026-01-20T21:03:11.397465Z",
+  "closed_at": "2026-01-20T21:03:11.397465Z",
+  "closed_reason": "Created run-record.ts Lit component with collapsible sl-details sections. Component displays RunRecord data with Summary (model, session ID, status, duration), Metrics (tokens, cost), Output, Thinking, Tools list, and Verification sections. Uses Catppuccin Mocha theme colors. Added sl-details import to main.ts."
+}

@@ -1,0 +1,12 @@
+{
+  "id": "wjh",
+  "title": "Tickboard Run Information Display",
+  "description": "Enhance tickboard to display rich run information from agent execution. Two main features:\n\n1. **Run Summary Tab** - In the tick detail drawer, add a 'Run' tab showing the RunRecord for completed ticks (output, thinking, tools used, metrics, verification status)\n\n2. **Live Output Panel Tabs** - Enhance the live output panel to have tabs for:\n   - Streaming output (existing functionality)\n   - Context document (markdown rendered from .tick/logs/context/\u003cepic-id\u003e.md)\n\nData sources:\n- RunRecord via /api/records/:tickId\n- Context docs at .tick/logs/context/\u003cepic-id\u003e.md\n- SSE streaming via /api/run-stream/:epicId\n\nUI patterns: Lit components, Shoelace UI library, collapsible sections",
+  "status": "open",
+  "priority": 2,
+  "type": "epic",
+  "owner": "peter@engelbrecht.dk",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-20T20:52:31.741531Z",
+  "updated_at": "2026-01-20T20:52:31.741531Z"
+}

@@ -2,12 +2,14 @@
   "id": "zix",
   "title": "Test Epic - Verify tk run",
   "description": "Test epic to verify tk run works correctly",
-  "notes": "2026-01-20 21:45 - Completed task [ins]: Added internal/testutil package with hello.go and hello_test.go. Simple verification test for tk run functionality.\n2026-01-20 21:46 - Completed task [k59]: Added Greet(name string) function using simple string concatenation. Used table-driven test pattern for TestGreet with three test cases as specified.",
-  "status": "open",
+  "notes": "2026-01-20 21:45 - Completed task [ins]: Added internal/testutil package with hello.go and hello_test.go. Simple verification test for tk run functionality.\n2026-01-20 21:46 - Completed task [k59]: Added Greet(name string) function using simple string concatenation. Used table-driven test pattern for TestGreet with three test cases as specified.\n2026-01-20 21:46 - Completed task [kak]: Removed internal/testutil/ directory. Build verified. Test epic cleanup complete.",
+  "status": "closed",
   "priority": 2,
   "type": "epic",
   "owner": "peter@engelbrecht.dk",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-20T20:44:21.525584Z",
-  "updated_at": "2026-01-20T20:46:16.182472Z"
+  "updated_at": "2026-01-20T20:46:59.41936Z",
+  "closed_at": "2026-01-20T20:46:59.41936Z",
+  "closed_reason": "all tasks completed"
 }

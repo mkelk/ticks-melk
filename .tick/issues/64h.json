@@ -1,0 +1,16 @@
+{
+  "id": "64h",
+  "title": "Add /api/context/:epicId endpoint",
+  "description": "Add API endpoint to serve context documents from .tick/logs/context/\u003cepic-id\u003e.md\n\nImplementation:\n- Add GET /api/context/:epicId handler in internal/board/server.go\n- Read file from .tick/logs/context/\u003cepic-id\u003e.md\n- Return raw markdown content with Content-Type: text/markdown\n- Return 404 if file doesn't exist\n\nTest cases:\n- Existing context file -\u003e 200 with markdown content\n- Missing context file -\u003e 404\n- Invalid epic ID -\u003e 404\n\nRun: go test ./internal/board/... -v -run Context",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "do3",
+  "acceptance_criteria": "API tests pass, endpoint returns context markdown",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-20T20:54:34.256879Z",
+  "updated_at": "2026-01-20T20:59:17.951041Z",
+  "closed_at": "2026-01-20T20:59:17.951041Z",
+  "closed_reason": "Added GET /api/context/:epicId endpoint to server.go. Reads markdown files from .tick/logs/context/\u003cepicId\u003e.md and returns with Content-Type: text/markdown. Returns 404 for missing files. Added 4 test cases covering existing file, missing file, invalid epic ID, and method not allowed."
+}
