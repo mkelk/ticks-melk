@@ -2142,3 +2142,283 @@ func TestGetRecord_EmptyTickID(t *testing.T) {
 		t.Errorf("GET /api/records/ status = %d, want %d", resp.StatusCode, http.StatusNotFound)
 	}
 }
+
+func TestGetRunStatus_NoActiveRun(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
+	// Create an epic
+	epic := baseTick("epic1", "Test Epic")
+	epic.Type = tick.TypeEpic
+	createTestTick(t, issuesDir, epic)
+
+	// Create a task under the epic
+	task := baseTick("task1", "Test Task")
+	task.Parent = "epic1"
+	createTestTick(t, issuesDir, task)
+
+	srv, err := New(tickDir, 18805)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(100 * time.Millisecond)
+
+	resp, err := http.Get("http://localhost:18805/api/run-status/epic1")
+	if err != nil {
+		t.Fatalf("failed to request /api/run-status/epic1: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("GET /api/run-status/epic1 status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	var result RunStatusResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if result.EpicID != "epic1" {
+		t.Errorf("EpicID = %q, want %q", result.EpicID, "epic1")
+	}
+	if result.IsRunning {
+		t.Error("IsRunning = true, want false")
+	}
+	if result.ActiveTask != nil {
+		t.Error("ActiveTask should be nil when no run is active")
+	}
+}
+
+func TestGetRunStatus_WithActiveRun(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
+	// Create an epic
+	epic := baseTick("epic2", "Test Epic")
+	epic.Type = tick.TypeEpic
+	createTestTick(t, issuesDir, epic)
+
+	// Create a task under the epic
+	task := baseTick("task2", "Test Task")
+	task.Parent = "epic2"
+	createTestTick(t, issuesDir, task)
+
+	// Create a live record for the task
+	store := runrecord.NewStore(tmpDir)
+	liveSnap := agent.AgentStateSnapshot{
+		SessionID: "test-session",
+		Model:     "claude-3-opus",
+		StartedAt: time.Now().Add(-time.Minute),
+		Output:    "Working on task...",
+		Status:    agent.StatusToolUse,
+		NumTurns:  2,
+		Metrics: agent.Metrics{
+			InputTokens:  500,
+			OutputTokens: 200,
+			CostUSD:      0.02,
+		},
+		ActiveTool: &agent.ToolActivity{
+			Name:      "Read",
+			Input:     "file.go",
+			StartedAt: time.Now(),
+		},
+	}
+	if err := store.WriteLive("task2", liveSnap); err != nil {
+		t.Fatalf("failed to write live record: %v", err)
+	}
+
+	srv, err := New(tickDir, 18806)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(100 * time.Millisecond)
+
+	resp, err := http.Get("http://localhost:18806/api/run-status/epic2")
+	if err != nil {
+		t.Fatalf("failed to request /api/run-status/epic2: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("GET /api/run-status/epic2 status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	var result RunStatusResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if result.EpicID != "epic2" {
+		t.Errorf("EpicID = %q, want %q", result.EpicID, "epic2")
+	}
+	if !result.IsRunning {
+		t.Error("IsRunning = false, want true")
+	}
+	if result.ActiveTask == nil {
+		t.Fatal("ActiveTask should not be nil when run is active")
+	}
+	if result.ActiveTask.TickID != "task2" {
+		t.Errorf("ActiveTask.TickID = %q, want %q", result.ActiveTask.TickID, "task2")
+	}
+	if result.ActiveTask.Title != "Test Task" {
+		t.Errorf("ActiveTask.Title = %q, want %q", result.ActiveTask.Title, "Test Task")
+	}
+	if result.ActiveTask.NumTurns != 2 {
+		t.Errorf("ActiveTask.NumTurns = %d, want 2", result.ActiveTask.NumTurns)
+	}
+	if result.ActiveTask.ActiveTool == nil {
+		t.Error("ActiveTask.ActiveTool should not be nil")
+	} else if result.ActiveTask.ActiveTool.Name != "Read" {
+		t.Errorf("ActiveTask.ActiveTool.Name = %q, want %q", result.ActiveTask.ActiveTool.Name, "Read")
+	}
+}
+
+func TestGetRunStatus_EpicNotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
+	srv, err := New(tickDir, 18807)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(100 * time.Millisecond)
+
+	resp, err := http.Get("http://localhost:18807/api/run-status/nonexistent")
+	if err != nil {
+		t.Fatalf("failed to request /api/run-status/nonexistent: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("GET /api/run-status/nonexistent status = %d, want %d", resp.StatusCode, http.StatusNotFound)
+	}
+}
+
+func TestGetRunStatus_MethodNotAllowed(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
+	// Create an epic
+	epic := baseTick("epic3", "Test Epic")
+	epic.Type = tick.TypeEpic
+	createTestTick(t, issuesDir, epic)
+
+	srv, err := New(tickDir, 18808)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(100 * time.Millisecond)
+
+	resp, err := http.Post("http://localhost:18808/api/run-status/epic3", "application/json", strings.NewReader("{}"))
+	if err != nil {
+		t.Fatalf("failed to request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("POST /api/run-status/epic3 status = %d, want %d", resp.StatusCode, http.StatusMethodNotAllowed)
+	}
+}
+
+func TestGetRunStatus_EmptyEpicID(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
+	srv, err := New(tickDir, 18809)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(100 * time.Millisecond)
+
+	// Request with no epic ID
+	resp, err := http.Get("http://localhost:18809/api/run-status/")
+	if err != nil {
+		t.Fatalf("failed to request /api/run-status/: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("GET /api/run-status/ status = %d, want %d", resp.StatusCode, http.StatusNotFound)
+	}
+}
+
+func TestGetRunStatus_TaskNotEpic(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
+	// Create a task (not an epic)
+	task := baseTick("task3", "Just a Task")
+	task.Type = tick.TypeTask
+	createTestTick(t, issuesDir, task)
+
+	srv, err := New(tickDir, 18810)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { _ = srv.Run(ctx) }()
+	time.Sleep(100 * time.Millisecond)
+
+	// Request with a task ID instead of epic ID should return 404
+	resp, err := http.Get("http://localhost:18810/api/run-status/task3")
+	if err != nil {
+		t.Fatalf("failed to request /api/run-status/task3: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("GET /api/run-status/task3 status = %d, want %d", resp.StatusCode, http.StatusNotFound)
+	}
+}

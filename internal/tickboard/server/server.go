@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/pengelbrecht/ticks/internal/agent"
 	"github.com/pengelbrecht/ticks/internal/query"
 	"github.com/pengelbrecht/ticks/internal/runrecord"
 	"github.com/pengelbrecht/ticks/internal/tick"
@@ -121,6 +122,9 @@ func (s *Server) Run(ctx context.Context) error {
 
 	// API endpoint: run records
 	mux.HandleFunc("/api/records/", s.handleRecords)
+
+	// API endpoint: run status for an epic
+	mux.HandleFunc("/api/run-status/", s.handleRunStatus)
 
 	// Root handler - serve index.html and PWA assets at root paths
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -578,6 +582,110 @@ func (s *Server) handleRecords(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(record)
+}
+
+// RunStatusResponse is the response body for GET /api/run-status/:epicId.
+type RunStatusResponse struct {
+	EpicID     string                  `json:"epicId"`
+	IsRunning  bool                    `json:"isRunning"`
+	ActiveTask *ActiveTaskStatus       `json:"activeTask,omitempty"`
+	Metrics    *runrecord.LiveRecord   `json:"metrics,omitempty"`
+}
+
+// ActiveTaskStatus contains information about the currently active task.
+type ActiveTaskStatus struct {
+	TickID      string                   `json:"tickId"`
+	Title       string                   `json:"title"`
+	Status      string                   `json:"status"`
+	ActiveTool  *agent.ToolRecord        `json:"activeTool,omitempty"`
+	NumTurns    int                      `json:"numTurns"`
+	Metrics     agent.MetricsRecord      `json:"metrics"`
+	LastUpdated string                   `json:"lastUpdated"`
+}
+
+// handleRunStatus handles GET /api/run-status/:epicId.
+func (s *Server) handleRunStatus(w http.ResponseWriter, r *http.Request) {
+	// Parse path: /api/run-status/:epicId
+	path := strings.TrimPrefix(r.URL.Path, "/api/run-status/")
+	if path == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Remove any trailing slash
+	epicID := strings.TrimSuffix(path, "/")
+	if epicID == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Only GET method is supported
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Load all ticks to find tasks in this epic
+	issuesDir := filepath.Join(s.tickDir, "issues")
+	allTicks, err := query.LoadTicksParallel(issuesDir)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to load ticks: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Verify the epic exists
+	epicExists := false
+	for _, t := range allTicks {
+		if t.ID == epicID && t.Type == tick.TypeEpic {
+			epicExists = true
+			break
+		}
+	}
+	if !epicExists {
+		http.Error(w, "Epic not found", http.StatusNotFound)
+		return
+	}
+
+	// Filter tasks belonging to this epic
+	var epicTasks []tick.Tick
+	for _, t := range allTicks {
+		if t.Parent == epicID {
+			epicTasks = append(epicTasks, t)
+		}
+	}
+
+	// Check for live records for any of the epic's tasks
+	store := runrecord.NewStore(filepath.Dir(s.tickDir))
+	response := RunStatusResponse{
+		EpicID:    epicID,
+		IsRunning: false,
+	}
+
+	// Look for active runs by checking .live.json files
+	for _, t := range epicTasks {
+		if store.LiveExists(t.ID) {
+			liveRecord, err := store.ReadLive(t.ID)
+			if err != nil {
+				continue // Skip if we can't read
+			}
+
+			response.IsRunning = true
+			response.Metrics = liveRecord
+			response.ActiveTask = &ActiveTaskStatus{
+				TickID:      t.ID,
+				Title:       t.Title,
+				Status:      liveRecord.Status,
+				ActiveTool:  liveRecord.ActiveTool,
+				NumTurns:    liveRecord.NumTurns,
+				Metrics:     liveRecord.Metrics,
+				LastUpdated: liveRecord.LastUpdated.Format("2006-01-02T15:04:05Z07:00"),
+			}
+			break // Only one task can be active at a time
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 // Column represents kanban board columns.

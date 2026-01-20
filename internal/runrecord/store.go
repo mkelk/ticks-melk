@@ -192,6 +192,27 @@ func (s *Store) LiveExists(tickID string) bool {
 	return err == nil
 }
 
+// ReadLive loads a live run record for the given tick ID.
+// Returns ErrNotFound if no live record exists.
+func (s *Store) ReadLive(tickID string) (*LiveRecord, error) {
+	path := s.livePath(tickID)
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("read live record: %w", err)
+	}
+
+	var record LiveRecord
+	if err := json.Unmarshal(data, &record); err != nil {
+		return nil, fmt.Errorf("unmarshal live record: %w", err)
+	}
+
+	return &record, nil
+}
+
 // livePath returns the file path for a tick's live run record.
 func (s *Store) livePath(tickID string) string {
 	return filepath.Join(s.dir, tickID+".live.json")
