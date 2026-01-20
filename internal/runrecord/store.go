@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/pengelbrecht/ticks/internal/agent"
 )
@@ -123,4 +124,151 @@ func (s *Store) path(tickID string) string {
 // isLiveFile checks if a filename is a live record (ends with .live.json).
 func isLiveFile(name string) bool {
 	return len(name) > 10 && name[len(name)-10:] == ".live.json"
+}
+
+// WriteLive writes an in-progress agent state snapshot to a .live.json file.
+// This is used for real-time tracking during agent runs.
+// The file is written atomically using a temp file + rename.
+func (s *Store) WriteLive(tickID string, snap agent.AgentStateSnapshot) error {
+	if err := os.MkdirAll(s.dir, 0755); err != nil {
+		return fmt.Errorf("create runrecords dir: %w", err)
+	}
+
+	// Convert snapshot to a live record structure
+	liveRecord := snapshotToLiveRecord(snap)
+
+	data, err := json.MarshalIndent(liveRecord, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal live record: %w", err)
+	}
+
+	// Write atomically: temp file + rename
+	livePath := s.livePath(tickID)
+	tempPath := livePath + ".tmp"
+
+	if err := os.WriteFile(tempPath, data, 0644); err != nil {
+		return fmt.Errorf("write live record temp: %w", err)
+	}
+
+	if err := os.Rename(tempPath, livePath); err != nil {
+		os.Remove(tempPath) // cleanup on failure
+		return fmt.Errorf("rename live record: %w", err)
+	}
+
+	return nil
+}
+
+// FinalizeLive renames a .live.json file to .json, marking the run as complete.
+// If the live file doesn't exist, this is a no-op (returns nil).
+func (s *Store) FinalizeLive(tickID string) error {
+	livePath := s.livePath(tickID)
+	finalPath := s.path(tickID)
+
+	err := os.Rename(livePath, finalPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // No live file to finalize
+		}
+		return fmt.Errorf("finalize live record: %w", err)
+	}
+
+	return nil
+}
+
+// DeleteLive removes a .live.json file if it exists.
+// This is useful for cleanup after errors.
+// Returns nil if the file doesn't exist.
+func (s *Store) DeleteLive(tickID string) error {
+	err := os.Remove(s.livePath(tickID))
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("delete live record: %w", err)
+	}
+	return nil
+}
+
+// LiveExists checks if a .live.json file exists for the given tick ID.
+func (s *Store) LiveExists(tickID string) bool {
+	_, err := os.Stat(s.livePath(tickID))
+	return err == nil
+}
+
+// livePath returns the file path for a tick's live run record.
+func (s *Store) livePath(tickID string) string {
+	return filepath.Join(s.dir, tickID+".live.json")
+}
+
+// LiveRecord represents an in-progress run record.
+// It mirrors RunRecord but may have incomplete data.
+type LiveRecord struct {
+	SessionID   string              `json:"session_id"`
+	Model       string              `json:"model"`
+	StartedAt   time.Time           `json:"started_at"`
+	Output      string              `json:"output"`
+	Thinking    string              `json:"thinking,omitempty"`
+	Tools       []agent.ToolRecord  `json:"tools,omitempty"`
+	ActiveTool  *agent.ToolRecord   `json:"active_tool,omitempty"`
+	Metrics     agent.MetricsRecord `json:"metrics"`
+	Status      string              `json:"status"`
+	NumTurns    int                 `json:"num_turns"`
+	ErrorMsg    string              `json:"error_msg,omitempty"`
+	LastUpdated time.Time           `json:"last_updated"`
+}
+
+// snapshotToLiveRecord converts an AgentStateSnapshot to a LiveRecord.
+func snapshotToLiveRecord(snap agent.AgentStateSnapshot) LiveRecord {
+	tools := make([]agent.ToolRecord, len(snap.ToolHistory))
+	for i, t := range snap.ToolHistory {
+		tools[i] = agent.ToolRecord{
+			Name:     t.Name,
+			Input:    truncateString(t.Input, 500),
+			Output:   truncateString(t.Output, 500),
+			Duration: int(t.Duration.Milliseconds()),
+			IsError:  t.IsError,
+		}
+	}
+
+	var activeTool *agent.ToolRecord
+	if snap.ActiveTool != nil {
+		activeTool = &agent.ToolRecord{
+			Name:     snap.ActiveTool.Name,
+			Input:    truncateString(snap.ActiveTool.Input, 500),
+			Duration: int(time.Since(snap.ActiveTool.StartedAt).Milliseconds()),
+			IsError:  snap.ActiveTool.IsError,
+		}
+	}
+
+	return LiveRecord{
+		SessionID:   snap.SessionID,
+		Model:       snap.Model,
+		StartedAt:   snap.StartedAt,
+		Output:      snap.Output,
+		Thinking:    snap.Thinking,
+		Tools:       tools,
+		ActiveTool:  activeTool,
+		Metrics:     metricsToRecord(snap.Metrics),
+		Status:      string(snap.Status),
+		NumTurns:    snap.NumTurns,
+		ErrorMsg:    snap.ErrorMsg,
+		LastUpdated: time.Now(),
+	}
+}
+
+// metricsToRecord converts agent.Metrics to agent.MetricsRecord.
+func metricsToRecord(m agent.Metrics) agent.MetricsRecord {
+	return agent.MetricsRecord{
+		InputTokens:         m.InputTokens,
+		OutputTokens:        m.OutputTokens,
+		CacheReadTokens:     m.CacheReadTokens,
+		CacheCreationTokens: m.CacheCreationTokens,
+		CostUSD:             m.CostUSD,
+		DurationMS:          m.DurationMS,
+	}
+}
+
+// truncateString truncates a string to the given max length.
+func truncateString(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
 }

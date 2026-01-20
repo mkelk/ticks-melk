@@ -183,3 +183,180 @@ func TestStore_ListSkipsLiveFiles(t *testing.T) {
 		t.Errorf("Expected 'abc', got %q", ids[0])
 	}
 }
+
+func TestStore_WriteLive(t *testing.T) {
+	dir := t.TempDir()
+	store := NewStore(dir)
+
+	snap := agent.AgentStateSnapshot{
+		SessionID: "live-session-123",
+		Model:     "claude-sonnet-4-20250514",
+		StartedAt: time.Now(),
+		Output:    "Working on task...",
+		Thinking:  "Let me think...",
+		Status:    agent.StatusWriting,
+		NumTurns:  1,
+		Metrics: agent.Metrics{
+			InputTokens:  500,
+			OutputTokens: 200,
+			CostUSD:      0.02,
+		},
+		ToolHistory: []agent.ToolActivity{
+			{Name: "Read", Input: "file.go", Duration: 100 * time.Millisecond},
+		},
+	}
+
+	// Write live record
+	err := store.WriteLive("abc", snap)
+	if err != nil {
+		t.Fatalf("WriteLive failed: %v", err)
+	}
+
+	// Verify .live.json file exists
+	livePath := filepath.Join(dir, ".tick", "logs", "records", "abc.live.json")
+	if _, err := os.Stat(livePath); os.IsNotExist(err) {
+		t.Fatal("Live record file not created")
+	}
+
+	// Verify LiveExists returns true
+	if !store.LiveExists("abc") {
+		t.Error("LiveExists returned false for existing live record")
+	}
+
+	// Read the file and verify content
+	data, err := os.ReadFile(livePath)
+	if err != nil {
+		t.Fatalf("Failed to read live file: %v", err)
+	}
+
+	if len(data) == 0 {
+		t.Error("Live file is empty")
+	}
+
+	// Should contain the session ID
+	if !contains(string(data), "live-session-123") {
+		t.Error("Live file doesn't contain session ID")
+	}
+}
+
+func TestStore_FinalizeLive(t *testing.T) {
+	dir := t.TempDir()
+	store := NewStore(dir)
+
+	snap := agent.AgentStateSnapshot{
+		SessionID: "finalize-session",
+		Model:     "claude-sonnet-4-20250514",
+		StartedAt: time.Now(),
+		Output:    "Task complete!",
+		Status:    agent.StatusComplete,
+	}
+
+	// Write live record
+	err := store.WriteLive("xyz", snap)
+	if err != nil {
+		t.Fatalf("WriteLive failed: %v", err)
+	}
+
+	// Verify .live.json exists and .json doesn't
+	livePath := filepath.Join(dir, ".tick", "logs", "records", "xyz.live.json")
+	finalPath := filepath.Join(dir, ".tick", "logs", "records", "xyz.json")
+
+	if _, err := os.Stat(livePath); os.IsNotExist(err) {
+		t.Fatal("Live file should exist before finalize")
+	}
+	if _, err := os.Stat(finalPath); !os.IsNotExist(err) {
+		t.Fatal("Final file should not exist before finalize")
+	}
+
+	// Finalize
+	err = store.FinalizeLive("xyz")
+	if err != nil {
+		t.Fatalf("FinalizeLive failed: %v", err)
+	}
+
+	// Verify .live.json is gone and .json exists
+	if _, err := os.Stat(livePath); !os.IsNotExist(err) {
+		t.Error("Live file should be removed after finalize")
+	}
+	if _, err := os.Stat(finalPath); os.IsNotExist(err) {
+		t.Error("Final file should exist after finalize")
+	}
+
+	// Verify LiveExists returns false after finalize
+	if store.LiveExists("xyz") {
+		t.Error("LiveExists should return false after finalize")
+	}
+
+	// Verify Exists returns true for the final record
+	if !store.Exists("xyz") {
+		t.Error("Exists should return true after finalize")
+	}
+}
+
+func TestStore_FinalizeLiveNoOp(t *testing.T) {
+	dir := t.TempDir()
+	store := NewStore(dir)
+
+	// Finalize nonexistent live file should be a no-op
+	err := store.FinalizeLive("nonexistent")
+	if err != nil {
+		t.Errorf("FinalizeLive on nonexistent should not error: %v", err)
+	}
+}
+
+func TestStore_DeleteLive(t *testing.T) {
+	dir := t.TempDir()
+	store := NewStore(dir)
+
+	snap := agent.AgentStateSnapshot{
+		SessionID: "delete-session",
+	}
+
+	// Write live record
+	err := store.WriteLive("del", snap)
+	if err != nil {
+		t.Fatalf("WriteLive failed: %v", err)
+	}
+
+	if !store.LiveExists("del") {
+		t.Fatal("Live record should exist before delete")
+	}
+
+	// Delete live record
+	err = store.DeleteLive("del")
+	if err != nil {
+		t.Fatalf("DeleteLive failed: %v", err)
+	}
+
+	if store.LiveExists("del") {
+		t.Error("Live record should not exist after delete")
+	}
+
+	// Delete nonexistent should not error
+	err = store.DeleteLive("nonexistent")
+	if err != nil {
+		t.Errorf("DeleteLive nonexistent should not error: %v", err)
+	}
+}
+
+func TestStore_LiveExistsFalse(t *testing.T) {
+	dir := t.TempDir()
+	store := NewStore(dir)
+
+	if store.LiveExists("nonexistent") {
+		t.Error("LiveExists should return false for nonexistent record")
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
+}
+
+func containsHelper(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}

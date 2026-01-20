@@ -13,6 +13,7 @@ import (
 	"github.com/pengelbrecht/ticks/internal/checkpoint"
 	epiccontext "github.com/pengelbrecht/ticks/internal/context"
 	"github.com/pengelbrecht/ticks/internal/runlog"
+	"github.com/pengelbrecht/ticks/internal/runrecord"
 	"github.com/pengelbrecht/ticks/internal/ticks"
 	"github.com/pengelbrecht/ticks/internal/verify"
 	"github.com/pengelbrecht/ticks/internal/worktree"
@@ -48,6 +49,9 @@ type Engine struct {
 	// Context generation components (optional)
 	contextStore     *epiccontext.Store
 	contextGenerator *epiccontext.Generator
+
+	// Run record store for live file tracking (optional)
+	runRecordStore *runrecord.Store
 
 	// Verification enabled flag (set via EnableVerification)
 	verifyEnabled bool
@@ -400,6 +404,13 @@ func (e *Engine) loadEpicContext(epicID string) string {
 // When set, all control flow decisions are logged to .ticker/runs/<run-id>.jsonl.
 func (e *Engine) SetRunLog(l *runlog.Logger) {
 	e.runLog = l
+}
+
+// SetRunRecordStore sets the run record store for live file tracking.
+// When set, agent state snapshots are written to .tick/logs/records/<tick-id>.live.json
+// during runs, and finalized to .json on completion.
+func (e *Engine) SetRunRecordStore(s *runrecord.Store) {
+	e.runRecordStore = s
 }
 
 // RunLog returns the current run logger (may be nil).
@@ -1008,9 +1019,20 @@ func (e *Engine) runIteration(ctx context.Context, state *runState, task *ticks.
 		WorkDir: state.workDir,
 	}
 
-	// Set up rich streaming callback if configured (preferred)
-	if e.OnAgentState != nil {
-		opts.StateCallback = e.OnAgentState
+	// Set up rich streaming callback with live file tracking
+	// If runRecordStore is configured, we wrap the callback to also write .live.json
+	if e.OnAgentState != nil || e.runRecordStore != nil {
+		opts.StateCallback = func(snap agent.AgentStateSnapshot) {
+			// Call user-provided callback if set
+			if e.OnAgentState != nil {
+				e.OnAgentState(snap)
+			}
+			// Write to .live.json file for external watchers (e.g., tickboard)
+			if e.runRecordStore != nil {
+				// Ignore write errors - live tracking is best-effort
+				_ = e.runRecordStore.WriteLive(task.ID, snap)
+			}
+		}
 	}
 
 	// Set up legacy streaming if callback is configured (backward compat)
@@ -1028,6 +1050,12 @@ func (e *Engine) runIteration(ctx context.Context, state *runState, task *ticks.
 	}
 
 	agentResult, err := e.agent.Run(iterCtx2, prompt, opts)
+
+	// Finalize live record if store is configured
+	// This renames .live.json to .json (or deletes on error)
+	if e.runRecordStore != nil {
+		_ = e.runRecordStore.FinalizeLive(task.ID)
+	}
 
 	// Close stream channel
 	if streamChan != nil {
