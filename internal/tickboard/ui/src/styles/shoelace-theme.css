@@ -1,0 +1,169 @@
+/**
+ * Shoelace Theme Override - Catppuccin Mocha
+ *
+ * Maps Catppuccin Mocha colors to Shoelace CSS design tokens.
+ * This file overrides Shoelace's default dark theme to use Catppuccin colors.
+ *
+ * Import order matters:
+ * 1. @shoelace-style/shoelace/dist/themes/dark.css (base dark theme)
+ * 2. catppuccin.css (color palette)
+ * 3. shoelace-theme.css (this file - overrides)
+ */
+:root {
+  /*
+   * Primary color (blue) - used for primary buttons, links, focus rings
+   */
+  --sl-color-primary-50: color-mix(in srgb, var(--blue) 10%, var(--base));
+  --sl-color-primary-100: color-mix(in srgb, var(--blue) 20%, var(--base));
+  --sl-color-primary-200: color-mix(in srgb, var(--blue) 40%, var(--base));
+  --sl-color-primary-300: color-mix(in srgb, var(--blue) 60%, var(--base));
+  --sl-color-primary-400: color-mix(in srgb, var(--blue) 80%, var(--base));
+  --sl-color-primary-500: var(--blue);
+  --sl-color-primary-600: var(--sapphire);
+  --sl-color-primary-700: color-mix(in srgb, var(--sapphire) 80%, var(--crust));
+  --sl-color-primary-800: color-mix(in srgb, var(--sapphire) 60%, var(--crust));
+  --sl-color-primary-900: color-mix(in srgb, var(--sapphire) 40%, var(--crust));
+  --sl-color-primary-950: color-mix(in srgb, var(--sapphire) 20%, var(--crust));
+
+  /*
+   * Success color (green) - used for success states, confirmations
+   */
+  --sl-color-success-50: color-mix(in srgb, var(--green) 10%, var(--base));
+  --sl-color-success-100: color-mix(in srgb, var(--green) 20%, var(--base));
+  --sl-color-success-200: color-mix(in srgb, var(--green) 40%, var(--base));
+  --sl-color-success-300: color-mix(in srgb, var(--green) 60%, var(--base));
+  --sl-color-success-400: color-mix(in srgb, var(--green) 80%, var(--base));
+  --sl-color-success-500: var(--green);
+  --sl-color-success-600: color-mix(in srgb, var(--green) 90%, var(--crust));
+  --sl-color-success-700: color-mix(in srgb, var(--green) 70%, var(--crust));
+  --sl-color-success-800: color-mix(in srgb, var(--green) 50%, var(--crust));
+  --sl-color-success-900: color-mix(in srgb, var(--green) 30%, var(--crust));
+  --sl-color-success-950: color-mix(in srgb, var(--green) 15%, var(--crust));
+
+  /*
+   * Warning color (yellow) - used for warning states, caution
+   */
+  --sl-color-warning-50: color-mix(in srgb, var(--yellow) 10%, var(--base));
+  --sl-color-warning-100: color-mix(in srgb, var(--yellow) 20%, var(--base));
+  --sl-color-warning-200: color-mix(in srgb, var(--yellow) 40%, var(--base));
+  --sl-color-warning-300: color-mix(in srgb, var(--yellow) 60%, var(--base));
+  --sl-color-warning-400: color-mix(in srgb, var(--yellow) 80%, var(--base));
+  --sl-color-warning-500: var(--yellow);
+  --sl-color-warning-600: color-mix(in srgb, var(--yellow) 90%, var(--crust));
+  --sl-color-warning-700: color-mix(in srgb, var(--yellow) 70%, var(--crust));
+  --sl-color-warning-800: color-mix(in srgb, var(--yellow) 50%, var(--crust));
+  --sl-color-warning-900: color-mix(in srgb, var(--yellow) 30%, var(--crust));
+  --sl-color-warning-950: color-mix(in srgb, var(--yellow) 15%, var(--crust));
+
+  /*
+   * Danger color (red) - used for errors, destructive actions
+   */
+  --sl-color-danger-50: color-mix(in srgb, var(--red) 10%, var(--base));
+  --sl-color-danger-100: color-mix(in srgb, var(--red) 20%, var(--base));
+  --sl-color-danger-200: color-mix(in srgb, var(--red) 40%, var(--base));
+  --sl-color-danger-300: color-mix(in srgb, var(--red) 60%, var(--base));
+  --sl-color-danger-400: color-mix(in srgb, var(--red) 80%, var(--base));
+  --sl-color-danger-500: var(--red);
+  --sl-color-danger-600: color-mix(in srgb, var(--red) 90%, var(--crust));
+  --sl-color-danger-700: color-mix(in srgb, var(--red) 70%, var(--crust));
+  --sl-color-danger-800: color-mix(in srgb, var(--red) 50%, var(--crust));
+  --sl-color-danger-900: color-mix(in srgb, var(--red) 30%, var(--crust));
+  --sl-color-danger-950: color-mix(in srgb, var(--red) 15%, var(--crust));
+
+  /*
+   * Neutral colors - used for text, borders, backgrounds
+   * Maps Catppuccin's base/surface/overlay/text scale to Shoelace neutral scale
+   */
+  --sl-color-neutral-0: var(--crust);
+  --sl-color-neutral-50: var(--mantle);
+  --sl-color-neutral-100: var(--base);
+  --sl-color-neutral-200: var(--surface0);
+  --sl-color-neutral-300: var(--surface1);
+  --sl-color-neutral-400: var(--surface2);
+  --sl-color-neutral-500: var(--overlay0);
+  --sl-color-neutral-600: var(--overlay1);
+  --sl-color-neutral-700: var(--overlay2);
+  --sl-color-neutral-800: var(--subtext0);
+  --sl-color-neutral-900: var(--subtext1);
+  --sl-color-neutral-950: var(--text);
+  --sl-color-neutral-1000: var(--text);
+
+  /*
+   * Panel & Container backgrounds
+   */
+  --sl-panel-background-color: var(--mantle);
+  --sl-panel-border-color: var(--surface0);
+
+  /*
+   * Input styling
+   */
+  --sl-input-background-color: var(--surface0);
+  --sl-input-background-color-hover: var(--surface1);
+  --sl-input-background-color-focus: var(--surface0);
+  --sl-input-background-color-disabled: var(--mantle);
+  --sl-input-border-color: var(--surface1);
+  --sl-input-border-color-hover: var(--surface2);
+  --sl-input-border-color-focus: var(--blue);
+  --sl-input-border-color-disabled: var(--surface0);
+  --sl-input-color: var(--text);
+  --sl-input-color-hover: var(--text);
+  --sl-input-color-focus: var(--text);
+  --sl-input-color-disabled: var(--overlay0);
+  --sl-input-placeholder-color: var(--overlay0);
+  --sl-input-placeholder-color-disabled: var(--surface2);
+  --sl-input-filled-background-color: var(--surface0);
+  --sl-input-filled-background-color-hover: var(--surface1);
+  --sl-input-filled-background-color-focus: var(--surface0);
+  --sl-input-filled-background-color-disabled: var(--mantle);
+  --sl-input-filled-color: var(--text);
+  --sl-input-filled-color-disabled: var(--overlay0);
+
+  /*
+   * Focus ring
+   */
+  --sl-focus-ring-color: var(--blue);
+  --sl-focus-ring-style: solid;
+  --sl-focus-ring-width: 2px;
+  --sl-focus-ring-offset: 1px;
+  --sl-focus-ring: var(--sl-focus-ring-style) var(--sl-focus-ring-width) var(--sl-focus-ring-color);
+
+  /*
+   * Overlay (modals, drawers)
+   */
+  --sl-overlay-background-color: rgba(17, 17, 27, 0.7); /* crust with opacity */
+
+  /*
+   * Tooltip
+   */
+  --sl-tooltip-background-color: var(--surface1);
+  --sl-tooltip-color: var(--text);
+  --sl-tooltip-border-radius: var(--sl-border-radius-medium);
+
+  /*
+   * Border radius - slightly rounded for modern look
+   */
+  --sl-border-radius-small: 4px;
+  --sl-border-radius-medium: 8px;
+  --sl-border-radius-large: 12px;
+  --sl-border-radius-x-large: 16px;
+  --sl-border-radius-circle: 50%;
+  --sl-border-radius-pill: 9999px;
+
+  /*
+   * Shadow colors using Catppuccin crust
+   */
+  --sl-shadow-x-small: 0 1px 2px rgba(17, 17, 27, 0.3);
+  --sl-shadow-small: 0 1px 3px rgba(17, 17, 27, 0.4);
+  --sl-shadow-medium: 0 2px 6px rgba(17, 17, 27, 0.4);
+  --sl-shadow-large: 0 4px 12px rgba(17, 17, 27, 0.5);
+  --sl-shadow-x-large: 0 8px 24px rgba(17, 17, 27, 0.5);
+
+  /*
+   * Z-index layering
+   */
+  --sl-z-index-drawer: 700;
+  --sl-z-index-dialog: 800;
+  --sl-z-index-dropdown: 900;
+  --sl-z-index-toast: 950;
+  --sl-z-index-tooltip: 1000;
+}

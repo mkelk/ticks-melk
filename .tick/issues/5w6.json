@@ -1,0 +1,16 @@
+{
+  "id": "5w6",
+  "title": "Initialize Vite + Lit + TypeScript project structure",
+  "description": "Create internal/tickboard/ui/ directory with:\n- package.json with dependencies: lit@3.x, @shoelace-style/shoelace@2.x, vite@5.x\n- vite.config.ts configured to output to ../server/static/\n- tsconfig.json with strict mode and DOM libs\n- index.html entry point\n- src/main.ts entry point\n- src/types/tick.ts with Tick interface matching existing API\n\nTest: cd internal/tickboard/ui \u0026\u0026 pnpm install \u0026\u0026 pnpm run dev",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "sgd",
+  "acceptance_criteria": "pnpm install succeeds without errors, pnpm run dev starts Vite on localhost:5173, tsc --noEmit passes",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-19T20:03:13.861439Z",
+  "updated_at": "2026-01-19T20:16:04.867448Z",
+  "closed_at": "2026-01-19T20:16:04.867448Z",
+  "closed_reason": "Created internal/tickboard/ui/ with Vite + Lit + TypeScript build pipeline. Files: package.json (lit@3.x, shoelace@2.x, vite@5.x), vite.config.ts (outputs to ../server/static/, copies Shoelace icons), tsconfig.json (strict mode, decorators), index.html (Catppuccin/Shoelace theming), src/main.ts (Shoelace imports, base path), src/types/tick.ts (Tick interface matching API). Verified: pnpm install, pnpm dev, pnpm build all work."
+}
