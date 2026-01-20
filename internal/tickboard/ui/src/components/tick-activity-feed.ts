@@ -339,7 +339,7 @@ export class TickActivityFeed extends LitElement {
       <sl-dropdown @sl-show=${this.handleDropdownShow}>
         <div slot="trigger" class="trigger-button">
           <sl-button variant="text" size="small">
-            <sl-icon name="bell"></sl-icon>
+            <sl-icon slot="prefix" name="bell"></sl-icon>
           </sl-button>
           ${this.unreadCount > 0
             ? html`<span class="unread-badge">${this.unreadCount > 9 ? '9+' : this.unreadCount}</span>`
@@ -352,7 +352,7 @@ export class TickActivityFeed extends LitElement {
             ${this.activities.length > 0
               ? html`
                   <sl-button size="small" variant="text" @click=${this.loadActivities}>
-                    <sl-icon name="arrow-clockwise"></sl-icon>
+                    <sl-icon slot="prefix" name="arrow-clockwise"></sl-icon>
                   </sl-button>
                 `
               : nothing}
