@@ -303,6 +303,10 @@ func ResetFlags() {
 
 	// Reset board flags
 	boardPort = 3000
+
+	// Reset gc flags
+	gcDryRun = false
+	gcMaxAge = "30d"
 }
 
 // SetVersion allows main.go to set the version at initialization
