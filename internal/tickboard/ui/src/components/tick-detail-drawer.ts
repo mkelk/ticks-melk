@@ -3,6 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type { Tick, BoardTick } from '../types/tick.js';
 import type { Note, BlockerDetail, RunRecord, ToolRecord, VerificationRecord, VerifierResult } from '../api/ticks.js';
 import { approveTick, rejectTick, closeTick, reopenTick, addNote, fetchRecord, ApiError } from '../api/ticks.js';
+import './run-record.js';
 
 // Priority labels for display
 const PRIORITY_LABELS: Record<number, string> = {
@@ -834,6 +835,88 @@ export class TickDetailDrawer extends LitElement {
       color: var(--red);
       margin-top: 0.25rem;
     }
+
+    /* Tab group styles */
+    .tab-container {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    sl-tab-group {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    sl-tab-group::part(base) {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    sl-tab-group::part(nav) {
+      background: var(--surface0);
+      border-bottom: 1px solid var(--surface1);
+    }
+
+    sl-tab-group::part(tabs) {
+      padding: 0 0.75rem;
+    }
+
+    sl-tab-group::part(body) {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    sl-tab::part(base) {
+      font-size: 0.8125rem;
+      padding: 0.625rem 0.875rem;
+      color: var(--subtext0);
+    }
+
+    sl-tab::part(base):hover {
+      color: var(--text);
+    }
+
+    sl-tab[active]::part(base) {
+      color: var(--blue);
+    }
+
+    sl-tab-panel {
+      height: 100%;
+      overflow-y: auto;
+    }
+
+    sl-tab-panel::part(base) {
+      padding: 0;
+      height: 100%;
+    }
+
+    .run-tab-content {
+      padding: 1rem;
+    }
+
+    .run-tab-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+      color: var(--subtext0);
+    }
+
+    .run-tab-empty sl-icon {
+      font-size: 2rem;
+      margin-bottom: 0.75rem;
+      opacity: 0.5;
+    }
+
+    .run-tab-empty .empty-message {
+      font-size: 0.875rem;
+      font-style: italic;
+    }
   `;
 
   @property({ attribute: false })
@@ -870,6 +953,9 @@ export class TickDetailDrawer extends LitElement {
   @state() private loadingRunRecord = false;
   @state() private runRecordError = '';
   @state() private expandedSections: Set<string> = new Set();
+
+  // Tab state
+  @state() private activeTab = 'details';
 
   private handleDrawerHide() {
     // Reset action state when drawer closes
@@ -939,6 +1025,8 @@ export class TickDetailDrawer extends LitElement {
     this.loadingRunRecord = false;
     this.runRecordError = '';
     this.expandedSections = new Set();
+    // Reset tab state
+    this.activeTab = 'details';
   }
 
   private emitTickUpdated(tick: BoardTick & { notesList?: Note[]; blockerDetails?: BlockerDetail[] }) {
@@ -1836,8 +1924,157 @@ export class TickDetailDrawer extends LitElement {
     `;
   }
 
+  private renderRunTab() {
+    // Show Run tab content for task type only
+    if (this.tick?.type !== 'task') {
+      return html`
+        <div class="run-tab-empty">
+          <sl-icon name="info-circle"></sl-icon>
+          <div class="empty-message">Run data is only available for tasks.</div>
+        </div>
+      `;
+    }
+
+    // Use the run-record component
+    return html`
+      <div class="run-tab-content">
+        <run-record
+          .record=${this.runRecord}
+          .loading=${this.loadingRunRecord}
+          .error=${this.runRecordError}
+        ></run-record>
+      </div>
+    `;
+  }
+
+  private shouldShowRunTab(): boolean {
+    // Only show Run tab for closed tasks
+    return this.tick?.type === 'task' && this.tick?.status === 'closed';
+  }
+
+  private renderDetailsContent() {
+    const tick = this.tick;
+    if (!tick) return nothing;
+
+    return html`
+      <div class="drawer-content">
+        <!-- Header: ID and Title -->
+        <div class="section">
+          <div class="tick-id">${tick.id}</div>
+          <h2 class="tick-title">${tick.title}</h2>
+
+          <!-- Status badges row -->
+          <div class="meta-row">
+            <span class="meta-badge type-badge type-${tick.type}"
+              >${tick.type}</span
+            >
+            <span class="meta-badge status-${tick.status}"
+              >${tick.status.replace('_', ' ')}</span
+            >
+            <span
+              class="meta-badge priority"
+              style="--priority-color: ${this.getPriorityColor(tick.priority)}"
+            >
+              ${this.getPriorityLabel(tick.priority)}
+            </span>
+            ${tick.manual
+              ? html`<span class="meta-badge manual">👤 Manual</span>`
+              : nothing}
+            ${tick.awaiting
+              ? html`<span class="meta-badge awaiting">⏳ ${tick.awaiting}</span>`
+              : nothing}
+            ${tick.verdict
+              ? html`<span class="meta-badge verdict-${tick.verdict}"
+                  >${tick.verdict}</span
+                >`
+              : nothing}
+            ${this.blockerDetails && this.blockerDetails.length > 0
+              ? html`<span class="meta-badge blocked">⊘ Blocked</span>`
+              : nothing}
+          </div>
+        </div>
+
+        <!-- Actions (approve/reject/close/reopen) -->
+        ${this.renderActions()}
+
+        <!-- Description -->
+        <div class="section">
+          <div class="section-title">Description</div>
+          ${tick.description
+            ? html`<div class="description">${tick.description}</div>`
+            : html`<span class="empty-text">No description</span>`}
+        </div>
+
+        <!-- Parent Epic -->
+        <div class="section">
+          <div class="section-title">Parent Epic</div>
+          ${this.renderParent()}
+        </div>
+
+        <!-- Blocked By -->
+        <div class="section">
+          <div class="section-title">Blocked By</div>
+          ${this.renderBlockers()}
+        </div>
+
+        <!-- Labels -->
+        <div class="section">
+          <div class="section-title">Labels</div>
+          ${this.renderLabels()}
+        </div>
+
+        <sl-divider></sl-divider>
+
+        <!-- Notes -->
+        <div class="section">
+          <div class="section-title">Notes</div>
+          ${this.renderNotes()}
+        </div>
+
+        <sl-divider></sl-divider>
+
+        <!-- Timestamps -->
+        <div class="section">
+          <div class="timestamp-row">
+            <span class="timestamp-label">Created</span>
+            <span class="timestamp-value"
+              >${this.formatTimestamp(tick.created_at)}</span
+            >
+          </div>
+          <div class="timestamp-row" style="margin-top: 0.375rem">
+            <span class="timestamp-label">Updated</span>
+            <span class="timestamp-value"
+              >${this.formatTimestamp(tick.updated_at)}</span
+            >
+          </div>
+          ${tick.closed_at
+            ? html`
+                <div class="timestamp-row" style="margin-top: 0.375rem">
+                  <span class="timestamp-label">Closed</span>
+                  <span class="timestamp-value"
+                    >${this.formatTimestamp(tick.closed_at)}</span
+                  >
+                </div>
+              `
+            : nothing}
+        </div>
+
+        <!-- Closed Reason (if applicable) -->
+        ${tick.closed_reason
+          ? html`
+              <div class="section">
+                <div class="section-title">Closed Reason</div>
+                <div class="description">${tick.closed_reason}</div>
+              </div>
+            `
+          : nothing}
+      </div>
+    `;
+  }
+
   render() {
     const tick = this.tick;
+    const showRunTab = this.shouldShowRunTab();
 
     return html`
       <sl-drawer
@@ -1847,131 +2084,24 @@ export class TickDetailDrawer extends LitElement {
         @sl-after-hide=${this.handleDrawerHide}
       >
         ${tick
-          ? html`
-              <div class="drawer-content">
-                <!-- Header: ID and Title -->
-                <div class="section">
-                  <div class="tick-id">${tick.id}</div>
-                  <h2 class="tick-title">${tick.title}</h2>
+          ? showRunTab
+            ? html`
+                <div class="tab-container">
+                  <sl-tab-group>
+                    <sl-tab slot="nav" panel="details">Details</sl-tab>
+                    <sl-tab slot="nav" panel="run">Run</sl-tab>
 
-                  <!-- Status badges row -->
-                  <div class="meta-row">
-                    <span class="meta-badge type-badge type-${tick.type}"
-                      >${tick.type}</span
-                    >
-                    <span class="meta-badge status-${tick.status}"
-                      >${tick.status.replace('_', ' ')}</span
-                    >
-                    <span
-                      class="meta-badge priority"
-                      style="--priority-color: ${this.getPriorityColor(
-                        tick.priority
-                      )}"
-                    >
-                      ${this.getPriorityLabel(tick.priority)}
-                    </span>
-                    ${tick.manual
-                      ? html`<span class="meta-badge manual">👤 Manual</span>`
-                      : nothing}
-                    ${tick.awaiting
-                      ? html`<span class="meta-badge awaiting"
-                          >⏳ ${tick.awaiting}</span
-                        >`
-                      : nothing}
-                    ${tick.verdict
-                      ? html`<span
-                          class="meta-badge verdict-${tick.verdict}"
-                          >${tick.verdict}</span
-                        >`
-                      : nothing}
-                    ${this.blockerDetails && this.blockerDetails.length > 0
-                      ? html`<span class="meta-badge blocked">⊘ Blocked</span>`
-                      : nothing}
-                  </div>
+                    <sl-tab-panel name="details">
+                      ${this.renderDetailsContent()}
+                    </sl-tab-panel>
+
+                    <sl-tab-panel name="run">
+                      ${this.renderRunTab()}
+                    </sl-tab-panel>
+                  </sl-tab-group>
                 </div>
-
-                <!-- Actions (approve/reject/close/reopen) -->
-                ${this.renderActions()}
-
-                <!-- Description -->
-                <div class="section">
-                  <div class="section-title">Description</div>
-                  ${tick.description
-                    ? html`<div class="description">${tick.description}</div>`
-                    : html`<span class="empty-text">No description</span>`}
-                </div>
-
-                <!-- Parent Epic -->
-                <div class="section">
-                  <div class="section-title">Parent Epic</div>
-                  ${this.renderParent()}
-                </div>
-
-                <!-- Blocked By -->
-                <div class="section">
-                  <div class="section-title">Blocked By</div>
-                  ${this.renderBlockers()}
-                </div>
-
-                <!-- Labels -->
-                <div class="section">
-                  <div class="section-title">Labels</div>
-                  ${this.renderLabels()}
-                </div>
-
-                <sl-divider></sl-divider>
-
-                <!-- Notes -->
-                <div class="section">
-                  <div class="section-title">Notes</div>
-                  ${this.renderNotes()}
-                </div>
-
-                <sl-divider></sl-divider>
-
-                <!-- Verification (for tasks only) -->
-                ${this.renderVerification()}
-
-                <!-- Run History (for tasks only) -->
-                ${this.renderRunHistory()}
-
-                <!-- Timestamps -->
-                <div class="section">
-                  <div class="timestamp-row">
-                    <span class="timestamp-label">Created</span>
-                    <span class="timestamp-value"
-                      >${this.formatTimestamp(tick.created_at)}</span
-                    >
-                  </div>
-                  <div class="timestamp-row" style="margin-top: 0.375rem">
-                    <span class="timestamp-label">Updated</span>
-                    <span class="timestamp-value"
-                      >${this.formatTimestamp(tick.updated_at)}</span
-                    >
-                  </div>
-                  ${tick.closed_at
-                    ? html`
-                        <div class="timestamp-row" style="margin-top: 0.375rem">
-                          <span class="timestamp-label">Closed</span>
-                          <span class="timestamp-value"
-                            >${this.formatTimestamp(tick.closed_at)}</span
-                          >
-                        </div>
-                      `
-                    : nothing}
-                </div>
-
-                <!-- Closed Reason (if applicable) -->
-                ${tick.closed_reason
-                  ? html`
-                      <div class="section">
-                        <div class="section-title">Closed Reason</div>
-                        <div class="description">${tick.closed_reason}</div>
-                      </div>
-                    `
-                  : nothing}
-              </div>
-            `
+              `
+            : this.renderDetailsContent()
           : html`<div class="drawer-content">
               <span class="empty-text">No tick selected</span>
             </div>`}
