@@ -2,6 +2,7 @@
   "id": "0jq",
   "title": "Implement NextTask with direct store access",
   "description": "Implement NextTask and NextTaskWithOptions in DirectClient using query.Ready() and query.Next() instead of shelling out to 'tk next'.",
+  "notes": "2026-01-20 12:51 - (from: human) test note",
   "status": "closed",
   "priority": 2,
   "type": "task",
@@ -12,6 +13,6 @@
   "parent": "h66",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-18T06:43:35.661014Z",
-  "updated_at": "2026-01-18T06:46:26.180605Z",
+  "updated_at": "2026-01-20T12:51:06.337252+01:00",
   "closed_at": "2026-01-18T06:46:26.180605Z"
 }

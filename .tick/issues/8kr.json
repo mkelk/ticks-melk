@@ -6,7 +6,8 @@
   "priority": 2,
   "type": "feature",
   "owner": "peter@engelbrecht.dk",
+  "parent": "py7",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-20T07:39:24.03621Z",
-  "updated_at": "2026-01-20T07:39:24.03621Z"
+  "updated_at": "2026-01-20T12:48:51.831163Z"
 }

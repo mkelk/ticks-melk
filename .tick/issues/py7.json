@@ -1,0 +1,12 @@
+{
+  "id": "py7",
+  "title": "Tickboard Improvements",
+  "description": "UI/UX improvements for the tickboard web interface and ticker TUI",
+  "status": "open",
+  "priority": 2,
+  "type": "epic",
+  "owner": "peter@engelbrecht.dk",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-20T12:48:47.268447Z",
+  "updated_at": "2026-01-20T12:48:47.268447Z"
+}
