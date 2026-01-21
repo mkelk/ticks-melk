@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"time"
 )
@@ -59,6 +60,10 @@ func (a *ClaudeAgent) Run(ctx context.Context, prompt string, opts RunOpts) (*Re
 	if opts.WorkDir != "" {
 		cmd.Dir = opts.WorkDir
 	}
+
+	// Set TICK_OWNER=ticker so tk commands run by the agent
+	// are attributed to "ticker" instead of the human's git email.
+	cmd.Env = append(os.Environ(), "TICK_OWNER=ticker")
 
 	var stderr bytes.Buffer
 
