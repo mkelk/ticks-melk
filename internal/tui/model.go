@@ -17,6 +17,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 
 	"github.com/pengelbrecht/ticks/internal/query"
+	"github.com/pengelbrecht/ticks/internal/styles"
 	"github.com/pengelbrecht/ticks/internal/tick"
 )
 
@@ -204,50 +205,37 @@ type Model struct {
 	rightPaneFocused bool
 }
 
+// TUI-specific styles (layout elements)
 var (
-	headerStyle        = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#F5C2E7"))
-	panelStyle         = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#6C7086")).Padding(0, 1)
-	panelFocusedStyle  = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#89DCEB")).Padding(0, 1)
-	selectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#89DCEB")).Bold(true)
-	dimStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("#A6ADC8"))
-	footerStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#7F849C"))
-	labelStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#7F849C")).Width(10)
-
-	// Priority color styles (Catppuccin Mocha palette)
-	priorityP1Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#F38BA8")) // Red
-	priorityP2Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#FAB387")) // Peach
-	priorityP3Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#A6E3A1")) // Green
-
-	// Status color styles (Catppuccin Mocha palette)
-	statusOpenStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("#6C7086")) // Gray (Overlay0)
-	statusInProgressStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#89B4FA")) // Blue
-	statusClosedStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#A6E3A1")) // Green
-	statusAwaitingStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#F9E2AF")) // Yellow (awaiting human)
-	statusBlockedStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#F38BA8")) // Red (blocked)
-
-	// Type color styles (Catppuccin Mocha palette)
-	typeEpicStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#CBA6F7")) // Purple (Mauve)
-	typeBugStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#F38BA8")) // Red
-	typeFeatureStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#94E2D5")) // Teal
-
-	// Verdict color styles (Catppuccin Mocha palette)
-	verdictApprovedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#A6E3A1")) // Green
-	verdictRejectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#F38BA8")) // Red
+	panelStyle        = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(styles.ColorGray).Padding(0, 1)
+	panelFocusedStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(styles.ColorBlue).Padding(0, 1)
+	selectedStyle     = lipgloss.NewStyle().Foreground(styles.ColorBlue).Bold(true)
+	footerStyle       = lipgloss.NewStyle().Foreground(styles.ColorDim)
 )
 
-// renderPriority returns a color-coded priority string.
+// Aliases for shared styles (for backward compatibility within TUI)
+var (
+	headerStyle           = styles.HeaderStyle
+	dimStyle              = styles.DimStyle
+	labelStyle            = styles.LabelStyle
+	priorityP1Style       = styles.PriorityP1Style
+	priorityP2Style       = styles.PriorityP2Style
+	priorityP3Style       = styles.PriorityP3Style
+	statusOpenStyle       = styles.StatusOpenStyle
+	statusInProgressStyle = styles.StatusInProgressStyle
+	statusClosedStyle     = styles.StatusClosedStyle
+	statusAwaitingStyle   = styles.StatusAwaitingStyle
+	statusBlockedStyle    = styles.StatusBlockedStyle
+	typeEpicStyle         = styles.TypeEpicStyle
+	typeBugStyle          = styles.TypeBugStyle
+	typeFeatureStyle      = styles.TypeFeatureStyle
+	verdictApprovedStyle  = styles.VerdictApprovedStyle
+	verdictRejectedStyle  = styles.VerdictRejectedStyle
+)
+
+// renderPriority returns a color-coded priority string using shared styles.
 func renderPriority(priority int) string {
-	text := fmt.Sprintf("P%d", priority)
-	switch priority {
-	case 1:
-		return priorityP1Style.Render(text)
-	case 2:
-		return priorityP2Style.Render(text)
-	case 3:
-		return priorityP3Style.Render(text)
-	default:
-		return text
-	}
+	return styles.RenderPriority(priority)
 }
 
 // renderStatus returns a color-coded status symbol.
@@ -255,11 +243,11 @@ func renderPriority(priority int) string {
 func renderStatus(status string) string {
 	switch status {
 	case tick.StatusOpen:
-		return statusOpenStyle.Render("○")
+		return statusOpenStyle.Render(styles.IconOpen)
 	case tick.StatusInProgress:
-		return statusInProgressStyle.Render("●")
+		return statusInProgressStyle.Render(styles.IconInProgress)
 	case tick.StatusClosed:
-		return statusClosedStyle.Render("✓")
+		return statusClosedStyle.Render(styles.IconClosed)
 	default:
 		return status
 	}
@@ -295,11 +283,11 @@ func (m *Model) isTickBlocked(t tick.Tick) bool {
 func (m *Model) renderTickStatusIcon(t tick.Tick) string {
 	// Awaiting human takes priority
 	if t.IsAwaitingHuman() {
-		return statusAwaitingStyle.Render("◐")
+		return statusAwaitingStyle.Render(styles.IconAwaiting)
 	}
 	// Blocked status (open tick with open blockers)
 	if t.Status == tick.StatusOpen && m.isTickBlocked(t) {
-		return statusBlockedStyle.Render("⊘")
+		return statusBlockedStyle.Render(styles.IconBlocked)
 	}
 	return renderStatus(t.Status)
 }
@@ -309,7 +297,7 @@ func (m *Model) renderTickStatusIcon(t tick.Tick) string {
 // Deprecated: Use Model.renderTickStatusIcon for blocked detection.
 func renderTickStatus(t tick.Tick) string {
 	if t.IsAwaitingHuman() {
-		return statusAwaitingStyle.Render("◐")
+		return statusAwaitingStyle.Render(styles.IconAwaiting)
 	}
 	return renderStatus(t.Status)
 }

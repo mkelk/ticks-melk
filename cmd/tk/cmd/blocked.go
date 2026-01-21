@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/pengelbrecht/ticks/internal/query"
+	"github.com/pengelbrecht/ticks/internal/styles"
 	"github.com/pengelbrecht/ticks/internal/tick"
 )
 
@@ -76,9 +77,20 @@ func runBlocked(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Println(" ID   PRI  TYPE     STATUS  TITLE")
+	// Print header
+	header := fmt.Sprintf(" %-4s  %s  %-7s  %s  %s", "ID", "PRI", "TYPE", "ST", "TITLE")
+	fmt.Println(styles.DimStyle.Render(header))
+
 	for _, t := range blocked {
-		fmt.Printf(" %-4s P%d   %-7s %-7s %s\n", t.ID, t.Priority, t.Type, t.Status, t.Title)
+		// All blocked ticks show the blocked icon
+		statusIcon := styles.RenderTickStatusWithBlocked(t, true)
+		fmt.Printf(" %-4s  %s  %-7s  %s   %s\n",
+			t.ID,
+			styles.RenderPriority(t.Priority),
+			styles.RenderType(t.Type),
+			statusIcon,
+			t.Title,
+		)
 	}
 	fmt.Printf("\n%d ticks (blocked)\n", len(blocked))
 	return nil

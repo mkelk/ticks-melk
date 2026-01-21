@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 
 	"github.com/pengelbrecht/ticks/internal/github"
 	"github.com/pengelbrecht/ticks/internal/query"
+	"github.com/pengelbrecht/ticks/internal/styles"
 	"github.com/pengelbrecht/ticks/internal/tick"
 )
 
@@ -98,27 +101,68 @@ func runStats(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to detect project: %w", err)
 	}
-	fmt.Println(project)
-	fmt.Printf("\n  Total: %d ticks\n", len(filtered))
-	fmt.Printf("  Status: %s\n", formatStatusCounts(statusCounts))
-	fmt.Printf("  Priority: %s\n", formatPriorityCounts(priorityCounts))
-	fmt.Printf("  Types: %s\n", formatTypeCounts(typeCounts))
-	fmt.Printf("\n  Ready: %d\n", len(ready))
-	fmt.Printf("  Blocked: %d\n", len(blocked))
+
+	// Build content lines
+	var lines []string
+	lines = append(lines, styles.HeaderStyle.Render(project))
+	lines = append(lines, "")
+	lines = append(lines, fmt.Sprintf("%s %d ticks", styles.RenderLabel("Total:"), len(filtered)))
+	lines = append(lines, "")
+	lines = append(lines, styles.RenderLabel("Status:")+"  "+formatStatusCounts(statusCounts))
+	lines = append(lines, styles.RenderLabel("Priority:")+"  "+formatPriorityCounts(priorityCounts))
+	lines = append(lines, styles.RenderLabel("Types:")+"  "+formatTypeCounts(typeCounts))
+	lines = append(lines, "")
+	lines = append(lines, fmt.Sprintf("%s %s",
+		styles.RenderLabel("Ready:"),
+		styles.StatusInProgressStyle.Render(fmt.Sprintf("%d", len(ready)))))
+	lines = append(lines, fmt.Sprintf("%s %s",
+		styles.RenderLabel("Blocked:"),
+		styles.StatusBlockedStyle.Render(fmt.Sprintf("%d", len(blocked)))))
+
+	// Render in box
+	content := strings.Join(lines, "\n")
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(styles.ColorGray).
+		Padding(0, 1).
+		Render(content)
+
+	fmt.Println(box)
 	return nil
 }
 
 func formatStatusCounts(counts map[string]int) string {
-	return fmt.Sprintf("open %d · in progress %d · closed %d",
-		counts[tick.StatusOpen], counts[tick.StatusInProgress], counts[tick.StatusClosed])
+	open := styles.StatusOpenStyle.Render(fmt.Sprintf("%s %d", styles.IconOpen, counts[tick.StatusOpen]))
+	inProgress := styles.StatusInProgressStyle.Render(fmt.Sprintf("%s %d", styles.IconInProgress, counts[tick.StatusInProgress]))
+	closed := styles.StatusClosedStyle.Render(fmt.Sprintf("%s %d", styles.IconClosed, counts[tick.StatusClosed]))
+	return fmt.Sprintf("%s · %s · %s", open, inProgress, closed)
 }
 
 func formatPriorityCounts(counts map[int]int) string {
-	return fmt.Sprintf("P0:%d · P1:%d · P2:%d · P3:%d · P4:%d",
-		counts[0], counts[1], counts[2], counts[3], counts[4])
+	var parts []string
+	for i := 0; i <= 4; i++ {
+		label := fmt.Sprintf("P%d:%d", i, counts[i])
+		switch i {
+		case 0:
+			parts = append(parts, styles.PriorityP0Style.Render(label))
+		case 1:
+			parts = append(parts, styles.PriorityP1Style.Render(label))
+		case 2:
+			parts = append(parts, styles.PriorityP2Style.Render(label))
+		case 3:
+			parts = append(parts, styles.PriorityP3Style.Render(label))
+		default:
+			parts = append(parts, styles.PriorityP4Style.Render(label))
+		}
+	}
+	return strings.Join(parts, " · ")
 }
 
 func formatTypeCounts(counts map[string]int) string {
-	return fmt.Sprintf("bug:%d · feature:%d · task:%d · epic:%d · chore:%d",
-		counts[tick.TypeBug], counts[tick.TypeFeature], counts[tick.TypeTask], counts[tick.TypeEpic], counts[tick.TypeChore])
+	bug := styles.TypeBugStyle.Render(fmt.Sprintf("bug:%d", counts[tick.TypeBug]))
+	feature := styles.TypeFeatureStyle.Render(fmt.Sprintf("feature:%d", counts[tick.TypeFeature]))
+	task := styles.TypeTaskStyle.Render(fmt.Sprintf("task:%d", counts[tick.TypeTask]))
+	epic := styles.TypeEpicStyle.Render(fmt.Sprintf("epic:%d", counts[tick.TypeEpic]))
+	chore := styles.TypeChoreStyle.Render(fmt.Sprintf("chore:%d", counts[tick.TypeChore]))
+	return fmt.Sprintf("%s · %s · %s · %s · %s", bug, feature, task, epic, chore)
 }

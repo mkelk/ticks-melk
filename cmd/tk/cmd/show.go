@@ -8,9 +8,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 
 	"github.com/pengelbrecht/ticks/internal/github"
+	"github.com/pengelbrecht/ticks/internal/styles"
 	"github.com/pengelbrecht/ticks/internal/tick"
 )
 
@@ -62,24 +64,70 @@ func runShow(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Printf("%s  P%d %s  %s  @%s\n\n", t.ID, t.Priority, t.Type, t.Status, t.Owner)
-	fmt.Printf("%s\n\n", t.Title)
-
-	if strings.TrimSpace(t.Description) != "" {
-		fmt.Println("Description:")
-		fmt.Printf("  %s\n\n", t.Description)
-	}
-
-	if strings.TrimSpace(t.Notes) != "" {
-		fmt.Println("Notes:")
-		for _, line := range strings.Split(t.Notes, "\n") {
-			fmt.Printf("  %s\n", line)
+	// Check if tick is blocked
+	isBlocked := false
+	if len(t.BlockedBy) > 0 {
+		allTicks, _ := store.List()
+		openTicks := make(map[string]bool)
+		for _, tk := range allTicks {
+			if tk.Status != tick.StatusClosed {
+				openTicks[tk.ID] = true
+			}
 		}
-		fmt.Println()
+		for _, blockerID := range t.BlockedBy {
+			if openTicks[blockerID] {
+				isBlocked = true
+				break
+			}
+		}
 	}
 
+	// Build content
+	var lines []string
+
+	// Header line: ID  Priority  Type  Status  @owner
+	header := fmt.Sprintf("%s  %s  %s  %s  %s",
+		styles.RenderID(t.ID),
+		styles.RenderPriority(t.Priority),
+		styles.RenderType(t.Type),
+		styles.RenderTickStatusWithBlocked(t, isBlocked),
+		styles.RenderOwner(t.Owner),
+	)
+	lines = append(lines, header)
+	lines = append(lines, "")
+
+	// Title
+	lines = append(lines, styles.BoldStyle.Render(t.Title))
+	lines = append(lines, "")
+
+	// Content width for wrapping (box width minus borders and padding)
+	const boxWidth = 76
+	const indent = "  "
+
+	// Description
+	if strings.TrimSpace(t.Description) != "" {
+		lines = append(lines, styles.RenderHeader("Description:"))
+		lines = append(lines, wrapText(t.Description, boxWidth, indent)...)
+		lines = append(lines, "")
+	}
+
+	// Notes
+	if strings.TrimSpace(t.Notes) != "" {
+		lines = append(lines, styles.RenderHeader("Notes:"))
+		lines = append(lines, wrapText(t.Notes, boxWidth, indent)...)
+		lines = append(lines, "")
+	}
+
+	// Acceptance Criteria
+	if strings.TrimSpace(t.AcceptanceCriteria) != "" {
+		lines = append(lines, styles.RenderHeader("Acceptance Criteria:"))
+		lines = append(lines, wrapText(t.AcceptanceCriteria, boxWidth, indent)...)
+		lines = append(lines, "")
+	}
+
+	// Metadata section
 	if len(t.Labels) > 0 {
-		fmt.Printf("Labels: %s\n", strings.Join(t.Labels, ", "))
+		lines = append(lines, styles.RenderLabel("Labels:")+"  "+strings.Join(t.Labels, ", "))
 	}
 	if len(t.BlockedBy) > 0 {
 		var blocked []string
@@ -91,23 +139,33 @@ func runShow(cmd *cobra.Command, args []string) error {
 			}
 			blocked = append(blocked, fmt.Sprintf("%s (%s)", blocker, blk.Status))
 		}
-		fmt.Printf("Blocked by: %s\n", strings.Join(blocked, ", "))
+		lines = append(lines, styles.RenderLabel("Blocked by:")+"  "+strings.Join(blocked, ", "))
 	}
-	if strings.TrimSpace(t.AcceptanceCriteria) != "" {
-		fmt.Printf("Acceptance: %s\n", t.AcceptanceCriteria)
+	if t.Parent != "" {
+		lines = append(lines, styles.RenderLabel("Parent:")+"  "+t.Parent)
 	}
 	if t.DeferUntil != nil {
-		fmt.Printf("Deferred until: %s\n", t.DeferUntil.Format("2006-01-02"))
+		lines = append(lines, styles.RenderLabel("Deferred:")+"  "+t.DeferUntil.Format("2006-01-02"))
 	}
 	if strings.TrimSpace(t.ExternalRef) != "" {
-		fmt.Printf("External: %s\n", t.ExternalRef)
+		lines = append(lines, styles.RenderLabel("External:")+"  "+t.ExternalRef)
 	}
 
-	fmt.Printf("Created: %s by %s\n", formatTime(t.CreatedAt), t.CreatedBy)
-	fmt.Printf("Updated: %s\n\n", formatTime(t.UpdatedAt))
+	// Timestamps
+	lines = append(lines, "")
+	lines = append(lines, styles.RenderDim(fmt.Sprintf("Created: %s by %s", formatTime(t.CreatedAt), t.CreatedBy)))
+	lines = append(lines, styles.RenderDim(fmt.Sprintf("Updated: %s", formatTime(t.UpdatedAt))))
+	lines = append(lines, styles.RenderDim(fmt.Sprintf("Global:  %s:%s", project, t.ID)))
 
-	fmt.Printf("Global: %s:%s\n", project, t.ID)
+	// Render in box
+	content := strings.Join(lines, "\n")
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(styles.ColorGray).
+		Padding(0, 1).
+		Render(content)
 
+	fmt.Println(box)
 	return nil
 }
 
@@ -117,4 +175,40 @@ func formatTime(t time.Time) string {
 		return "unknown"
 	}
 	return t.Format("2006-01-02 15:04")
+}
+
+// wrapText wraps text to fit within maxWidth, preserving existing newlines.
+// Each line is prefixed with the given indent.
+func wrapText(text string, maxWidth int, indent string) []string {
+	var result []string
+	contentWidth := maxWidth - len(indent)
+	if contentWidth < 20 {
+		contentWidth = 20
+	}
+
+	for _, paragraph := range strings.Split(text, "\n") {
+		paragraph = strings.TrimSpace(paragraph)
+		if paragraph == "" {
+			result = append(result, indent)
+			continue
+		}
+
+		words := strings.Fields(paragraph)
+		if len(words) == 0 {
+			result = append(result, indent)
+			continue
+		}
+
+		line := indent + words[0]
+		for _, word := range words[1:] {
+			if len(line)+1+len(word) > maxWidth {
+				result = append(result, line)
+				line = indent + word
+			} else {
+				line += " " + word
+			}
+		}
+		result = append(result, line)
+	}
+	return result
 }

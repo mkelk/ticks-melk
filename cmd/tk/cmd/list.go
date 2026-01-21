@@ -11,6 +11,7 @@ import (
 
 	"github.com/pengelbrecht/ticks/internal/github"
 	"github.com/pengelbrecht/ticks/internal/query"
+	"github.com/pengelbrecht/ticks/internal/styles"
 	"github.com/pengelbrecht/ticks/internal/tick"
 )
 
@@ -195,9 +196,38 @@ func runList(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Println(" ID   PRI  TYPE     STATUS  TITLE")
+	// Build open ticks map for blocked detection
+	openTicks := make(map[string]bool)
+	for _, t := range ticks {
+		if t.Status != tick.StatusClosed {
+			openTicks[t.ID] = true
+		}
+	}
+
+	// Print header
+	header := fmt.Sprintf(" %-4s  %s  %-7s  %s  %s", "ID", "PRI", "TYPE", "ST", "TITLE")
+	fmt.Println(styles.DimStyle.Render(header))
+
 	for _, t := range filtered {
-		fmt.Printf(" %-4s P%d   %-7s %-7s %s\n", t.ID, t.Priority, t.Type, t.Status, t.Title)
+		// Check if blocked
+		isBlocked := false
+		if t.Status == tick.StatusOpen && len(t.BlockedBy) > 0 {
+			for _, blockerID := range t.BlockedBy {
+				if openTicks[blockerID] {
+					isBlocked = true
+					break
+				}
+			}
+		}
+
+		statusIcon := styles.RenderTickStatusWithBlocked(t, isBlocked)
+		fmt.Printf(" %-4s  %s  %-7s  %s   %s\n",
+			t.ID,
+			styles.RenderPriority(t.Priority),
+			styles.RenderType(t.Type),
+			statusIcon,
+			t.Title,
+		)
 	}
 	fmt.Printf("\n%d ticks\n", len(filtered))
 	return nil
