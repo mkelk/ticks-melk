@@ -1,0 +1,16 @@
+{
+  "id": "u23",
+  "title": "Create a simple utility function",
+  "description": "Create internal/teststream/format.go with a FormatDuration(d time.Duration) string function that returns a human-readable duration like '2m 30s'.\n\nTest cases:\n- 90 seconds -\u003e '1m 30s'\n- 45 seconds -\u003e '45s'\n- 3600 seconds -\u003e '1h 0m 0s'\n\nRun: go test ./internal/teststream/...",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "god",
+  "acceptance_criteria": "Tests pass",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T05:46:38.439952Z",
+  "updated_at": "2026-01-21T05:48:04.833482Z",
+  "closed_at": "2026-01-21T05:48:04.833482Z",
+  "closed_reason": "Created FormatDuration function that formats time.Duration into human-readable strings (e.g., '1m 30s', '45s', '1h 0m 0s'). Added comprehensive test coverage for all specified cases plus edge cases."
+}

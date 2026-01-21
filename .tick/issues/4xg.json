@@ -1,0 +1,15 @@
+{
+  "id": "4xg",
+  "title": "Quick Stream Test",
+  "description": "Test",
+  "notes": "2026-01-21 06:52 - Completed x0l: Created internal/streamtest/hello.go with Hello() function. Package builds successfully.",
+  "status": "closed",
+  "priority": 2,
+  "type": "epic",
+  "owner": "peter@engelbrecht.dk",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T05:51:11.015453Z",
+  "updated_at": "2026-01-21T05:52:20.497556Z",
+  "closed_at": "2026-01-21T05:52:20.497556Z",
+  "closed_reason": "all tasks completed"
+}

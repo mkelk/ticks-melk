@@ -716,10 +716,7 @@ export class TickBoard extends LitElement {
             this.connectRunStream(epic.id);
           }
 
-          // Auto-show the run panel if not already visible
-          if (!this.showRunPanel) {
-            this.showRunPanel = true;
-          }
+          // Note: Don't auto-show the run panel - let users toggle it manually
 
           // Update metrics from status
           if (status.activeTask?.metrics) {
@@ -984,6 +981,23 @@ export class TickBoard extends LitElement {
             // Add new tick (only if it's a task, not an epic)
             if (updatedTick.type !== 'epic') {
               this.ticks = [...this.ticks, updatedTick];
+            } else {
+              // Add new epic to the epics list for the dropdown
+              if (!this.epics.find(e => e.id === updatedTick.id)) {
+                this.epics = [...this.epics, { id: updatedTick.id, title: updatedTick.title }];
+              }
+            }
+          }
+
+          // Update epic in epics list if it already exists (for title changes)
+          if (updatedTick.type === 'epic') {
+            const epicIndex = this.epics.findIndex(e => e.id === updatedTick.id);
+            if (epicIndex >= 0) {
+              this.epics = [
+                ...this.epics.slice(0, epicIndex),
+                { id: updatedTick.id, title: updatedTick.title },
+                ...this.epics.slice(epicIndex + 1),
+              ];
             }
           }
 
@@ -1010,6 +1024,15 @@ export class TickBoard extends LitElement {
             ...this.ticks.slice(tickIndex + 1),
           ];
           this.updateBoardState();
+        }
+
+        // Also remove from epics list if it was an epic
+        const epicIndex = this.epics.findIndex(e => e.id === tickId);
+        if (epicIndex >= 0) {
+          this.epics = [
+            ...this.epics.slice(0, epicIndex),
+            ...this.epics.slice(epicIndex + 1),
+          ];
         }
         break;
       }
@@ -1174,10 +1197,12 @@ export class TickBoard extends LitElement {
         this.focusSearchInput();
         break;
 
-      // Toggle run panel: r
+      // Toggle run panel: r (only when no modifiers pressed)
       case 'r':
-        e.preventDefault();
-        this.toggleRunPanel();
+        if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+          e.preventDefault();
+          this.toggleRunPanel();
+        }
         break;
     }
   };
@@ -1623,11 +1648,13 @@ export class TickBoard extends LitElement {
         .epics=${this.epics}
         selected-epic=${this.selectedEpic}
         search-term=${this.searchTerm}
+        ?run-panel-open=${this.showRunPanel}
         @search-change=${this.handleSearchChange}
         @epic-filter-change=${this.handleEpicFilterChange}
         @create-click=${this.handleCreateClick}
         @menu-toggle=${this.handleMobileMenuToggle}
         @activity-click=${this.handleActivityClick}
+        @run-panel-toggle=${this.toggleRunPanel}
       ></tick-header>
 
       <!-- Toast notification stack -->

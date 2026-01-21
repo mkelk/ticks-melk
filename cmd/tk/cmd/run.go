@@ -15,6 +15,7 @@ import (
 	"github.com/pengelbrecht/ticks/internal/agent"
 	"github.com/pengelbrecht/ticks/internal/budget"
 	"github.com/pengelbrecht/ticks/internal/checkpoint"
+	epiccontext "github.com/pengelbrecht/ticks/internal/context"
 	"github.com/pengelbrecht/ticks/internal/engine"
 	"github.com/pengelbrecht/ticks/internal/gc"
 	"github.com/pengelbrecht/ticks/internal/runrecord"
@@ -213,6 +214,13 @@ func runEpic(ctx context.Context, root, epicID string, agentImpl agent.Agent) (*
 		eng.EnableVerification()
 	}
 
+	// Enable context generation for epics
+	contextStore := epiccontext.NewStoreWithDir(filepath.Join(root, ".tick", "logs", "context"))
+	contextGenerator, err := epiccontext.NewGenerator(agentImpl)
+	if err == nil {
+		eng.SetContextComponents(contextStore, contextGenerator)
+	}
+
 	// Set up output streaming for non-JSONL mode
 	if !runJSONL {
 		eng.OnOutput = func(chunk string) {
@@ -224,6 +232,22 @@ func runEpic(ctx context.Context, root, epicID string, agentImpl agent.Agent) (*
 		eng.OnIterationEnd = func(result *engine.IterationResult) {
 			fmt.Printf("\n--- Iteration %d complete (tokens: %d in, %d out, cost: $%.4f) ---\n",
 				result.Iteration, result.TokensIn, result.TokensOut, result.Cost)
+		}
+		// Context generation status callbacks
+		eng.OnContextGenerating = func(epicID string, taskCount int) {
+			fmt.Printf("\n📚 Generating epic context for %s (%d tasks)...\n", epicID, taskCount)
+		}
+		eng.OnContextGenerated = func(epicID string, tokenCount int) {
+			fmt.Printf("✓ Context generated (~%d tokens)\n", tokenCount)
+		}
+		eng.OnContextLoaded = func(epicID string, content string) {
+			fmt.Printf("📖 Using existing context for %s\n", epicID)
+		}
+		eng.OnContextSkipped = func(epicID string, reason string) {
+			fmt.Printf("⏭ Context skipped: %s\n", reason)
+		}
+		eng.OnContextFailed = func(epicID string, errMsg string) {
+			fmt.Printf("⚠ Context generation failed: %s\n", errMsg)
 		}
 	}
 

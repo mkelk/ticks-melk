@@ -159,6 +159,9 @@ export class TickHeader extends LitElement {
   @property({ type: String, attribute: 'search-term' })
   searchTerm = '';
 
+  @property({ type: Boolean, attribute: 'run-panel-open' })
+  runPanelOpen = false;
+
   @state()
   private debounceTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -222,6 +225,15 @@ export class TickHeader extends LitElement {
     );
   }
 
+  private handleRunPanelToggle() {
+    this.dispatchEvent(
+      new CustomEvent('run-panel-toggle', {
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
   disconnectedCallback() {
     super.disconnectedCallback();
     if (this.debounceTimeout) {
@@ -275,6 +287,16 @@ export class TickHeader extends LitElement {
         </div>
 
         <div class="header-right">
+          <sl-tooltip content="Live run panel (r)">
+            <sl-button
+              variant=${this.runPanelOpen ? 'primary' : 'default'}
+              size="small"
+              @click=${this.handleRunPanelToggle}
+            >
+              <sl-icon name="terminal"></sl-icon>
+            </sl-button>
+          </sl-tooltip>
+
           <sl-tooltip content="Activity feed">
             <tick-activity-feed
               @activity-click=${this.handleActivityClick}

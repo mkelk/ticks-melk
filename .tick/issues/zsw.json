@@ -1,0 +1,15 @@
+{
+  "id": "zsw",
+  "title": "Test Board Features",
+  "description": "Test epic to verify tickboard run display features",
+  "notes": "2026-01-21 06:39 - Completed [2iv]: Created internal/testboard/hello.go with Hello() function. Package structure is straightforward - simple package with single function.\n2026-01-21 06:39 - Completed [a9p]: Added hello_test.go with TestHello. Standard Go table-test pattern could be used for additional test cases if needed.\n2026-01-21 06:40 - Completed [d5i]: Removed internal/testboard directory containing hello.go and hello_test.go. All Go tests pass. Test epic cleanup is complete.",
+  "status": "closed",
+  "priority": 2,
+  "type": "epic",
+  "owner": "peter@engelbrecht.dk",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T05:38:04.459204Z",
+  "updated_at": "2026-01-21T05:40:42.50461Z",
+  "closed_at": "2026-01-21T05:40:42.50461Z",
+  "closed_reason": "all tasks completed"
+}

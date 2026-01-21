@@ -1,0 +1,16 @@
+{
+  "id": "lrn",
+  "title": "Create calculator package with Add function",
+  "description": "Create internal/calculator/calc.go with package calculator and an Add(a, b int) int function that returns the sum.\n\nRequirements:\n- Package name: calculator\n- Function: Add(a, b int) int\n- Should include a package-level doc comment\n\nRun: go build ./internal/calculator/...",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "uet",
+  "acceptance_criteria": "File exists, builds without errors",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T06:32:48.584205Z",
+  "updated_at": "2026-01-21T06:42:01.616758Z",
+  "closed_at": "2026-01-21T06:42:01.616758Z",
+  "closed_reason": "Created internal/calculator/calc.go with package-level doc comment and Add(a, b int) int function that returns the sum of two integers"
+}

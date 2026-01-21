@@ -1,0 +1,16 @@
+{
+  "id": "3h1",
+  "title": "Echo hello",
+  "description": "Create internal/quicktest/main.go with func main() { println(\"hello\") }. Run: go build ./internal/quicktest/...",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "l27",
+  "acceptance_criteria": "Builds",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T05:51:11.060659Z",
+  "updated_at": "2026-01-21T06:32:32.991387Z",
+  "closed_at": "2026-01-21T06:32:32.991387Z",
+  "closed_reason": "Orphaned test tick - parent epic is closed"
+}

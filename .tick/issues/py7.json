@@ -2,12 +2,14 @@
   "id": "py7",
   "title": "Tickboard Improvements",
   "description": "UI/UX improvements for the tickboard web interface and ticker TUI",
-  "notes": "2026-01-20 18:39 - Iteration 1 error: agent run: claude cancelled\n2026-01-20 18:39 - Run interrupted by user at iteration 1 while working on task 8kr (Add command to view generated epic context document). Task may be partially complete - review before continuing.",
-  "status": "open",
+  "notes": "2026-01-20 18:39 - Iteration 1 error: agent run: claude cancelled\n2026-01-20 18:39 - Run interrupted by user at iteration 1 while working on task 8kr (Add command to view generated epic context document). Task may be partially complete - review before continuing.\n2026-01-21 07:35 - Task yng (distinguish agent vs human actor): Fixed by setting TICK_OWNER=ticker env var in ClaudeAgent.Run() when spawning the claude CLI subprocess. This ensures all tk commands run by the agent inherit this env var and are properly attributed to 'ticker'. The activity feed UI already displays actor field as-is, so no UI changes needed.",
+  "status": "closed",
   "priority": 2,
   "type": "epic",
   "owner": "peter@engelbrecht.dk",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-20T12:48:47.268447Z",
-  "updated_at": "2026-01-20T17:39:15.566663Z"
+  "updated_at": "2026-01-21T06:36:36.698052Z",
+  "closed_at": "2026-01-21T06:36:36.698052Z",
+  "closed_reason": "All tickboard improvements complete - context viewing, progress indicator, and agent/human actor distinction"
 }

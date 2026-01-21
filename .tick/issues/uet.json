@@ -1,0 +1,13 @@
+{
+  "id": "uet",
+  "title": "Tickboard Test Epic",
+  "description": "Test epic with trivial tasks for validating tickboard UI features. Each task generates enough context to test the context document rendering.",
+  "notes": "2026-01-21 07:42 - Task lrn complete: Created internal/calculator/calc.go with Add function. Package follows codebase conventions with package-level and function-level doc comments.\n2026-01-21 07:42 - Task sxm complete: Added Subtract and Multiply functions to internal/calculator/calc.go with doc comments. Build verified successfully.\n2026-01-21 07:43 - Task 27n complete: Created calc_test.go with table-driven tests for all 3 calculator functions. All 9 tests pass. Next task (51z) should remove the entire internal/calculator/ directory.",
+  "status": "open",
+  "priority": 2,
+  "type": "epic",
+  "owner": "peter@engelbrecht.dk",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T06:32:39.930375Z",
+  "updated_at": "2026-01-21T06:43:40.583594Z"
+}

@@ -1,0 +1,16 @@
+{
+  "id": "2iv",
+  "title": "Create test file with greeting",
+  "description": "Create internal/testboard/hello.go with a Hello() function that returns 'Hello from tickboard test'.\n\nRun: go build ./internal/testboard/...",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "zsw",
+  "acceptance_criteria": "File exists and builds",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T05:38:12.15318Z",
+  "updated_at": "2026-01-21T05:39:03.462672Z",
+  "closed_at": "2026-01-21T05:39:03.462672Z",
+  "closed_reason": "Created internal/testboard/hello.go with Hello() function returning 'Hello from tickboard test'. Package builds successfully."
+}

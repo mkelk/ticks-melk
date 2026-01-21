@@ -1,0 +1,16 @@
+{
+  "id": "x0l",
+  "title": "Test streaming task",
+  "description": "Create internal/streamtest/hello.go with Hello() function. Run: go build ./internal/streamtest/...",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "4xg",
+  "acceptance_criteria": "Builds",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T05:51:35.136092Z",
+  "updated_at": "2026-01-21T05:52:05.439867Z",
+  "closed_at": "2026-01-21T05:52:05.439867Z",
+  "closed_reason": "Created internal/streamtest/hello.go with Hello() function that returns a greeting. Build verified successfully."
+}

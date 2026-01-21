@@ -1,0 +1,19 @@
+{
+  "id": "d5i",
+  "title": "Clean up test files",
+  "description": "Remove the internal/testboard directory created for testing.\n\nRun: ls internal/ | grep -v testboard",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "blocked_by": [
+    "a9p"
+  ],
+  "parent": "zsw",
+  "acceptance_criteria": "testboard directory removed",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T05:38:23.79247Z",
+  "updated_at": "2026-01-21T05:40:27.204556Z",
+  "closed_at": "2026-01-21T05:40:27.204556Z",
+  "closed_reason": "Removed internal/testboard directory using rm -rf. Directory contained hello.go and hello_test.go created by previous test iterations."
+}

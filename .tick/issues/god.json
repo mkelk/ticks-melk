@@ -1,0 +1,15 @@
+{
+  "id": "god",
+  "title": "Test Live Streaming",
+  "description": "Test live output streaming to tickboard",
+  "notes": "2026-01-21 06:48 - Iteration 1 (u23): Created internal/teststream/format.go with FormatDuration utility. Simple implementation using integer division to extract hours, minutes, seconds. All tests passing.\n2026-01-21 06:49 - Iteration 2 (y7a): Removed internal/teststream directory as requested. Directory contained format.go and format_test.go (created by Iteration 1). All tests pass after removal.",
+  "status": "closed",
+  "priority": 2,
+  "type": "epic",
+  "owner": "peter@engelbrecht.dk",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T05:46:29.064426Z",
+  "updated_at": "2026-01-21T05:49:13.526976Z",
+  "closed_at": "2026-01-21T05:49:13.526976Z",
+  "closed_reason": "all tasks completed"
+}

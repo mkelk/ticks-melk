@@ -2091,7 +2091,7 @@ export class TickDetailDrawer extends LitElement {
                     <sl-tab slot="nav" panel="overview" active>Overview</sl-tab>
                     <sl-tab slot="nav" panel="run">Run</sl-tab>
 
-                    <sl-tab-panel name="overview">
+                    <sl-tab-panel name="overview" active>
                       ${this.renderDetailsContent()}
                     </sl-tab-panel>
 

@@ -2,12 +2,14 @@
   "id": "a8x",
   "title": "Migrate ticker skill to ticks",
   "description": "Move and update the ticker skill to ticks/skills/ticks/:\n\n**Files to migrate:**\n- ticker/skills/ticker/SKILL.md → ticks/skills/ticks/SKILL.md\n- ticker/skills/ticker/references/tk-commands.md → ticks/skills/ticks/references/tk-commands.md\n- ticker/skills/ticker/references/tick-patterns.md → ticks/skills/ticks/references/tick-patterns.md\n\n**Updates required:**\n\n1. Prerequisites section:\n   - Single install: curl ... ticks install script\n   - Remove separate ticker install\n   - which tk (no which ticker)\n\n2. Running commands:\n   - ticker run \u003cepic\u003e → tk run \u003cepic\u003e\n   - ticker run --headless → tk run (headless-only, no flag needed)\n   - ticker run --auto → tk run --auto\n   - Add tk resume, tk checkpoints, tk merge\n\n3. Monitoring:\n   - Replace TUI references with tk board\n   - ticker interactive → tk board for visual monitoring\n\n4. Log cleanup:\n   - Add tk gc command reference\n\n5. references/tk-commands.md:\n   - Add runner commands section (run, resume, checkpoints, merge)\n   - Add gc command\n   - Add board command\n   - Update all examples to use tk instead of ticker\n\n6. General:\n   - Update any ticker mentions to tk\n   - Update install URLs to ticks repo",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "type": "task",
   "owner": "peter@engelbrecht.dk",
   "parent": "rte",
   "created_by": "peter@engelbrecht.dk",
   "created_at": "2026-01-20T18:01:43.88712Z",
-  "updated_at": "2026-01-20T18:03:51.995259Z"
+  "updated_at": "2026-01-21T06:30:43.044453Z",
+  "closed_at": "2026-01-21T06:30:43.044453Z",
+  "closed_reason": "Skill migration complete - skills/ticks/SKILL.md and references migrated"
 }
