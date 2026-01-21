@@ -955,7 +955,7 @@ export class TickDetailDrawer extends LitElement {
   @state() private expandedSections: Set<string> = new Set();
 
   // Tab state
-  @state() private activeTab = 'details';
+  @state() private activeTab = 'overview';
 
   private handleDrawerHide() {
     // Reset action state when drawer closes
@@ -1026,7 +1026,7 @@ export class TickDetailDrawer extends LitElement {
     this.runRecordError = '';
     this.expandedSections = new Set();
     // Reset tab state
-    this.activeTab = 'details';
+    this.activeTab = 'overview';
   }
 
   private emitTickUpdated(tick: BoardTick & { notesList?: Note[]; blockerDetails?: BlockerDetail[] }) {
@@ -2088,10 +2088,10 @@ export class TickDetailDrawer extends LitElement {
             ? html`
                 <div class="tab-container">
                   <sl-tab-group>
-                    <sl-tab slot="nav" panel="details">Details</sl-tab>
+                    <sl-tab slot="nav" panel="overview" active>Overview</sl-tab>
                     <sl-tab slot="nav" panel="run">Run</sl-tab>
 
-                    <sl-tab-panel name="details">
+                    <sl-tab-panel name="overview">
                       ${this.renderDetailsContent()}
                     </sl-tab-panel>
 
