@@ -17,6 +17,7 @@ import (
 	"github.com/pengelbrecht/ticks/internal/checkpoint"
 	"github.com/pengelbrecht/ticks/internal/engine"
 	"github.com/pengelbrecht/ticks/internal/gc"
+	"github.com/pengelbrecht/ticks/internal/runrecord"
 	"github.com/pengelbrecht/ticks/internal/ticks"
 )
 
@@ -202,6 +203,10 @@ func runEpic(ctx context.Context, root, epicID string, agentImpl agent.Agent) (*
 
 	// Create engine
 	eng := engine.NewEngine(agentImpl, ticksClient, budgetTracker, checkpointMgr)
+
+	// Enable live run record streaming for tickboard
+	runRecordStore := runrecord.NewStore(root)
+	eng.SetRunRecordStore(runRecordStore)
 
 	// Enable verification unless skipped
 	if !runSkipVerify {
