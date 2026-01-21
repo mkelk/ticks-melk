@@ -1,0 +1,19 @@
+{
+  "id": "zan",
+  "title": "Add unit tests for calculator",
+  "description": "Create internal/calculator/calc_test.go with tests for all three functions (Add, Subtract, Multiply).\n\nTest cases to include:\n- Add: 2+3=5, 0+0=0, -1+1=0\n- Subtract: 5-3=2, 0-0=0, 1-5=-4\n- Multiply: 2*3=6, 0*5=0, -2*3=-6\n\nUse table-driven tests.\n\nRun: go test ./internal/calculator/...",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "blocked_by": [
+    "rvs"
+  ],
+  "parent": "ffk",
+  "acceptance_criteria": "All tests pass",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T06:48:26.444407Z",
+  "updated_at": "2026-01-21T06:51:49.461596Z",
+  "closed_at": "2026-01-21T06:51:49.461596Z",
+  "closed_reason": "Created calc_test.go with table-driven tests for Add, Subtract, and Multiply. All 9 test cases pass covering positive numbers, zeros, and negative values."
+}

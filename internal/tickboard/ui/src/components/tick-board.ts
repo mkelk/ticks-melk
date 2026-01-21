@@ -1649,6 +1649,7 @@ export class TickBoard extends LitElement {
         selected-epic=${this.selectedEpic}
         search-term=${this.searchTerm}
         ?run-panel-open=${this.showRunPanel}
+        ?run-active=${this.runStatus?.isRunning}
         @search-change=${this.handleSearchChange}
         @epic-filter-change=${this.handleEpicFilterChange}
         @create-click=${this.handleCreateClick}

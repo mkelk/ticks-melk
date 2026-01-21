@@ -145,6 +145,22 @@ export class TickHeader extends LitElement {
         justify-content: center;
       }
     }
+
+    /* Pulsing animation for active run indicator */
+    @keyframes pulse-glow {
+      0%, 100% {
+        box-shadow: 0 0 4px var(--green, #a6e3a1);
+      }
+      50% {
+        box-shadow: 0 0 12px var(--green, #a6e3a1), 0 0 20px var(--green, #a6e3a1);
+      }
+    }
+
+    .run-button-active::part(base) {
+      background: var(--green, #a6e3a1) !important;
+      color: var(--crust, #11111b) !important;
+      animation: pulse-glow 1.5s ease-in-out infinite;
+    }
   `;
 
   @property({ type: String, attribute: 'repo-name' })
@@ -161,6 +177,9 @@ export class TickHeader extends LitElement {
 
   @property({ type: Boolean, attribute: 'run-panel-open' })
   runPanelOpen = false;
+
+  @property({ type: Boolean, attribute: 'run-active' })
+  runActive = false;
 
   @state()
   private debounceTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -289,6 +308,7 @@ export class TickHeader extends LitElement {
         <div class="header-right">
           <sl-tooltip content="Live run panel (r)">
             <sl-button
+              class=${this.runActive ? 'run-button-active' : ''}
               variant=${this.runPanelOpen ? 'primary' : 'default'}
               size="small"
               @click=${this.handleRunPanelToggle}

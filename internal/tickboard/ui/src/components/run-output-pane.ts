@@ -256,6 +256,8 @@ export class RunOutputPane extends LitElement {
       white-space: pre-wrap;
       word-break: break-word;
       color: var(--text, #cdd6f4);
+      text-align: left;
+      min-width: 0;
     }
 
     .line-content.status {
