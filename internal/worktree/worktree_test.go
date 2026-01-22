@@ -861,8 +861,8 @@ func TestManager_Create_RecordsParentBranch(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to read metadata file: %v", err)
 		}
-		if !strings.Contains(string(data), `"parent_branch": "feature/test"`) {
-			t.Errorf("Metadata file should contain parent_branch, got: %s", data)
+		if !strings.Contains(string(data), `"parentBranch": "feature/test"`) {
+			t.Errorf("Metadata file should contain parentBranch, got: %s", data)
 		}
 	})
 
@@ -936,8 +936,8 @@ func TestManager_Create_DetachedHead(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to read metadata file: %v", err)
 		}
-		if !strings.Contains(string(data), `"parent_branch": ""`) {
-			t.Errorf("Metadata file should have empty parent_branch, got: %s", data)
+		if !strings.Contains(string(data), `"parentBranch": ""`) {
+			t.Errorf("Metadata file should have empty parentBranch, got: %s", data)
 		}
 	})
 }
@@ -1029,6 +1029,50 @@ func TestManager_List_ReadsParentBranch(t *testing.T) {
 		// Verify ParentBranch is empty (graceful handling of missing metadata)
 		if found.ParentBranch != "" {
 			t.Errorf("List() worktree.ParentBranch = %q, want empty string when metadata missing", found.ParentBranch)
+		}
+	})
+
+	t.Run("List returns empty ParentBranch when metadata corrupted", func(t *testing.T) {
+		dir := createTempGitRepo(t)
+		m, err := NewManager(dir)
+		if err != nil {
+			t.Fatalf("NewManager() error = %v", err)
+		}
+
+		// Create worktree
+		wt, err := m.Create("corruptmeta")
+		if err != nil {
+			t.Fatalf("Create() error = %v", err)
+		}
+
+		// Write corrupted JSON to metadata file
+		metaPath := filepath.Join(wt.Path, ".tk-metadata")
+		if err := os.WriteFile(metaPath, []byte("not valid json{{{"), 0644); err != nil {
+			t.Fatalf("failed to write corrupted metadata: %v", err)
+		}
+
+		// Call List()
+		worktrees, err := m.List()
+		if err != nil {
+			t.Fatalf("List() error = %v", err)
+		}
+
+		// Find our worktree
+		var found *Worktree
+		for _, wt := range worktrees {
+			if wt.EpicID == "corruptmeta" {
+				found = wt
+				break
+			}
+		}
+
+		if found == nil {
+			t.Fatal("List() should return worktree with EpicID 'corruptmeta'")
+		}
+
+		// Verify ParentBranch is empty (graceful handling of corrupted metadata)
+		if found.ParentBranch != "" {
+			t.Errorf("List() worktree.ParentBranch = %q, want empty string when metadata corrupted", found.ParentBranch)
 		}
 	})
 }

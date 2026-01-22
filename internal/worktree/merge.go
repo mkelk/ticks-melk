@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -21,6 +22,7 @@ type MergeResult struct {
 	Merged       bool     // True if merge was performed (not just fast-forward check)
 	Conflicts    []string // List of conflicting files if any
 	MergeCommit  string   // Commit hash of merge commit (if success)
+	TargetBranch string   // The branch merged to (parent branch or main fallback)
 	ErrorMessage string   // Error details if failed
 }
 
@@ -59,7 +61,7 @@ func (m *MergeManager) Merge(wt *Worktree) (*MergeResult, error) {
 		if branchExists(m.repoRoot, wt.ParentBranch) {
 			targetBranch = wt.ParentBranch
 		} else {
-			fmt.Printf("Warning: Parent branch %q not found, merging to %s\n", wt.ParentBranch, m.mainBranch)
+			fmt.Fprintf(os.Stderr, "Warning: Parent branch %q not found, merging to %s\n", wt.ParentBranch, m.mainBranch)
 		}
 	}
 
@@ -67,6 +69,7 @@ func (m *MergeManager) Merge(wt *Worktree) (*MergeResult, error) {
 	if err := m.checkoutBranch(targetBranch); err != nil {
 		return &MergeResult{
 			Success:      false,
+			TargetBranch: targetBranch,
 			ErrorMessage: fmt.Sprintf("failed to checkout %s: %v", targetBranch, err),
 		}, nil
 	}
@@ -85,6 +88,7 @@ func (m *MergeManager) Merge(wt *Worktree) (*MergeResult, error) {
 				Success:      false,
 				Merged:       true, // Merge was attempted
 				Conflicts:    conflicts,
+				TargetBranch: targetBranch,
 				ErrorMessage: "merge conflict",
 			}, nil
 		}
@@ -92,6 +96,7 @@ func (m *MergeManager) Merge(wt *Worktree) (*MergeResult, error) {
 		// Some other error
 		return &MergeResult{
 			Success:      false,
+			TargetBranch: targetBranch,
 			ErrorMessage: fmt.Sprintf("merge failed: %s", strings.TrimSpace(string(output))),
 		}, nil
 	}
@@ -102,14 +107,16 @@ func (m *MergeManager) Merge(wt *Worktree) (*MergeResult, error) {
 		return &MergeResult{
 			Success:      true,
 			Merged:       true,
+			TargetBranch: targetBranch,
 			ErrorMessage: fmt.Sprintf("merge succeeded but failed to get commit hash: %v", err),
 		}, nil
 	}
 
 	return &MergeResult{
-		Success:     true,
-		Merged:      true,
-		MergeCommit: commitHash,
+		Success:      true,
+		Merged:       true,
+		MergeCommit:  commitHash,
+		TargetBranch: targetBranch,
 	}, nil
 }
 

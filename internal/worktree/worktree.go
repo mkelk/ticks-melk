@@ -24,8 +24,8 @@ const metadataFileName = ".tk-metadata"
 
 // worktreeMetadata holds metadata about a worktree stored in the metadata file.
 type worktreeMetadata struct {
-	ParentBranch string    `json:"parent_branch"`
-	CreatedAt    time.Time `json:"created_at"`
+	ParentBranch string    `json:"parentBranch"`
+	CreatedAt    time.Time `json:"createdAt"`
 }
 
 // ErrNotGitRepo is returned when the directory is not a git repository.
@@ -141,8 +141,9 @@ func (m *Manager) Create(epicID string) (*Worktree, error) {
 		ParentBranch: parentBranch,
 		CreatedAt:    createdAt,
 	}
-	// Ignore error - metadata is non-critical
-	_ = writeMetadata(wtPath, meta)
+	if err := writeMetadata(wtPath, meta); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to write worktree metadata: %v\n", err)
+	}
 
 	// Symlink .tick/ from main repo into worktree so agent can access tick data.
 	// This ensures all worktrees share the same tick database as the main repo.
