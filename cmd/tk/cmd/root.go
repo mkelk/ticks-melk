@@ -265,6 +265,10 @@ func ResetFlags() {
 	// Reset deps flags
 	depsJSON = false
 
+	// Reset graph flags
+	graphAll = false
+	graphJSON = false
+
 	// Reset status flags
 	statusJSON = false
 

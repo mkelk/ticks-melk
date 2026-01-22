@@ -198,9 +198,12 @@ tk note <id> "Use Stripe for payments" --from human
 | `tk note <id> "msg"` | Append a note |
 | `tk close <id>` | Close an issue |
 | `tk block <id> <blocker>` | Add a dependency |
+| `tk graph <epic>` | Show dependency graph |
 | `tk list` | List issues with filters |
 | `tk view` | Interactive TUI |
-| `tk board` | Web kanban board |
+| `tk run <epic>` | Run agent on epic |
+| `tk run --board` | Start web board UI |
+| `tk run --cloud` | Board with cloud sync |
 | `tk approve <id>` | Approve awaiting tick |
 | `tk reject <id>` | Reject with feedback |
 | `tk snippet` | Output CLAUDE.md content |
@@ -224,7 +227,14 @@ tk view
 ## Web Board
 
 ```bash
-tk board
+# Run with local board UI
+tk run --board
+
+# Run agent on epic with board
+tk run abc --board
+
+# Board on custom port
+tk run --board --port 8080
 ```
 
 Opens a web kanban board at `http://localhost:3000` with real-time updates. Built with Lit web components and Shoelace UI.
@@ -236,6 +246,66 @@ Opens a web kanban board at `http://localhost:3000` with real-time updates. Buil
 - PWA support for offline use
 
 See `internal/tickboard/ui/README.md` for development docs.
+
+## Cloud Sync
+
+Access your ticks from anywhere at [tickboard.dev](https://tickboard.dev).
+
+### Setup
+
+1. Get a token from https://tickboard.dev/settings
+2. Add to `~/.tickboardrc`:
+   ```
+   token=your-token-here
+   ```
+3. Run with `--cloud` flag:
+   ```bash
+   tk run abc --cloud    # Agent + board + cloud sync
+   tk run --cloud        # Board + cloud sync, no agent
+   ```
+
+### How It Works
+
+- Local `tk run --cloud` connects to Cloudflare Durable Object
+- File changes sync to cloud in real-time (~50ms)
+- Cloud UI edits sync back to local
+- Works offline—changes queue and sync on reconnect
+
+### Privacy
+
+- Ticks stored in Cloudflare Durable Objects
+- Only accessible with your token
+- Project isolation enforced
+- No telemetry or analytics
+
+## Dependency Graph
+
+See parallelization opportunities for an epic:
+
+```bash
+tk graph <epic-id>
+```
+
+Output shows tasks organized into "waves"—groups that can be executed in parallel:
+
+```
+Epic: Implement auth
+Stats: 5 tasks, 3 waves, max 2 parallel
+
+Wave 1 (ready now) (2 parallel)
+  ○ abc P1 Design database schema
+  ○ def P2 Set up OAuth provider
+
+Wave 2
+  ⊘ ghi P1 Implement user model ← abc
+
+Wave 3
+  ⊘ jkl P2 Integration tests ← ghi
+
+Critical path: 3 waves (minimum sequential steps)
+```
+
+Use `--json` for machine-readable output (useful for agents planning parallel work).
 
 ## Search and Filtering
 

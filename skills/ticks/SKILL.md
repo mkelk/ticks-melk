@@ -204,6 +204,8 @@ tk ready                     # Unblocked tasks
 tk next <epic-id>            # Next task for agent
 tk blocked                   # Blocked tasks
 tk list --awaiting           # Tasks awaiting human
+tk graph <epic-id>           # Dependency graph with parallelization
+tk graph <epic-id> --json    # JSON output for agents
 ```
 
 ### Managing
@@ -227,6 +229,23 @@ tk run <epic-id> --max-cost 5.00      # Cost limit
 tk run <epic-id> --watch              # Restart when tasks ready
 tk board                              # Web interface
 ```
+
+### Planning Parallel Execution
+
+Before running agents, use `tk graph` to understand parallelization opportunities:
+
+```bash
+tk graph <epic-id>        # Human-readable wave breakdown
+tk graph <epic-id> --json # Machine-readable for planning
+```
+
+The graph shows:
+- **Waves**: Groups of tasks that can run in parallel
+- **Max parallel**: How many subagents you could spawn at once
+- **Critical path**: Minimum sequential steps to complete the epic
+- **Dependencies**: What each task is blocked by
+
+Use this to decide how many `--parallel` workers to use with `tk run`.
 
 See `references/tk-commands.md` for full reference.
 
