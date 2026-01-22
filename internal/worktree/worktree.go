@@ -3,6 +3,7 @@ package worktree
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -18,6 +19,15 @@ const DefaultWorktreeDir = ".worktrees"
 // BranchPrefix is the prefix for worktree branch names.
 const BranchPrefix = "tick/"
 
+// metadataFileName is the name of the metadata file stored in each worktree.
+const metadataFileName = ".tk-metadata"
+
+// worktreeMetadata holds metadata about a worktree stored in the metadata file.
+type worktreeMetadata struct {
+	ParentBranch string    `json:"parent_branch"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
 // ErrNotGitRepo is returned when the directory is not a git repository.
 var ErrNotGitRepo = errors.New("not a git repository")
 
@@ -29,10 +39,11 @@ var ErrWorktreeNotFound = errors.New("worktree not found")
 
 // Worktree represents an active git worktree.
 type Worktree struct {
-	Path    string    // Absolute path to worktree directory
-	Branch  string    // Branch name (e.g., tick/abc123)
-	EpicID  string    // Associated epic ID
-	Created time.Time // When worktree was created
+	Path         string    // Absolute path to worktree directory
+	Branch       string    // Branch name (e.g., tick/abc123)
+	EpicID       string    // Associated epic ID
+	Created      time.Time // When worktree was created
+	ParentBranch string    // Branch from which worktree was created (empty if detached HEAD)
 }
 
 // Manager handles git worktree lifecycle.
@@ -102,6 +113,10 @@ func (m *Manager) Create(epicID string) (*Worktree, error) {
 		return nil, fmt.Errorf("failed to create worktree directory: %w", err)
 	}
 
+	// Detect parent branch before creating the worktree
+	// This captures the branch from which the worktree is being created
+	parentBranch := getCurrentBranch(m.repoRoot)
+
 	// Check if branch already exists
 	branchExists := m.branchExists(branch)
 
@@ -119,6 +134,15 @@ func (m *Manager) Create(epicID string) (*Worktree, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create worktree: %s: %w", strings.TrimSpace(string(output)), err)
 	}
+
+	// Write metadata file with parent branch and creation time
+	createdAt := time.Now()
+	meta := worktreeMetadata{
+		ParentBranch: parentBranch,
+		CreatedAt:    createdAt,
+	}
+	// Ignore error - metadata is non-critical
+	_ = writeMetadata(wtPath, meta)
 
 	// Symlink .tick/ from main repo into worktree so agent can access tick data.
 	// This ensures all worktrees share the same tick database as the main repo.
@@ -151,10 +175,11 @@ func (m *Manager) Create(epicID string) (*Worktree, error) {
 	}
 
 	return &Worktree{
-		Path:    wtPath,
-		Branch:  branch,
-		EpicID:  epicID,
-		Created: time.Now(),
+		Path:         wtPath,
+		Branch:       branch,
+		EpicID:       epicID,
+		Created:      createdAt,
+		ParentBranch: parentBranch,
 	}, nil
 }
 
@@ -238,9 +263,59 @@ func (m *Manager) branchName(epicID string) string {
 
 // branchExists checks if a branch exists.
 func (m *Manager) branchExists(branch string) bool {
+	return branchExists(m.repoRoot, branch)
+}
+
+// branchExists checks if a branch exists in the given repository.
+func branchExists(repoRoot, branch string) bool {
 	cmd := exec.Command("git", "show-ref", "--verify", "--quiet", "refs/heads/"+branch)
-	cmd.Dir = m.repoRoot
+	cmd.Dir = repoRoot
 	return cmd.Run() == nil
+}
+
+// getCurrentBranch returns the current branch name in the given repository.
+// Returns empty string if HEAD is detached.
+func getCurrentBranch(repoRoot string) string {
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmd.Dir = repoRoot
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	branch := strings.TrimSpace(string(output))
+	// "HEAD" is returned when in detached HEAD state
+	if branch == "HEAD" {
+		return ""
+	}
+	return branch
+}
+
+// writeMetadata writes worktree metadata to the metadata file.
+func writeMetadata(wtPath string, meta worktreeMetadata) error {
+	data, err := json.MarshalIndent(meta, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal metadata: %w", err)
+	}
+	metaPath := filepath.Join(wtPath, metadataFileName)
+	if err := os.WriteFile(metaPath, data, 0644); err != nil {
+		return fmt.Errorf("write metadata file: %w", err)
+	}
+	return nil
+}
+
+// readMetadata reads the parent branch from the worktree metadata file.
+// Returns empty string if file is missing or corrupt.
+func readMetadata(wtPath string) string {
+	metaPath := filepath.Join(wtPath, metadataFileName)
+	data, err := os.ReadFile(metaPath)
+	if err != nil {
+		return ""
+	}
+	var meta worktreeMetadata
+	if err := json.Unmarshal(data, &meta); err != nil {
+		return ""
+	}
+	return meta.ParentBranch
 }
 
 // parseWorktreeList parses the output of `git worktree list --porcelain`.

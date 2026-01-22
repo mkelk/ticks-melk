@@ -823,3 +823,121 @@ func createTempGitRepo(t *testing.T) string {
 
 	return dir
 }
+
+func TestManager_Create_RecordsParentBranch(t *testing.T) {
+	t.Run("records parent branch when creating from feature branch", func(t *testing.T) {
+		dir := createTempGitRepo(t)
+		m, err := NewManager(dir)
+		if err != nil {
+			t.Fatalf("NewManager() error = %v", err)
+		}
+
+		// Create and checkout a feature branch
+		cmd := exec.Command("git", "checkout", "-b", "feature/test")
+		cmd.Dir = dir
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("failed to create feature branch: %v", err)
+		}
+
+		// Create worktree
+		wt, err := m.Create("parent123")
+		if err != nil {
+			t.Fatalf("Create() error = %v", err)
+		}
+
+		// Verify ParentBranch is set on returned worktree
+		if wt.ParentBranch != "feature/test" {
+			t.Errorf("Worktree.ParentBranch = %q, want %q", wt.ParentBranch, "feature/test")
+		}
+
+		// Verify metadata file was written
+		metaPath := filepath.Join(wt.Path, ".tk-metadata")
+		if _, err := os.Stat(metaPath); os.IsNotExist(err) {
+			t.Error("Metadata file .tk-metadata should exist")
+		}
+
+		// Verify metadata content
+		data, err := os.ReadFile(metaPath)
+		if err != nil {
+			t.Fatalf("failed to read metadata file: %v", err)
+		}
+		if !strings.Contains(string(data), `"parent_branch": "feature/test"`) {
+			t.Errorf("Metadata file should contain parent_branch, got: %s", data)
+		}
+	})
+
+	t.Run("records parent branch when creating from main branch", func(t *testing.T) {
+		dir := createTempGitRepo(t)
+		m, err := NewManager(dir)
+		if err != nil {
+			t.Fatalf("NewManager() error = %v", err)
+		}
+
+		// Get current branch name (might be main, master, or something else)
+		cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+		cmd.Dir = dir
+		output, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("failed to get current branch: %v", err)
+		}
+		expectedBranch := strings.TrimSpace(string(output))
+
+		// Create worktree from default branch
+		wt, err := m.Create("mainbranch")
+		if err != nil {
+			t.Fatalf("Create() error = %v", err)
+		}
+
+		// Verify ParentBranch matches the current branch
+		if wt.ParentBranch != expectedBranch {
+			t.Errorf("Worktree.ParentBranch = %q, want %q", wt.ParentBranch, expectedBranch)
+		}
+	})
+}
+
+func TestManager_Create_DetachedHead(t *testing.T) {
+	t.Run("records empty parent branch when detached HEAD", func(t *testing.T) {
+		dir := createTempGitRepo(t)
+		m, err := NewManager(dir)
+		if err != nil {
+			t.Fatalf("NewManager() error = %v", err)
+		}
+
+		// Get current HEAD commit
+		cmd := exec.Command("git", "rev-parse", "HEAD")
+		cmd.Dir = dir
+		output, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("failed to get HEAD commit: %v", err)
+		}
+		commit := strings.TrimSpace(string(output))
+
+		// Checkout detached HEAD
+		cmd = exec.Command("git", "checkout", commit)
+		cmd.Dir = dir
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("failed to checkout detached HEAD: %v", err)
+		}
+
+		// Create worktree
+		wt, err := m.Create("detached123")
+		if err != nil {
+			t.Fatalf("Create() error = %v", err)
+		}
+
+		// Verify ParentBranch is empty for detached HEAD
+		if wt.ParentBranch != "" {
+			t.Errorf("Worktree.ParentBranch = %q, want empty string for detached HEAD", wt.ParentBranch)
+		}
+
+		// Verify metadata file exists but has empty parent_branch
+		metaPath := filepath.Join(wt.Path, ".tk-metadata")
+		data, err := os.ReadFile(metaPath)
+		if err != nil {
+			t.Fatalf("failed to read metadata file: %v", err)
+		}
+		if !strings.Contains(string(data), `"parent_branch": ""`) {
+			t.Errorf("Metadata file should have empty parent_branch, got: %s", data)
+		}
+	})
+}
