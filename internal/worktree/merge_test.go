@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -341,6 +342,157 @@ func TestMergeManager_HasConflict(t *testing.T) {
 
 		// Clean up
 		mm.AbortMerge()
+	})
+}
+
+func TestMergeManager_MergesToParentBranch(t *testing.T) {
+	t.Run("merges to parent branch when it exists", func(t *testing.T) {
+		dir := createTempGitRepo(t)
+
+		// Create a feature branch from main
+		runGit(t, dir, "checkout", "-b", "feature-branch")
+		featureFile := filepath.Join(dir, "feature-base.txt")
+		if err := os.WriteFile(featureFile, []byte("feature base content"), 0644); err != nil {
+			t.Fatalf("failed to write file: %v", err)
+		}
+		runGit(t, dir, "add", "feature-base.txt")
+		runGit(t, dir, "commit", "-m", "Add feature base")
+
+		// Create worktree manager and create worktree from feature branch
+		wm, err := NewManager(dir)
+		if err != nil {
+			t.Fatalf("NewManager() error = %v", err)
+		}
+
+		wt, err := wm.Create("parent-test")
+		if err != nil {
+			t.Fatalf("Create() error = %v", err)
+		}
+
+		// Verify parent branch is set
+		if wt.ParentBranch != "feature-branch" {
+			t.Errorf("ParentBranch = %q, want %q", wt.ParentBranch, "feature-branch")
+		}
+
+		// Make a commit in the worktree
+		newFile := filepath.Join(wt.Path, "worktree-change.txt")
+		if err := os.WriteFile(newFile, []byte("worktree content"), 0644); err != nil {
+			t.Fatalf("failed to write file: %v", err)
+		}
+		runGit(t, wt.Path, "add", "worktree-change.txt")
+		runGit(t, wt.Path, "commit", "-m", "Add worktree change")
+
+		// Create merge manager and merge
+		mm, err := NewMergeManager(dir)
+		if err != nil {
+			t.Fatalf("NewMergeManager() error = %v", err)
+		}
+
+		result, err := mm.Merge(wt)
+		if err != nil {
+			t.Fatalf("Merge() error = %v", err)
+		}
+
+		if !result.Success {
+			t.Errorf("Merge() Success = false, want true. Error: %s", result.ErrorMessage)
+		}
+
+		// Verify we're on feature-branch (not main)
+		cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+		cmd.Dir = dir
+		output, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("failed to get current branch: %v", err)
+		}
+		currentBranch := strings.TrimSpace(string(output))
+		if currentBranch != "feature-branch" {
+			t.Errorf("Current branch = %q, want %q", currentBranch, "feature-branch")
+		}
+
+		// Verify the worktree change is on feature-branch
+		if _, err := os.Stat(filepath.Join(dir, "worktree-change.txt")); os.IsNotExist(err) {
+			t.Error("worktree-change.txt should exist on feature-branch after merge")
+		}
+
+		// Verify main branch does NOT have the worktree change
+		runGit(t, dir, "checkout", mm.MainBranch())
+		if _, err := os.Stat(filepath.Join(dir, "worktree-change.txt")); !os.IsNotExist(err) {
+			t.Error("worktree-change.txt should NOT exist on main branch")
+		}
+	})
+}
+
+func TestMergeManager_FallbackToMain(t *testing.T) {
+	t.Run("falls back to main when parent branch is deleted", func(t *testing.T) {
+		dir := createTempGitRepo(t)
+
+		// Create a feature branch from main
+		runGit(t, dir, "checkout", "-b", "temp-feature")
+		tempFile := filepath.Join(dir, "temp-feature.txt")
+		if err := os.WriteFile(tempFile, []byte("temp feature content"), 0644); err != nil {
+			t.Fatalf("failed to write file: %v", err)
+		}
+		runGit(t, dir, "add", "temp-feature.txt")
+		runGit(t, dir, "commit", "-m", "Add temp feature")
+
+		// Create worktree manager and create worktree from temp-feature branch
+		wm, err := NewManager(dir)
+		if err != nil {
+			t.Fatalf("NewManager() error = %v", err)
+		}
+
+		wt, err := wm.Create("fallback-test")
+		if err != nil {
+			t.Fatalf("Create() error = %v", err)
+		}
+
+		// Verify parent branch is set
+		if wt.ParentBranch != "temp-feature" {
+			t.Errorf("ParentBranch = %q, want %q", wt.ParentBranch, "temp-feature")
+		}
+
+		// Make a commit in the worktree
+		newFile := filepath.Join(wt.Path, "fallback-change.txt")
+		if err := os.WriteFile(newFile, []byte("fallback content"), 0644); err != nil {
+			t.Fatalf("failed to write file: %v", err)
+		}
+		runGit(t, wt.Path, "add", "fallback-change.txt")
+		runGit(t, wt.Path, "commit", "-m", "Add fallback change")
+
+		// Switch to main and delete the parent branch
+		mm, err := NewMergeManager(dir)
+		if err != nil {
+			t.Fatalf("NewMergeManager() error = %v", err)
+		}
+		runGit(t, dir, "checkout", mm.MainBranch())
+		runGit(t, dir, "branch", "-D", "temp-feature")
+
+		// Merge should fall back to main
+		result, err := mm.Merge(wt)
+		if err != nil {
+			t.Fatalf("Merge() error = %v", err)
+		}
+
+		if !result.Success {
+			t.Errorf("Merge() Success = false, want true. Error: %s", result.ErrorMessage)
+		}
+
+		// Verify we're on main branch
+		cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+		cmd.Dir = dir
+		output, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("failed to get current branch: %v", err)
+		}
+		currentBranch := strings.TrimSpace(string(output))
+		if currentBranch != mm.MainBranch() {
+			t.Errorf("Current branch = %q, want %q", currentBranch, mm.MainBranch())
+		}
+
+		// Verify the fallback change is on main
+		if _, err := os.Stat(filepath.Join(dir, "fallback-change.txt")); os.IsNotExist(err) {
+			t.Error("fallback-change.txt should exist on main after merge")
+		}
 	})
 }
 

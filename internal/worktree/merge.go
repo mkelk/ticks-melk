@@ -49,15 +49,25 @@ func (m *MergeManager) MainBranch() string {
 	return m.mainBranch
 }
 
-// Merge merges the worktree branch into main.
+// Merge merges the worktree branch into the parent branch (or main as fallback).
 // Must be called from main repo (not worktree).
 // Returns MergeResult with conflict details if merge fails.
 func (m *MergeManager) Merge(wt *Worktree) (*MergeResult, error) {
-	// First, checkout main branch
-	if err := m.checkoutMain(); err != nil {
+	// Determine target branch: prefer parent branch if it exists, fallback to main
+	targetBranch := m.mainBranch
+	if wt.ParentBranch != "" {
+		if branchExists(m.repoRoot, wt.ParentBranch) {
+			targetBranch = wt.ParentBranch
+		} else {
+			fmt.Printf("Warning: Parent branch %q not found, merging to %s\n", wt.ParentBranch, m.mainBranch)
+		}
+	}
+
+	// Checkout target branch
+	if err := m.checkoutBranch(targetBranch); err != nil {
 		return &MergeResult{
 			Success:      false,
-			ErrorMessage: fmt.Sprintf("failed to checkout %s: %v", m.mainBranch, err),
+			ErrorMessage: fmt.Sprintf("failed to checkout %s: %v", targetBranch, err),
 		}, nil
 	}
 
@@ -128,9 +138,9 @@ func (m *MergeManager) HasConflict() bool {
 	return cmd.Run() == nil
 }
 
-// checkoutMain switches to the main branch.
-func (m *MergeManager) checkoutMain() error {
-	cmd := exec.Command("git", "checkout", m.mainBranch)
+// checkoutBranch switches to the specified branch.
+func (m *MergeManager) checkoutBranch(branch string) error {
+	cmd := exec.Command("git", "checkout", branch)
 	cmd.Dir = m.repoRoot
 
 	output, err := cmd.CombinedOutput()
