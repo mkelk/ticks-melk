@@ -1,0 +1,12 @@
+{
+  "id": "08b",
+  "title": "fix-worktree-merge: Final validation",
+  "description": "Run full test suite and verify all changes work together",
+  "status": "open",
+  "priority": 2,
+  "type": "epic",
+  "owner": "morten@elk.dk",
+  "created_by": "morten@elk.dk",
+  "created_at": "2026-01-22T05:52:46.2612088Z",
+  "updated_at": "2026-01-22T05:52:46.2612088Z"
+}

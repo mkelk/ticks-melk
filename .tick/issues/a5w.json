@@ -1,0 +1,14 @@
+{
+  "id": "a5w",
+  "title": "Run pre-flight checks",
+  "description": "Verify the codebase is in a healthy state before starting implementation.\n\nCommands to run:\n- go build ./...\n- go test ./internal/worktree/...\n\nDocument any pre-existing failures.",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "morten@elk.dk",
+  "parent": "t7g",
+  "acceptance_criteria": "go build ./... succeeds; go test ./internal/worktree/... passes",
+  "created_by": "morten@elk.dk",
+  "created_at": "2026-01-22T05:51:46.9655053Z",
+  "updated_at": "2026-01-22T05:51:46.9655053Z"
+}

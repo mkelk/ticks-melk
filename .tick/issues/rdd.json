@@ -1,0 +1,12 @@
+{
+  "id": "rdd",
+  "title": "fix-worktree-merge: Merge to parent branch",
+  "description": "Update MergeManager to merge to parent branch instead of main",
+  "status": "open",
+  "priority": 2,
+  "type": "epic",
+  "owner": "morten@elk.dk",
+  "created_by": "morten@elk.dk",
+  "created_at": "2026-01-22T05:52:27.5658432Z",
+  "updated_at": "2026-01-22T05:52:27.5658432Z"
+}

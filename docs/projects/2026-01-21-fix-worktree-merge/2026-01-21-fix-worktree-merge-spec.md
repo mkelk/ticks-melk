@@ -1,7 +1,7 @@
 # Fix Worktree Merge Target
 
 **Created:** 2026-01-21
-**Status:** Draft
+**Status:** Ready for Implementation
 
 ## Problem
 
@@ -94,6 +94,14 @@ func (m *MergeManager) Merge(wt *Worktree) (*MergeResult, error) {
 
 4. `TestMergeManager_MergesToParentBranch` - Merge targets parent branch, not main
 5. `TestMergeManager_FallbackToMain` - Falls back to main if parent branch deleted
+
+## Implementation Decisions
+
+From `/checkspec` review:
+
+1. **`branchExists`** - Extract to package-level `branchExists(repoRoot, branch string) bool` function (used by both `Manager` and `MergeManager`)
+2. **`checkoutMain`** - Rename to `checkoutBranch(branch string)` to support dynamic target
+3. **Fallback logging** - Print warning when falling back to main (e.g., "Parent branch 'feature/x' not found, merging to main")
 
 ## Edge Cases
 

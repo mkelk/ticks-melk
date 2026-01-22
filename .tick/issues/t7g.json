@@ -1,0 +1,12 @@
+{
+  "id": "t7g",
+  "title": "fix-worktree-merge: Environment validation",
+  "description": "Verify environment is healthy before implementation",
+  "status": "open",
+  "priority": 2,
+  "type": "epic",
+  "owner": "morten@elk.dk",
+  "created_by": "morten@elk.dk",
+  "created_at": "2026-01-22T05:51:38.7209681Z",
+  "updated_at": "2026-01-22T05:51:38.7209681Z"
+}

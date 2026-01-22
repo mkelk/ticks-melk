@@ -1,0 +1,12 @@
+{
+  "id": "juc",
+  "title": "fix-worktree-merge: Parent branch tracking",
+  "description": "Record parent branch when creating worktrees and read it back in List()",
+  "status": "open",
+  "priority": 2,
+  "type": "epic",
+  "owner": "morten@elk.dk",
+  "created_by": "morten@elk.dk",
+  "created_at": "2026-01-22T05:51:55.2308809Z",
+  "updated_at": "2026-01-22T05:51:55.2308809Z"
+}
