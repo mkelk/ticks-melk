@@ -241,7 +241,17 @@ func (m *Manager) List() ([]*Worktree, error) {
 		return nil, fmt.Errorf("failed to list worktrees: %w", err)
 	}
 
-	return m.parseWorktreeList(output)
+	worktrees, err := m.parseWorktreeList(output)
+	if err != nil {
+		return nil, err
+	}
+
+	// Read metadata for each worktree to populate ParentBranch
+	for _, wt := range worktrees {
+		wt.ParentBranch = readMetadata(wt.Path)
+	}
+
+	return worktrees, nil
 }
 
 // Exists checks if a worktree exists for the epic.

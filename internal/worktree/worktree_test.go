@@ -941,3 +941,132 @@ func TestManager_Create_DetachedHead(t *testing.T) {
 		}
 	})
 }
+
+func TestManager_List_ReadsParentBranch(t *testing.T) {
+	t.Run("List populates ParentBranch from metadata", func(t *testing.T) {
+		dir := createTempGitRepo(t)
+		m, err := NewManager(dir)
+		if err != nil {
+			t.Fatalf("NewManager() error = %v", err)
+		}
+
+		// Create and checkout a feature branch
+		cmd := exec.Command("git", "checkout", "-b", "feature/list-test")
+		cmd.Dir = dir
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("failed to create feature branch: %v", err)
+		}
+
+		// Create worktree
+		_, err = m.Create("listtest")
+		if err != nil {
+			t.Fatalf("Create() error = %v", err)
+		}
+
+		// Call List() to retrieve worktrees
+		worktrees, err := m.List()
+		if err != nil {
+			t.Fatalf("List() error = %v", err)
+		}
+
+		// Find our worktree
+		var found *Worktree
+		for _, wt := range worktrees {
+			if wt.EpicID == "listtest" {
+				found = wt
+				break
+			}
+		}
+
+		if found == nil {
+			t.Fatal("List() should return worktree with EpicID 'listtest'")
+		}
+
+		// Verify ParentBranch is populated
+		if found.ParentBranch != "feature/list-test" {
+			t.Errorf("List() worktree.ParentBranch = %q, want %q", found.ParentBranch, "feature/list-test")
+		}
+	})
+
+	t.Run("List returns empty ParentBranch when metadata missing", func(t *testing.T) {
+		dir := createTempGitRepo(t)
+		m, err := NewManager(dir)
+		if err != nil {
+			t.Fatalf("NewManager() error = %v", err)
+		}
+
+		// Create worktree
+		wt, err := m.Create("nometa")
+		if err != nil {
+			t.Fatalf("Create() error = %v", err)
+		}
+
+		// Delete the metadata file to simulate missing metadata
+		metaPath := filepath.Join(wt.Path, ".tk-metadata")
+		if err := os.Remove(metaPath); err != nil {
+			t.Fatalf("failed to remove metadata file: %v", err)
+		}
+
+		// Call List()
+		worktrees, err := m.List()
+		if err != nil {
+			t.Fatalf("List() error = %v", err)
+		}
+
+		// Find our worktree
+		var found *Worktree
+		for _, wt := range worktrees {
+			if wt.EpicID == "nometa" {
+				found = wt
+				break
+			}
+		}
+
+		if found == nil {
+			t.Fatal("List() should return worktree with EpicID 'nometa'")
+		}
+
+		// Verify ParentBranch is empty (graceful handling of missing metadata)
+		if found.ParentBranch != "" {
+			t.Errorf("List() worktree.ParentBranch = %q, want empty string when metadata missing", found.ParentBranch)
+		}
+	})
+}
+
+func TestManager_Get_ReadsParentBranch(t *testing.T) {
+	t.Run("Get populates ParentBranch from metadata", func(t *testing.T) {
+		dir := createTempGitRepo(t)
+		m, err := NewManager(dir)
+		if err != nil {
+			t.Fatalf("NewManager() error = %v", err)
+		}
+
+		// Create and checkout a feature branch
+		cmd := exec.Command("git", "checkout", "-b", "feature/get-test")
+		cmd.Dir = dir
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("failed to create feature branch: %v", err)
+		}
+
+		// Create worktree
+		_, err = m.Create("gettest")
+		if err != nil {
+			t.Fatalf("Create() error = %v", err)
+		}
+
+		// Call Get() to retrieve worktree
+		got, err := m.Get("gettest")
+		if err != nil {
+			t.Fatalf("Get() error = %v", err)
+		}
+
+		if got == nil {
+			t.Fatal("Get() should return worktree")
+		}
+
+		// Verify ParentBranch is populated
+		if got.ParentBranch != "feature/get-test" {
+			t.Errorf("Get() worktree.ParentBranch = %q, want %q", got.ParentBranch, "feature/get-test")
+		}
+	})
+}
