@@ -2,11 +2,14 @@
   "id": "juc",
   "title": "fix-worktree-merge: Parent branch tracking",
   "description": "Record parent branch when creating worktrees and read it back in List()",
-  "status": "open",
+  "notes": "2026-01-22 07:06 - Completed [ky7]: ParentBranch field + metadata helpers implemented. Create() now captures parent branch before worktree creation and writes .tk-metadata file. readMetadata() helper is ready for List() to use in the next task. Tests cover both regular branch and detached HEAD cases.\n2026-01-22 07:09 - Completed [vwp]: List() now reads .tk-metadata to populate ParentBranch for each worktree. Get() automatically inherits this since it delegates to List(). Tests cover both normal case and graceful handling of missing metadata. The full parent branch tracking feature is now complete: Create() writes metadata, List()/Get() reads it.",
+  "status": "closed",
   "priority": 2,
   "type": "epic",
   "owner": "morten@elk.dk",
   "created_by": "morten@elk.dk",
   "created_at": "2026-01-22T05:51:55.2308809Z",
-  "updated_at": "2026-01-22T05:51:55.2308809Z"
+  "updated_at": "2026-01-22T06:09:51.5803432Z",
+  "closed_at": "2026-01-22T06:09:51.5803432Z",
+  "closed_reason": "all tasks completed"
 }

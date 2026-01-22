@@ -2,7 +2,7 @@
   "id": "vwp",
   "title": "Record parent branch in Create() and read in List() with tests",
   "description": "Integrate metadata read/write into worktree Create() and List() methods.\n\nFiles to modify:\n- internal/worktree/worktree.go\n\nImplementation in Create():\n1. Before creating worktree, call getCurrentBranch(m.repoRoot) to get parent branch\n2. If result is \"HEAD\" (detached), set parentBranch to empty string\n3. After worktree is created successfully, call writeMetadata(wtPath, meta) with parent branch\n4. Set ParentBranch field on returned Worktree struct\n\nImplementation in List():\n1. After parseWorktreeList(), iterate through worktrees\n2. For each worktree, call readMetadata(wt.Path) to get ParentBranch\n3. Set wt.ParentBranch from metadata\n\nTests to write in worktree_test.go:\n1. TestManager_List_ReadsParentBranch - create worktree, call List(), verify ParentBranch populated\n2. TestManager_Get_ReadsParentBranch - create worktree, call Get(), verify ParentBranch populated\n\nWrite tests alongside implementation.",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "type": "task",
   "owner": "morten@elk.dk",
@@ -13,5 +13,7 @@
   "acceptance_criteria": "go test ./internal/worktree/... -run TestManager_List_ReadsParentBranch -v passes; go test ./internal/worktree/... -run TestManager_Get_ReadsParentBranch -v passes",
   "created_by": "morten@elk.dk",
   "created_at": "2026-01-22T05:52:19.9544986Z",
-  "updated_at": "2026-01-22T05:52:19.9544986Z"
+  "updated_at": "2026-01-22T06:09:06.0387856Z",
+  "closed_at": "2026-01-22T06:09:06.0387856Z",
+  "closed_reason": "Updated List() to read ParentBranch via readMetadata() helper for each worktree. Added tests for List and Get populating ParentBranch, including graceful handling of missing metadata files."
 }

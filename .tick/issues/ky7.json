@@ -2,7 +2,7 @@
   "id": "ky7",
   "title": "Add ParentBranch field and metadata helpers with tests",
   "description": "Add ParentBranch tracking to Worktree struct and metadata file read/write.\n\nFiles to modify:\n- internal/worktree/worktree.go\n\nImplementation:\n1. Add ParentBranch string field to Worktree struct (line 31-36)\n2. Add metadataFileName constant (\".tk-metadata\")\n3. Add worktreeMetadata struct with ParentBranch and CreatedAt fields\n4. Add getCurrentBranch(repoRoot string) helper - returns current branch, or empty for detached HEAD\n5. Add writeMetadata(wtPath string, meta worktreeMetadata) error helper\n6. Add readMetadata(wtPath string) string helper - returns ParentBranch or empty if missing/corrupt\n7. Extract branchExists() to package-level function branchExists(repoRoot, branch string) bool\n8. Update Manager.branchExists() to call the package-level function\n\nTests to write in worktree_test.go:\n1. TestManager_Create_RecordsParentBranch - create worktree from feature branch, verify ParentBranch set\n2. TestManager_Create_DetachedHead - create from detached HEAD, verify ParentBranch empty\n\nWrite tests alongside implementation.",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "type": "task",
   "owner": "morten@elk.dk",
@@ -13,5 +13,7 @@
   "acceptance_criteria": "go test ./internal/worktree/... -run TestManager_Create_RecordsParentBranch -v passes; go test ./internal/worktree/... -run TestManager_Create_DetachedHead -v passes",
   "created_by": "morten@elk.dk",
   "created_at": "2026-01-22T05:52:09.044834Z",
-  "updated_at": "2026-01-22T05:52:09.044834Z"
+  "updated_at": "2026-01-22T06:05:58.9123769Z",
+  "closed_at": "2026-01-22T06:05:58.9123769Z",
+  "closed_reason": "Added ParentBranch field to Worktree struct, metadata file (.tk-metadata) support with worktreeMetadata struct, and helper functions (getCurrentBranch, writeMetadata, readMetadata, package-level branchExists). Updated Create() to detect parent branch before worktree creation and write metadata. Added tests for feature branch and detached HEAD scenarios."
 }
