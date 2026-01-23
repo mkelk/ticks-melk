@@ -1,0 +1,15 @@
+{
+  "id": "5j4",
+  "title": "Update README with new command structure",
+  "description": "Document new tk run flags and cloud sync setup.\n\n## README Updates\n\n### Command Reference Section\n\n```markdown\n## Commands\n\n### Running the Agent\n\n\\`\\`\\`bash\n# Run agent on an epic\ntk run \u003cepic-id\u003e\n\n# Run agent with local board UI\ntk run \u003cepic-id\u003e --board\n\n# Run agent with cloud sync (includes board)\ntk run \u003cepic-id\u003e --cloud\n\n# Board only, no agent (review mode)\ntk run --board\ntk run --cloud\n\\`\\`\\`\n\n### Cloud Sync Setup\n\n1. Get a token from https://tickboard.dev/settings\n2. Add to ~/.tickboardrc:\n   \\`\\`\\`\n   token=your-token-here\n   \\`\\`\\`\n3. Run with --cloud flag:\n   \\`\\`\\`bash\n   tk run abc --cloud\n   \\`\\`\\`\n\nYour ticks will sync in real-time to tickboard.dev.\n\n### Deprecated Commands\n\n\\`\\`\\`bash\n# Old (deprecated):\ntk board\ntk board --cloud\n\n# New:\ntk run --board\ntk run --cloud\n\\`\\`\\`\n```\n\n### Cloud Section\n\n```markdown\n## Cloud Board\n\nAccess your ticks from anywhere at [tickboard.dev](https://tickboard.dev).\n\n### How It Works\n\n1. Local `tk run --cloud` connects to Durable Object\n2. File changes sync to cloud in real-time (~50ms)\n3. Cloud UI edits sync back to local\n4. Works offline - changes queue and sync on reconnect\n\n### Privacy\n\n- Your ticks are stored in Cloudflare Durable Objects\n- Only accessible with your token\n- Project isolation enforced\n- No telemetry or analytics\n```\n\n## Help Text Updates\n\n```go\nvar runCmd = \u0026cobra.Command{\n    Use:   \"run [epic-id]\",\n    Short: \"Run agent on an epic\",\n    Long: `Run the AI agent on an epic, optionally with board UI and cloud sync.\n\nExamples:\n  tk run abc              # Run agent on epic abc\n  tk run abc --board      # Agent + local board on :3000\n  tk run abc --cloud      # Agent + board + cloud sync\n  tk run --board          # Board only, no agent\n  tk run --cloud          # Board + cloud sync, no agent\n\nCloud sync requires a token in ~/.tickboardrc:\n  token=your-token-here\n\nGet a token at https://tickboard.dev/settings`,\n}\n```",
+  "status": "closed",
+  "priority": 3,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "y1i",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T16:32:35.447023Z",
+  "updated_at": "2026-01-21T18:54:43.286206Z",
+  "closed_at": "2026-01-21T18:54:43.286206Z",
+  "closed_reason": "Updated README.md: Web Board section now shows tk run --board, added Cloud Sync section with setup instructions and how it works, updated Commands table with tk run flags, removed tk board (deprecated)."
+}

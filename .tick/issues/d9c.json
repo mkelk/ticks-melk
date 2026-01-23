@@ -1,0 +1,18 @@
+{
+  "id": "d9c",
+  "title": "Create visual styleguide documenting colors, icons, and formats",
+  "description": "Created docs/STYLEGUIDE.md documenting the shared visual language across tk board (web), tk view (TUI), and CLI commands. Includes Catppuccin Mocha color palette, status/priority/type conventions, icon mapping, and terminal output formats.",
+  "status": "closed",
+  "priority": 3,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "labels": [
+    "docs"
+  ],
+  "parent": "oji",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T15:45:29.858358Z",
+  "updated_at": "2026-01-21T15:45:30.017249Z",
+  "closed_at": "2026-01-21T15:45:30.017249Z",
+  "closed_reason": "Created docs/STYLEGUIDE.md with full visual language documentation"
+}

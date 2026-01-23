@@ -1,0 +1,15 @@
+{
+  "id": "a41",
+  "title": "Add --cloud flag to tk run for DO sync",
+  "description": "Add --cloud flag that enables DO sync in tk run.\n\n## Command\n```bash\ntk run epic --cloud        # agent + board + DO sync\ntk run --cloud             # board + DO sync (no agent)\n```\n\n--cloud implies --board (can't sync without UI context)\n\n## Implementation\n\n### Flags\n```go\nvar (\n    runBoard bool\n    runCloud bool\n    runPort  int\n)\n\nfunc init() {\n    runCmd.Flags().BoolVar(\u0026runBoard, \"board\", false, \"start board UI\")\n    runCmd.Flags().BoolVar(\u0026runCloud, \"cloud\", false, \"enable cloud sync (implies --board)\")\n    runCmd.Flags().IntVar(\u0026runPort, \"port\", 3000, \"board port\")\n}\n```\n\n### Main Logic\n```go\nfunc runRun(cmd *cobra.Command, args []string) error {\n    // --cloud implies --board\n    if runCloud {\n        runBoard = true\n    }\n    \n    ctx, cancel := context.WithCancel(context.Background())\n    defer cancel()\n    \n    var wg sync.WaitGroup\n    \n    // Start board if requested\n    if runBoard {\n        srv, _ := server.New(tickDir, runPort)\n        wg.Add(1)\n        go func() {\n            defer wg.Done()\n            srv.Start(ctx)\n        }()\n    }\n    \n    // Start cloud sync if requested\n    if runCloud {\n        cfg := cloud.LoadConfig(tickDir, runPort)\n        if cfg == nil {\n            return fmt.Errorf(\"cloud sync requires token in ~/.tickboardrc\")\n        }\n        \n        client, _ := cloud.NewClient(*cfg)\n        wg.Add(1)\n        go func() {\n            defer wg.Done()\n            client.Run(ctx)  // Connect + sync + handle messages\n        }()\n    }\n    \n    // Run agent if epic specified\n    if len(args) \u003e 0 {\n        epicID := args[0]\n        if err := runAgent(ctx, epicID); err != nil {\n            return err\n        }\n    } else if runBoard {\n        // Board only - wait for interrupt\n        \u003c-ctx.Done()\n    } else {\n        return fmt.Errorf(\"specify epic or --board/--cloud\")\n    }\n    \n    cancel()\n    wg.Wait()\n    return nil\n}\n```\n\n## Output\n\n```\n$ tk run abc --cloud\nBoard: http://localhost:3000\nCloud: https://tickboard.dev/pengelbrecht/ticks\nSyncing... connected\n\nRunning agent on epic abc...\n```\n\n## Token Required\n\nIf --cloud but no token:\n```\nError: cloud sync requires authentication.\nAdd token to ~/.tickboardrc:\n  token=your-token-here\n\nGet a token at https://tickboard.dev/settings\n```",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "y1i",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T16:31:36.066843Z",
+  "updated_at": "2026-01-21T17:27:24.16211Z",
+  "closed_at": "2026-01-21T17:27:24.16211Z",
+  "closed_reason": "Added --cloud flag to tk run. When enabled: implies --board, requires token in ~/.tickboardrc, sets cloud client to ModeSync for real-time DO sync. Helpful error message if no token configured."
+}

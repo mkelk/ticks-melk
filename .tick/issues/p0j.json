@@ -1,0 +1,13 @@
+{
+  "id": "p0j",
+  "title": "Implement tk attach command",
+  "description": "Add 'tk attach' command to upload files to ticks.\n\n## Command\n\n```bash\ntk attach \u003ctick-id\u003e \u003cfile\u003e [flags]\n\nFlags:\n  -d, --description string   Optional caption for the attachment\n      --json                 Output as JSON\n```\n\n## Implementation (cmd/tk/cmd/attach.go)\n\n1. Parse arguments and flags\n2. Validate tick exists and load it\n3. Validate file:\n   - Exists and is readable\n   - Is an allowed image type (check magic bytes, not just extension)\n   - Size \u003c= 10MB\n4. Load token from ~/.tickboardrc\n   - Error if not configured with helpful message\n5. Upload via POST to tickboard.dev/api/attachments\n   - Multipart form: file, filename, content_type\n   - Authorization: Bearer \u003ctoken\u003e\n6. On success:\n   - Generate 4-char attachment ID (unique within tick)\n   - Create Attachment struct with returned data\n   - Add to tick.Attachments\n   - Save tick\n   - Output confirmation\n\n## Output\n\n```\nAttached a1b2: screenshot.png (245KB)\nhttps://attachments.tickboard.dev/x7k2.../screenshot.png\n```\n\n## Error Messages\n\n- \"Error: file not found: screenshot.png\"\n- \"Error: file exceeds 10MB limit (got 15.2MB)\"\n- \"Error: unsupported file type: application/pdf (allowed: png, jpg, gif, webp)\"\n- \"Error: tickboard.dev authentication required. Add token to ~/.tickboardrc\"\n- \"Error: upload failed: \u003cserver message\u003e\"\n- \"Error: tick abc not found\"\n- \"Error: tick abc already has 10 attachments (maximum)\"",
+  "status": "open",
+  "priority": 1,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "7ab",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T16:22:15.645276Z",
+  "updated_at": "2026-01-21T16:22:15.645276Z"
+}

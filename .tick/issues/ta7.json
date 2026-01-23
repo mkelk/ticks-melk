@@ -1,0 +1,13 @@
+{
+  "id": "ta7",
+  "title": "Implement tk detach command",
+  "description": "Add 'tk detach' command to remove attachments from ticks.\n\n## Command\n\n```bash\ntk detach \u003ctick-id\u003e \u003cattachment-id\u003e\n\n# Example\ntk detach abc a1b2\n```\n\n## Implementation\n\n1. Load tick\n2. Find attachment by ID\n3. Remove from tick.Attachments\n4. Save tick\n5. Output confirmation\n\n## Notes\n\n- Does NOT delete from R2 (orphaned files cleaned up separately, or never)\n- Simple implementation: just removes metadata from tick JSON\n- Future: optional --delete flag to also remove from R2\n\n## Output\n\n```\nDetached a1b2: screenshot.png from abc\n```",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "7ab",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T16:22:15.69987Z",
+  "updated_at": "2026-01-21T16:22:15.69987Z"
+}

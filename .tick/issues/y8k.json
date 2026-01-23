@@ -1,0 +1,15 @@
+{
+  "id": "y8k",
+  "title": "Deploy static UI to Cloudflare Pages",
+  "description": "Deploy tickboard UI as static site on Cloudflare Pages.\n\n## Current State\n- UI built with Vite + Lit\n- Served locally by tk board/run\n- Cloud access via WebSocket relay (slow)\n\n## Target State\n- UI deployed to Pages (tickboard.dev)\n- Connects directly to DO for state\n- No relay needed\n\n## Build Configuration\n\n### vite.config.ts\n```typescript\nexport default defineConfig({\n  build: {\n    outDir: 'dist',\n    // Ensure assets work from any path\n    assetsDir: 'assets',\n  },\n  define: {\n    // Runtime config from env\n    '__API_URL__': JSON.stringify(process.env.API_URL || 'https://tickboard.dev'),\n  }\n})\n```\n\n### Environment Handling\n```typescript\n// src/config.ts\nexport const config = {\n  apiUrl: __API_URL__ || window.location.origin,\n  wsUrl: __API_URL__.replace('https:', 'wss:'),\n}\n```\n\n## GitHub Actions Workflow\n\n```yaml\n# .github/workflows/deploy-ui.yml\nname: Deploy UI to Pages\n\non:\n  push:\n    branches: [main]\n    paths:\n      - 'internal/tickboard/ui/**'\n  release:\n    types: [published]\n\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      \n      - uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n          \n      - name: Install dependencies\n        working-directory: internal/tickboard/ui\n        run: npm ci\n        \n      - name: Build\n        working-directory: internal/tickboard/ui\n        run: npm run build\n        env:\n          API_URL: https://tickboard.dev\n          \n      - name: Deploy to Pages\n        uses: cloudflare/pages-action@v1\n        with:\n          apiToken: \\${{ secrets.CF_API_TOKEN }}\n          accountId: \\${{ secrets.CF_ACCOUNT_ID }}\n          projectName: tickboard\n          directory: internal/tickboard/ui/dist\n```\n\n## Pages Configuration\n\nIn Cloudflare Dashboard:\n1. Create Pages project: \"tickboard\"\n2. Custom domain: tickboard.dev\n3. Build settings: (handled by GH Actions, not Pages build)\n\n## URL Routing\n\n```\ntickboard.dev/                → Pages (static UI)\ntickboard.dev/api/*           → Worker (DO, attachments)\nattachments.tickboard.dev/*   → R2 bucket\n```\n\n## Fallback for SPA\n\nCreate `_redirects` or configure in Pages:\n```\n/*  /index.html  200\n```\n\nEnsures client-side routing works.",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "y1i",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T16:31:35.961227Z",
+  "updated_at": "2026-01-21T19:16:08.26918Z",
+  "closed_at": "2026-01-21T19:16:08.26918Z",
+  "closed_reason": "Deployed UI to tickboard.dev via Worker assets binding. Added [assets] config to wrangler.toml, updated worker to serve SPA routes (/, /login, /app, /p/*) from index.html. 2068 static files uploaded. URLs: tickboard.dev (UI + API on same domain, no CORS needed)."
+}

@@ -1,0 +1,13 @@
+{
+  "id": "eqr",
+  "title": "Display attachments in tk show",
+  "description": "Update tk show to display attachments section.\n\n## Changes to cmd/tk/cmd/show.go\n\nAdd attachments section after metadata, before timestamps:\n\n```\n│ Attachments:                                                │\n│   📎 a1b2  Login page redesign (login.png, 245KB)          │\n│   📎 c3d4  Error state (error.png, 89KB)                   │\n```\n\n## Implementation\n\n1. Check if tick.HasAttachments()\n2. If yes, add \"Attachments:\" header (styled)\n3. For each attachment:\n   - Format: \"  📎 {id}  {description} ({filename}, {size})\"\n   - If no description, just show filename\n   - Format size as KB/MB\n\n## Styling\n\n- Use styles.RenderHeader(\"Attachments:\")\n- 📎 icon in dim style\n- Attachment ID in bold\n- Description/filename in normal text\n- Size in dim style\n\n## Helper Function\n\nAdd to show.go or styles package:\n```go\nfunc formatFileSize(bytes int64) string {\n    if bytes \u003c 1024 {\n        return fmt.Sprintf(\"%dB\", bytes)\n    } else if bytes \u003c 1024*1024 {\n        return fmt.Sprintf(\"%dKB\", bytes/1024)\n    }\n    return fmt.Sprintf(\"%.1fMB\", float64(bytes)/(1024*1024))\n}\n```",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "7ab",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T16:22:44.768502Z",
+  "updated_at": "2026-01-21T16:22:44.768502Z"
+}

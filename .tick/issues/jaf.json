@@ -1,0 +1,18 @@
+{
+  "id": "jaf",
+  "title": "Update TUI to use shared styles",
+  "description": "Update internal/tui/model.go to import styles from internal/styles instead of defining them inline. This ensures consistency between tk show and tk view, and avoids duplication.",
+  "status": "closed",
+  "priority": 3,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "labels": [
+    "refactor"
+  ],
+  "parent": "oji",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T15:35:21.984793Z",
+  "updated_at": "2026-01-21T15:42:24.167975Z",
+  "closed_at": "2026-01-21T15:42:24.167975Z",
+  "closed_reason": "Updated TUI model.go to import shared styles and icon constants"
+}

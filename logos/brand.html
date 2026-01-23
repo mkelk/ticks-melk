@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ticks — Brand Guidelines</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    @font-face {
+      font-family: 'Geist';
+      src: url('https://cdn.jsdelivr.net/npm/geist@1.2.0/dist/fonts/geist-sans/Geist-Regular.woff2') format('woff2');
+      font-weight: 400;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'Geist';
+      src: url('https://cdn.jsdelivr.net/npm/geist@1.2.0/dist/fonts/geist-sans/Geist-Medium.woff2') format('woff2');
+      font-weight: 500;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'Geist';
+      src: url('https://cdn.jsdelivr.net/npm/geist@1.2.0/dist/fonts/geist-sans/Geist-SemiBold.woff2') format('woff2');
+      font-weight: 600;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'Geist';
+      src: url('https://cdn.jsdelivr.net/npm/geist@1.2.0/dist/fonts/geist-sans/Geist-Bold.woff2') format('woff2');
+      font-weight: 700;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'Geist Mono';
+      src: url('https://cdn.jsdelivr.net/npm/geist@1.2.0/dist/fonts/geist-mono/GeistMono-Regular.woff2') format('woff2');
+      font-weight: 400;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'Geist Mono';
+      src: url('https://cdn.jsdelivr.net/npm/geist@1.2.0/dist/fonts/geist-mono/GeistMono-Medium.woff2') format('woff2');
+      font-weight: 500;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'Geist Mono';
+      src: url('https://cdn.jsdelivr.net/npm/geist@1.2.0/dist/fonts/geist-mono/GeistMono-SemiBold.woff2') format('woff2');
+      font-weight: 600;
+      font-style: normal;
+    }
+
+    :root {
+      --green: #A6E3A1;
+      --text: #CDD6F4;
+      --subtext: #A6ADC8;
+      --overlay: #6C7086;
+      --surface: #313244;
+      --mantle: #181825;
+      --base: #1E1E2E;
+      --crust: #11111B;
+      --red: #F38BA8;
+      --yellow: #F9E2AF;
+      --blue: #89DCEB;
+      --font-sans: 'Geist', system-ui, -apple-system, sans-serif;
+      --font-mono: 'Geist Mono', ui-monospace, monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--crust);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    a { color: var(--green); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Hero */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, var(--base) 0%, var(--crust) 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(166, 227, 161, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-logo { margin-bottom: 40px; }
+
+    .hero h1 {
+      font-family: var(--font-mono);
+      font-size: 72px;
+      font-weight: 600;
+      color: var(--green);
+      letter-spacing: -2px;
+      text-shadow:
+        0 0 10px rgba(166, 227, 161, 0.6),
+        0 0 20px rgba(166, 227, 161, 0.4),
+        0 0 40px rgba(166, 227, 161, 0.3),
+        0 0 80px rgba(166, 227, 161, 0.2);
+    }
+
+    .hero-subtitle {
+      font-size: 18px;
+      color: var(--subtext);
+      margin-top: 16px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+    }
+
+    .hero-variant {
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--overlay);
+      background: var(--surface);
+      padding: 6px 14px;
+      border-radius: 20px;
+    }
+
+    .scroll-hint {
+      position: absolute;
+      bottom: 40px;
+      color: var(--overlay);
+      font-size: 14px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+
+    /* Nav */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 20px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 100;
+      background: linear-gradient(180deg, var(--crust) 0%, transparent 100%);
+    }
+
+    nav .logo {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--green);
+      font-size: 18px;
+      text-shadow:
+        0 0 8px rgba(166, 227, 161, 0.6),
+        0 0 16px rgba(166, 227, 161, 0.4),
+        0 0 32px rgba(166, 227, 161, 0.2);
+    }
+
+    nav ul {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+
+    nav a {
+      color: var(--subtext);
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    nav a:hover {
+      color: var(--green);
+      text-decoration: none;
+    }
+
+    /* Sections */
+    section {
+      padding: 120px 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .section-header {
+      margin-bottom: 80px;
+    }
+
+    .section-header h2 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--green);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .section-header p {
+      font-size: 32px;
+      font-weight: 600;
+      color: var(--text);
+      max-width: 600px;
+      line-height: 1.3;
+    }
+
+    /* Logo Section */
+    .logo-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 40px;
+      margin-bottom: 60px;
+    }
+
+    .logo-card {
+      background: var(--base);
+      border-radius: 24px;
+      padding: 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 300px;
+      border: 1px solid var(--surface);
+    }
+
+    .logo-card.dark { background: var(--crust); }
+
+    .logo-card svg { max-width: 200px; height: auto; }
+
+    .logo-card-label {
+      margin-top: 24px;
+      font-size: 14px;
+      color: var(--overlay);
+    }
+
+    /* Asset Links */
+    .asset-links {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .asset-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      background: var(--surface);
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      transition: all 0.2s;
+    }
+
+    .asset-link:hover {
+      background: var(--green);
+      color: var(--crust);
+      text-decoration: none;
+    }
+
+    .asset-link .icon { font-size: 16px; }
+
+    .asset-section {
+      margin-top: 40px;
+      padding-top: 40px;
+      border-top: 1px solid var(--surface);
+    }
+
+    .asset-section h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--overlay);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 20px;
+    }
+
+    /* Colors Section */
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      margin-bottom: 60px;
+    }
+
+    .color-card {
+      aspect-ratio: 1;
+      border-radius: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.3s ease;
+      cursor: pointer;
+    }
+
+    .color-card:hover { transform: scale(1.05); }
+    .color-card.primary { grid-column: span 2; grid-row: span 2; }
+
+    .color-card-name { font-weight: 600; font-size: 16px; margin-bottom: 4px; }
+
+    .color-card-hex {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      opacity: 0.8;
+    }
+
+    .color-card.light-text { color: var(--crust); }
+    .color-card.dark-text { color: var(--text); }
+
+    .color-copied {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.8);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--green);
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+    }
+
+    .color-card.copied .color-copied { opacity: 1; }
+
+    /* Typography Section */
+    .type-showcase {
+      background: var(--base);
+      border-radius: 24px;
+      padding: 60px;
+      margin-bottom: 40px;
+      border: 1px solid var(--surface);
+    }
+
+    .type-sample {
+      margin-bottom: 40px;
+      padding-bottom: 40px;
+      border-bottom: 1px solid var(--surface);
+    }
+
+    .type-sample:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+
+    .type-label {
+      font-size: 12px;
+      color: var(--overlay);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+    }
+
+    .type-h1 { font-size: 48px; font-weight: 700; line-height: 1.1; letter-spacing: -1px; }
+    .type-h2 { font-size: 32px; font-weight: 600; line-height: 1.2; letter-spacing: -0.5px; }
+    .type-h3 { font-size: 24px; font-weight: 600; line-height: 1.3; }
+    .type-body { font-size: 16px; font-weight: 400; line-height: 1.6; max-width: 600px; color: var(--subtext); }
+    .type-mono { font-family: var(--font-mono); font-size: 15px; color: var(--green); }
+
+    .font-stack {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+
+    .font-card {
+      background: var(--mantle);
+      border-radius: 16px;
+      padding: 32px;
+    }
+
+    .font-card-name { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+    .font-card-name.mono { font-family: var(--font-mono); color: var(--green); }
+    .font-card-usage { font-size: 14px; color: var(--overlay); margin-bottom: 16px; }
+    .font-card a { font-size: 13px; }
+
+    /* Voice Section */
+    .voice-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+    }
+
+    .voice-card {
+      background: var(--base);
+      border-radius: 20px;
+      padding: 32px;
+      border: 1px solid var(--surface);
+      transition: border-color 0.3s ease;
+    }
+
+    .voice-card:hover { border-color: var(--green); }
+    .voice-card h3 { font-size: 20px; font-weight: 600; margin-bottom: 12px; color: var(--green); }
+    .voice-card p { font-size: 14px; color: var(--subtext); line-height: 1.5; }
+
+    /* Usage Section */
+    .usage-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+
+    .usage-card {
+      background: var(--base);
+      border-radius: 20px;
+      padding: 40px;
+      border: 1px solid var(--surface);
+    }
+
+    .usage-card.do { border-left: 4px solid var(--green); }
+    .usage-card.dont { border-left: 4px solid var(--red); }
+
+    .usage-card h3 {
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 20px;
+    }
+
+    .usage-card.do h3 { color: var(--green); }
+    .usage-card.dont h3 { color: var(--red); }
+
+    .usage-card ul { list-style: none; }
+
+    .usage-card li {
+      font-size: 15px;
+      color: var(--subtext);
+      padding: 8px 0;
+      padding-left: 24px;
+      position: relative;
+    }
+
+    .usage-card li::before {
+      position: absolute;
+      left: 0;
+      font-family: var(--font-mono);
+    }
+
+    .usage-card.do li::before { content: '✓'; color: var(--green); }
+    .usage-card.dont li::before { content: '✗'; color: var(--red); }
+
+    /* Assets Section */
+    .assets-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    .asset-card {
+      background: var(--base);
+      border-radius: 20px;
+      padding: 32px;
+      border: 1px solid var(--surface);
+      transition: border-color 0.3s;
+    }
+
+    .asset-card:hover { border-color: var(--green); }
+
+    .asset-card h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+
+    .asset-card p {
+      font-size: 14px;
+      color: var(--overlay);
+      margin-bottom: 20px;
+    }
+
+    .asset-card ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .asset-card li a {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--subtext);
+      padding: 8px 12px;
+      background: var(--surface);
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .asset-card li a:hover {
+      background: var(--green);
+      color: var(--crust);
+      text-decoration: none;
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 80px 40px;
+      color: var(--overlay);
+      font-size: 14px;
+    }
+
+    footer span {
+      color: var(--green);
+      font-family: var(--font-mono);
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      nav ul { display: none; }
+      .hero h1 { font-size: 48px; }
+      .color-grid { grid-template-columns: repeat(2, 1fr); }
+      .voice-grid { grid-template-columns: repeat(2, 1fr); }
+      .logo-grid { grid-template-columns: 1fr; }
+      .font-stack { grid-template-columns: 1fr; }
+      .usage-grid { grid-template-columns: 1fr; }
+      .assets-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav>
+    <span class="logo">tk_</span>
+    <ul>
+      <li><a href="#logo">Logo</a></li>
+      <li><a href="#color">Color</a></li>
+      <li><a href="#typography">Typography</a></li>
+      <li><a href="#voice">Voice</a></li>
+      <li><a href="#usage">Usage</a></li>
+      <li><a href="#assets">Assets</a></li>
+    </ul>
+  </nav>
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="120" height="120">
+        <defs>
+          <filter id="glow" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur1"/>
+            <feGaussianBlur in="SourceGraphic" stdDeviation="0.8" result="blur2"/>
+            <feMerge>
+              <feMergeNode in="blur1"/>
+              <feMergeNode in="blur2"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+        <rect x="4" y="4" width="56" height="56" rx="10" fill="#1e1e2e"/>
+        <rect x="4" y="4" width="56" height="56" rx="10" fill="none" stroke="#313244" stroke-width="2"/>
+        <text x="32" y="32" font-family="ui-monospace, monospace" font-size="22" font-weight="600" fill="#A6E3A1" text-anchor="middle" dominant-baseline="central" filter="url(#glow)">tk_</text>
+      </svg>
+    </div>
+    <h1>ticks</h1>
+    <p class="hero-subtitle">Brand Guidelines</p>
+    <p class="scroll-hint">↓ Scroll</p>
+  </header>
+
+  <!-- Logo -->
+  <section id="logo">
+    <div class="section-header">
+      <h2>Logo</h2>
+      <p>The icon and logotype work together or independently. Always use on dark backgrounds.</p>
+    </div>
+    <div class="logo-grid">
+      <div class="logo-card">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="140" height="140">
+          <defs>
+            <filter id="glow2" x="-100%" y="-100%" width="300%" height="300%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur1"/>
+              <feGaussianBlur in="SourceGraphic" stdDeviation="0.8" result="blur2"/>
+              <feMerge><feMergeNode in="blur1"/><feMergeNode in="blur2"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <rect x="4" y="4" width="56" height="56" rx="10" fill="#1e1e2e"/>
+          <rect x="4" y="4" width="56" height="56" rx="10" fill="none" stroke="#313244" stroke-width="2"/>
+          <text x="32" y="32" font-family="ui-monospace, monospace" font-size="22" font-weight="600" fill="#A6E3A1" text-anchor="middle" dominant-baseline="central" filter="url(#glow2)">tk_</text>
+        </svg>
+        <span class="logo-card-label">Icon — App icons, favicons</span>
+      </div>
+      <div class="logo-card dark">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40" width="240" height="80">
+          <defs>
+            <filter id="glow3" x="-100%" y="-100%" width="300%" height="300%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur1"/>
+              <feGaussianBlur in="SourceGraphic" stdDeviation="0.8" result="blur2"/>
+              <feMerge><feMergeNode in="blur1"/><feMergeNode in="blur2"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <text x="60" y="20" font-family="ui-monospace, monospace" font-size="28" font-weight="600" fill="#A6E3A1" text-anchor="middle" dominant-baseline="central" filter="url(#glow3)">ticks</text>
+        </svg>
+        <span class="logo-card-label">Logotype — Headers, marketing</span>
+      </div>
+    </div>
+    <div class="asset-section">
+      <h3>Download</h3>
+      <div class="asset-links">
+        <a href="ticks-icon.svg" download class="asset-link"><span class="icon">↓</span> Icon SVG</a>
+        <a href="ticks-logotype.svg" download class="asset-link"><span class="icon">↓</span> Logotype SVG</a>
+        <a href="png/ticks-icon-512x512.png" download class="asset-link"><span class="icon">↓</span> Icon PNG</a>
+        <a href="png/ticks-logotype-512h.png" download class="asset-link"><span class="icon">↓</span> Logotype PNG</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Colors -->
+  <section id="color">
+    <div class="section-header">
+      <h2>Color</h2>
+      <p>A focused palette derived from Catppuccin Mocha. Green leads, accents support. Click to copy.</p>
+    </div>
+    <div class="color-grid">
+      <div class="color-card primary light-text" style="background: #A6E3A1;" data-color="#A6E3A1">
+        <span class="color-card-name">Green</span>
+        <span class="color-card-hex">#A6E3A1</span>
+        <span class="color-copied">Copied!</span>
+      </div>
+      <div class="color-card dark-text" style="background: #CDD6F4;" data-color="#CDD6F4">
+        <span class="color-card-name">Text</span>
+        <span class="color-card-hex">#CDD6F4</span>
+        <span class="color-copied">Copied!</span>
+      </div>
+      <div class="color-card dark-text" style="background: #A6ADC8;" data-color="#A6ADC8">
+        <span class="color-card-name">Subtext</span>
+        <span class="color-card-hex">#A6ADC8</span>
+        <span class="color-copied">Copied!</span>
+      </div>
+      <div class="color-card dark-text" style="background: #313244;" data-color="#313244">
+        <span class="color-card-name">Surface</span>
+        <span class="color-card-hex">#313244</span>
+        <span class="color-copied">Copied!</span>
+      </div>
+      <div class="color-card dark-text" style="background: #1E1E2E;" data-color="#1E1E2E">
+        <span class="color-card-name">Base</span>
+        <span class="color-card-hex">#1E1E2E</span>
+        <span class="color-copied">Copied!</span>
+      </div>
+      <div class="color-card dark-text" style="background: #11111B; border: 1px solid #313244;" data-color="#11111B">
+        <span class="color-card-name">Crust</span>
+        <span class="color-card-hex">#11111B</span>
+        <span class="color-copied">Copied!</span>
+      </div>
+      <div class="color-card light-text" style="background: #F38BA8;" data-color="#F38BA8">
+        <span class="color-card-name">Red</span>
+        <span class="color-card-hex">#F38BA8</span>
+        <span class="color-copied">Copied!</span>
+      </div>
+      <div class="color-card light-text" style="background: #F9E2AF;" data-color="#F9E2AF">
+        <span class="color-card-name">Yellow</span>
+        <span class="color-card-hex">#F9E2AF</span>
+        <span class="color-copied">Copied!</span>
+      </div>
+      <div class="color-card light-text" style="background: #89DCEB;" data-color="#89DCEB">
+        <span class="color-card-name">Blue</span>
+        <span class="color-card-hex">#89DCEB</span>
+        <span class="color-copied">Copied!</span>
+      </div>
+    </div>
+    <div class="asset-section">
+      <h3>Download</h3>
+      <div class="asset-links">
+        <a href="colors.css" download class="asset-link"><span class="icon">↓</span> CSS Variables</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Typography -->
+  <section id="typography">
+    <div class="section-header">
+      <h2>Typography</h2>
+      <p>Geist for modern clarity. Geist Mono for code and brand expression.</p>
+    </div>
+    <div class="type-showcase">
+      <div class="type-sample">
+        <p class="type-label">Heading 1 — 48px / 700</p>
+        <p class="type-h1">Multiplayer-first issue tracking</p>
+      </div>
+      <div class="type-sample">
+        <p class="type-label">Heading 2 — 32px / 600</p>
+        <p class="type-h2">Built for AI coding agents</p>
+      </div>
+      <div class="type-sample">
+        <p class="type-label">Heading 3 — 24px / 600</p>
+        <p class="type-h3">Git-native, lightning fast</p>
+      </div>
+      <div class="type-sample">
+        <p class="type-label">Body — 16px / 400</p>
+        <p class="type-body">Ticks gives agents persistent memory that survives session restarts, context compaction, and even switching between different AI tools. Issues live in your repo as simple JSON files.</p>
+      </div>
+      <div class="type-sample">
+        <p class="type-label">Code — 15px / 500</p>
+        <p class="type-mono">tk ready && tk next --epic</p>
+      </div>
+    </div>
+    <div class="font-stack">
+      <div class="font-card">
+        <p class="font-card-name">Geist</p>
+        <p class="font-card-usage">Headings & body text</p>
+        <a href="https://vercel.com/font" target="_blank">Vercel Font →</a>
+      </div>
+      <div class="font-card">
+        <p class="font-card-name mono">Geist Mono</p>
+        <p class="font-card-usage">Code, CLI, logo</p>
+        <a href="https://vercel.com/font" target="_blank">Vercel Font →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Voice -->
+  <section id="voice">
+    <div class="section-header">
+      <h2>Voice</h2>
+      <p>How we speak. No fluff, no hype.</p>
+    </div>
+    <div class="voice-grid">
+      <div class="voice-card">
+        <h3>Direct</h3>
+        <p>Get to the point. Developers don't have time for marketing speak.</p>
+      </div>
+      <div class="voice-card">
+        <h3>Technical</h3>
+        <p>Speak to builders. Use precise terms. Show, don't tell.</p>
+      </div>
+      <div class="voice-card">
+        <h3>Confident</h3>
+        <p>State facts. Avoid hedging. We know what we built.</p>
+      </div>
+      <div class="voice-card">
+        <h3>Lowercase</h3>
+        <p>Brand name is "ticks", not "Ticks". Casual, approachable.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Usage -->
+  <section id="usage">
+    <div class="section-header">
+      <h2>Usage</h2>
+      <p>Keep it consistent. Keep it simple.</p>
+    </div>
+    <div class="usage-grid">
+      <div class="usage-card do">
+        <h3>Do</h3>
+        <ul>
+          <li>Use logo on dark backgrounds only</li>
+          <li>Let the logo breathe with clear space</li>
+          <li>Use green as the primary accent</li>
+          <li>Use mono font for code and CLI</li>
+          <li>Write "ticks" in lowercase</li>
+        </ul>
+      </div>
+      <div class="usage-card dont">
+        <h3>Don't</h3>
+        <ul>
+          <li>Place logo on light or busy backgrounds</li>
+          <li>Stretch, rotate, or modify the logo</li>
+          <li>Overuse accent colors (red, yellow, blue)</li>
+          <li>Use mono font for body text</li>
+          <li>Write "Ticks" or "TICKS"</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Assets -->
+  <section id="assets">
+    <div class="section-header">
+      <h2>Assets</h2>
+      <p>Everything you need to represent ticks.</p>
+    </div>
+    <div class="assets-grid">
+      <div class="asset-card">
+        <h3>Logo Files</h3>
+        <p>Vector and raster formats</p>
+        <ul>
+          <li><a href="ticks-icon.svg" download>↓ ticks-icon.svg</a></li>
+          <li><a href="ticks-logotype.svg" download>↓ ticks-logotype.svg</a></li>
+        </ul>
+      </div>
+      <div class="asset-card">
+        <h3>Icon PNGs</h3>
+        <p>All standard sizes</p>
+        <ul>
+          <li><a href="png/ticks-icon-64x64.png" download>↓ 64×64</a></li>
+          <li><a href="png/ticks-icon-128x128.png" download>↓ 128×128</a></li>
+          <li><a href="png/ticks-icon-256x256.png" download>↓ 256×256</a></li>
+          <li><a href="png/ticks-icon-512x512.png" download>↓ 512×512</a></li>
+        </ul>
+      </div>
+      <div class="asset-card">
+        <h3>Logotype PNGs</h3>
+        <p>Various heights</p>
+        <ul>
+          <li><a href="png/ticks-logotype-64h.png" download>↓ 64h</a></li>
+          <li><a href="png/ticks-logotype-128h.png" download>↓ 128h</a></li>
+          <li><a href="png/ticks-logotype-256h.png" download>↓ 256h</a></li>
+          <li><a href="png/ticks-logotype-512h.png" download>↓ 512h</a></li>
+        </ul>
+      </div>
+      <div class="asset-card">
+        <h3>Favicon</h3>
+        <p>Web favicons and app icons</p>
+        <ul>
+          <li><a href="favicon/favicon.ico" download>↓ favicon.ico</a></li>
+          <li><a href="favicon/favicon-32x32.png" download>↓ favicon-32x32.png</a></li>
+          <li><a href="favicon/apple-touch-icon.png" download>↓ apple-touch-icon.png</a></li>
+        </ul>
+      </div>
+      <div class="asset-card">
+        <h3>PWA Icons</h3>
+        <p>Android & Progressive Web App</p>
+        <ul>
+          <li><a href="favicon/android-chrome-192x192.png" download>↓ 192×192</a></li>
+          <li><a href="favicon/android-chrome-512x512.png" download>↓ 512×512</a></li>
+        </ul>
+      </div>
+      <div class="asset-card">
+        <h3>Colors</h3>
+        <p>CSS custom properties</p>
+        <ul>
+          <li><a href="colors.css" download>↓ colors.css</a></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>© 2025 <span>ticks</span> — A multiplayer-first issue tracker for AI coding agents</p>
+  </footer>
+
+  <script>
+    // Copy color on click
+    document.querySelectorAll('.color-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const color = card.dataset.color;
+        navigator.clipboard.writeText(color);
+        card.classList.add('copied');
+        setTimeout(() => card.classList.remove('copied'), 1000);
+      });
+    });
+  </script>
+
+</body>
+</html>

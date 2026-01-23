@@ -1,0 +1,17 @@
+{
+  "id": "4my",
+  "title": "Add API integration tests",
+  "description": "Add integration tests for the REST API. Test: auth (valid token, invalid token, no token, wrong project access), CRUD operations (create, read, update, delete ticks), note creation, validation errors, sync behavior (verify WebSocket clients receive updates). Can use curl scripts or a test framework. Consider testing with actual tk run --cloud to verify end-to-end sync.",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "labels": [
+    "test",
+    "api"
+  ],
+  "parent": "qr4",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-22T07:34:50.561496Z",
+  "updated_at": "2026-01-22T07:34:50.561496Z"
+}

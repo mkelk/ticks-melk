@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40" role="img" aria-labelledby="logo-title">
+  <title id="logo-title">Ticks Logotype</title>
+  <defs>
+    <filter id="glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur1"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="0.8" result="blur2"/>
+      <feMerge>
+        <feMergeNode in="blur1"/>
+        <feMergeNode in="blur2"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- ticks text with Geist Mono and glow -->
+  <text x="60" y="20"
+        font-family="'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace"
+        font-size="28"
+        font-weight="600"
+        fill="#A6E3A1"
+        text-anchor="middle"
+        dominant-baseline="central"
+        filter="url(#glow)">ticks</text>
+</svg>

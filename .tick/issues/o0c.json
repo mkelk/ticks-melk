@@ -1,0 +1,15 @@
+{
+  "id": "o0c",
+  "title": "Add --board flag to tk run command",
+  "description": "Absorb tk board functionality into tk run with --board flag.\n\n## Command Changes\n\n```bash\ntk run epic            # agent only (unchanged)\ntk run epic --board    # agent + board UI on :3000\ntk run --board         # board only, no agent (watch mode)\ntk run --board --port 8080  # custom port\n```\n\n## Implementation\n\n1. Add flags to run.go:\n```go\nvar runBoard bool\nvar runPort int\n\nrunCmd.Flags().BoolVar(\u0026runBoard, \"board\", false, \"start board UI\")\nrunCmd.Flags().IntVar(\u0026runPort, \"port\", 3000, \"board port\")\n```\n\n2. Modify runRun():\n```go\nfunc runRun(cmd *cobra.Command, args []string) error {\n    if runBoard {\n        // Start board server in goroutine\n        srv, _ := server.New(tickDir, runPort)\n        go srv.Start()\n        defer srv.Stop()\n    }\n    \n    if len(args) \u003e 0 {\n        // Run agent on epic\n        return runAgent(args[0])\n    }\n    \n    if runBoard {\n        // Board only - wait for interrupt\n        \u003c-ctx.Done()\n        return nil\n    }\n    \n    return fmt.Errorf(\"specify epic or --board\")\n}\n```\n\n3. Share board server code from internal/tickboard/server\n\n## Deprecate tk board\n\nIn board.go:\n```go\nfunc runBoard(cmd *cobra.Command, args []string) error {\n    fmt.Fprintln(os.Stderr, \"Warning: 'tk board' is deprecated, use 'tk run --board'\")\n    // Forward to existing implementation for now\n    ...\n}\n```\n\n## Testing\n\n- tk run epic --board: both agent and board start\n- tk run --board: board only, no agent\n- tk run: error \"specify epic or --board\"\n- Ctrl+C: clean shutdown of both agent and board",
+  "status": "closed",
+  "priority": 1,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "y1i",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T16:30:50.060481Z",
+  "updated_at": "2026-01-21T17:06:19.289438Z",
+  "closed_at": "2026-01-21T17:06:19.289438Z",
+  "closed_reason": "Implemented --board and --port flags for tk run. Board server starts when --board is set. Supports board-only mode with 'tk run --board'. Auto-increments port if taken. Added deprecation warning to tk board."
+}

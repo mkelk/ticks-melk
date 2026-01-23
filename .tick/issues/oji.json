@@ -1,0 +1,18 @@
+{
+  "id": "oji",
+  "title": "Enhance tk show with modern terminal formatting",
+  "description": "Make tk show output visually appealing with icons, colors, and bordered box formatting using lipgloss - similar to the TUI detail view but as a single non-interactive output.",
+  "status": "closed",
+  "priority": 2,
+  "type": "epic",
+  "owner": "peter@engelbrecht.dk",
+  "labels": [
+    "cli",
+    "ux"
+  ],
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T15:35:05.712533Z",
+  "updated_at": "2026-01-21T16:04:36.062921Z",
+  "closed_at": "2026-01-21T16:04:36.062921Z",
+  "closed_reason": "Released in v0.5.1 - styled terminal output with colors, icons, and STYLEGUIDE.md"
+}

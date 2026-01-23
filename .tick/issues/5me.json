@@ -1,0 +1,18 @@
+{
+  "id": "5me",
+  "title": "Style tk list output with colors and icons",
+  "description": "Update cmd/tk/cmd/list.go table output to use lipgloss. Add: colored status icons (○/●/✓/◐/⊘), colored priority (P1 red, P2 peach, P3 green), colored type (epic purple, bug red, feature teal). Keep column alignment. Preserve --json flag behavior.",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "labels": [
+    "feature"
+  ],
+  "parent": "oji",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T15:36:34.77177Z",
+  "updated_at": "2026-01-21T15:42:23.984329Z",
+  "closed_at": "2026-01-21T15:42:23.984329Z",
+  "closed_reason": "Updated list.go with colored status icons, priority colors, type colors, and dim header"
+}
