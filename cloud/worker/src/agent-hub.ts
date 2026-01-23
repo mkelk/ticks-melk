@@ -58,12 +58,23 @@ export class AgentHub {
   private state: DurableObjectState;
   private env: Env;
   private agents: Map<WebSocket, AgentConnection> = new Map();
-  private boardIndex: Map<string, WebSocket> = new Map(); // boardName -> socket
+  private boardIndex: Map<string, WebSocket> = new Map(); // boardName -> socket (relay mode)
+  private syncBoards: Set<string> = new Set(); // boardName (sync mode - ProjectRoom connections)
   private eventSubscribers: Map<string, Set<EventSubscriber>> = new Map(); // boardName -> subscribers
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
     this.env = env;
+
+    // Restore state from storage (blocking to ensure it's ready before fetch)
+    this.state.blockConcurrencyWhile(async () => {
+      // Restore syncBoards from storage
+      const storedSyncBoards = await this.state.storage.get<string[]>("syncBoards");
+      if (storedSyncBoards) {
+        this.syncBoards = new Set(storedSyncBoards);
+        console.log(`[AgentHub] Restored ${this.syncBoards.size} sync boards from storage`);
+      }
+    });
 
     // Set up WebSocket hibernation handlers
     this.state.getWebSockets().forEach((ws) => {
@@ -132,9 +143,33 @@ export class AgentHub {
     }
 
     // List connected boards (for debugging/admin)
+    // Includes both relay-mode (WebSocket) and sync-mode (ProjectRoom) boards
     if (url.pathname === "/boards") {
-      const boards = Array.from(this.boardIndex.keys());
-      return Response.json({ boards, count: boards.length });
+      const relayBoards = Array.from(this.boardIndex.keys());
+      const syncBoardsList = Array.from(this.syncBoards);
+      // Combine and dedupe (in case both modes are somehow active)
+      const allBoards = [...new Set([...relayBoards, ...syncBoardsList])];
+      return Response.json({ boards: allBoards, count: allBoards.length });
+    }
+
+    // Register a sync-mode board as online (called by ProjectRoom)
+    if (url.pathname.startsWith("/sync-register/")) {
+      const boardName = decodeURIComponent(url.pathname.slice("/sync-register/".length));
+      this.syncBoards.add(boardName);
+      // Persist to storage so it survives hibernation/restart
+      await this.state.storage.put("syncBoards", Array.from(this.syncBoards));
+      console.log(`[AgentHub] Sync board registered: ${boardName} (total: ${this.syncBoards.size})`);
+      return Response.json({ ok: true, board: boardName });
+    }
+
+    // Unregister a sync-mode board (called by ProjectRoom)
+    if (url.pathname.startsWith("/sync-unregister/")) {
+      const boardName = decodeURIComponent(url.pathname.slice("/sync-unregister/".length));
+      this.syncBoards.delete(boardName);
+      // Persist to storage so it survives hibernation/restart
+      await this.state.storage.put("syncBoards", Array.from(this.syncBoards));
+      console.log(`[AgentHub] Sync board unregistered: ${boardName} (total: ${this.syncBoards.size})`);
+      return Response.json({ ok: true, board: boardName });
     }
 
     // SSE endpoint: /events/:boardName

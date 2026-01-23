@@ -160,6 +160,9 @@ export class ProjectRoom extends DurableObject<Env> {
       // Restore last activity timestamp
       this.lastActivity = (await this.ctx.storage.get<number>("lastActivity")) || Date.now();
 
+      // Restore project ID from storage (needed for AgentHub registration)
+      this.projectId = (await this.ctx.storage.get<string>("projectId")) || "";
+
       // Restore WebSocket connections from hibernation
       for (const ws of this.ctx.getWebSockets()) {
         const meta = ws.deserializeAttachment() as Connection | null;
@@ -169,6 +172,14 @@ export class ProjectRoom extends DurableObject<Env> {
             socket: ws,
           });
         }
+      }
+
+      // If we have local connections after hibernation, re-register with AgentHub
+      if (this.projectId && this.hasLocalConnections()) {
+        console.log(`[ProjectRoom:${this.projectId}] Waking from hibernation with local connections, re-registering with AgentHub`);
+        this.notifyAgentHub("register").catch((err) => {
+          console.error(`[ProjectRoom:${this.projectId}] Failed to re-register with AgentHub:`, err);
+        });
       }
 
       // Schedule cleanup alarm if we have stored data
@@ -188,6 +199,8 @@ export class ProjectRoom extends DurableObject<Env> {
     const projectMatch = url.pathname.match(/\/api\/projects\/([^\/]+)/);
     if (projectMatch) {
       this.projectId = decodeURIComponent(projectMatch[1]);
+      // Persist projectId so we can re-register with AgentHub after hibernation
+      this.ctx.storage.put("projectId", this.projectId).catch(() => {});
     }
 
     // WebSocket upgrade for sync connections
