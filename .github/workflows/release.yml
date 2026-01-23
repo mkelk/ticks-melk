@@ -30,7 +30,7 @@ jobs:
       - name: Build UI bundle
         run: |
           cd internal/tickboard/ui
-          npm ci
+          npm install
           npm run build
 
       - name: Run GoReleaser
