@@ -65,7 +65,7 @@ func TestConflictHandler_HandleConflict(t *testing.T) {
 		}
 
 		// Trigger conflict
-		result, err := mm.Merge(wt)
+		result, err := mm.Merge(wt, MergeOptions{})
 		if err != nil {
 			t.Fatalf("Merge() error = %v", err)
 		}
