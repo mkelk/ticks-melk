@@ -4,12 +4,17 @@
   "private": true,
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "tail": "wrangler tail"
+    "build:ui": "cd ../../internal/tickboard/ui && pnpm build",
+    "deploy": "pnpm build:ui && wrangler deploy",
+    "tail": "wrangler tail",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.5.0",
     "@cloudflare/workers-types": "^4.20240512.0",
     "typescript": "^5.4.5",
+    "vitest": "^2.1.0",
     "wrangler": "^4.59.3"
   }
 }

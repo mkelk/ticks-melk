@@ -119,6 +119,17 @@ export async function signup(
   }
 }
 
+// Timing data structure for Server-Timing header
+interface TimingData {
+  [key: string]: number;
+}
+
+function buildServerTimingHeader(timings: TimingData): string {
+  return Object.entries(timings)
+    .map(([name, dur]) => `${name};dur=${dur}`)
+    .join(", ");
+}
+
 // Login: authenticate user and return session token
 export async function login(
   env: Env,
@@ -126,13 +137,17 @@ export async function login(
   password: string
 ): Promise<Response> {
   const t0 = Date.now();
+  const timings: TimingData = {};
+
   try {
     if (!email || !password) {
       return Response.json({ error: "Email and password required" }, { status: 400 });
     }
 
+    const tHash1 = Date.now();
     const passwordHash = await hashPassword(password);
-    console.log(`login: hash took ${Date.now() - t0}ms`);
+    timings["hash-password"] = Date.now() - tHash1;
+    console.log(`login: hash took ${timings["hash-password"]}ms`);
 
     const t1 = Date.now();
     const result = await env.DB.prepare(
@@ -140,25 +155,26 @@ export async function login(
     )
       .bind(email.toLowerCase(), passwordHash)
       .first<User>();
-    console.log(`login: SELECT user took ${Date.now() - t1}ms`);
+    timings["d1-select-user"] = Date.now() - t1;
+    console.log(`login: SELECT user took ${timings["d1-select-user"]}ms`);
 
     if (!result) {
-      return Response.json({ error: "Invalid email or password" }, { status: 401 });
+      timings["total"] = Date.now() - t0;
+      const response = Response.json({ error: "Invalid email or password" }, { status: 401 });
+      const headers = new Headers(response.headers);
+      headers.set("Server-Timing", buildServerTimingHeader(timings));
+      return new Response(response.body, { status: 401, headers });
     }
 
-    // Delete old session tokens for this user (cleanup) - fire and forget
-    const t2 = Date.now();
-    env.DB.prepare(
-      "DELETE FROM tokens WHERE user_id = ? AND name LIKE 'session%'"
-    )
-      .bind(result.id)
-      .run()
-      .then(() => console.log(`login: DELETE sessions took ${Date.now() - t2}ms`))
-      .catch(() => {});
-
-    // Create a new session token
+    // Create a new session token first, then delete old ones
+    const tGen = Date.now();
     const token = generateToken();
+    timings["gen-token"] = Date.now() - tGen;
+
+    const tHash2 = Date.now();
     const tokenHash = await hashPassword(token);
+    timings["hash-token"] = Date.now() - tHash2;
+
     const tokenId = generateId();
     const sessionName = `session-${Date.now()}`;
 
@@ -168,18 +184,30 @@ export async function login(
     )
       .bind(tokenId, result.id, sessionName, tokenHash)
       .run();
-    console.log(`login: INSERT token took ${Date.now() - t3}ms`);
+    timings["d1-insert-token"] = Date.now() - t3;
+    console.log(`login: INSERT token took ${timings["d1-insert-token"]}ms`);
 
-    console.log(`login: total ${Date.now() - t0}ms`);
+    // Delete old session tokens AFTER inserting new one, excluding the one we just created
+    env.DB.prepare(
+      "DELETE FROM tokens WHERE user_id = ? AND name LIKE 'session%' AND id != ?"
+    )
+      .bind(result.id, tokenId)
+      .run()
+      .catch(() => {});
+
+    timings["total"] = Date.now() - t0;
+    console.log(`login: total ${timings["total"]}ms | breakdown: ${JSON.stringify(timings)}`);
 
     const response = Response.json({
       user: { id: result.id, email: result.email },
       token: token,
+      _timing: timings, // Include in response body for client visibility
     });
 
     // Also set session cookie for browser-based access
     const headers = new Headers(response.headers);
     headers.set("Set-Cookie", createSessionCookie(token));
+    headers.set("Server-Timing", buildServerTimingHeader(timings));
 
     return new Response(response.body, {
       status: response.status,
@@ -187,7 +215,8 @@ export async function login(
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`Login error after ${Date.now() - t0}ms:`, message);
+    timings["total"] = Date.now() - t0;
+    console.error(`Login error after ${timings["total"]}ms:`, message);
     return Response.json({ error: "Login failed. Please try again." }, { status: 500 });
   }
 }
@@ -279,21 +308,30 @@ export async function revokeToken(
   }
 }
 
+// Token expiry duration (1 hour from validation)
+const TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+
 // Validate a token and return user info
 export async function validateToken(
   env: Env,
   token: string
-): Promise<{ userId: string; tokenId: string } | null> {
+): Promise<{ userId: string; tokenId: string; expiresAt: number; _timing?: TimingData } | null> {
   const t0 = Date.now();
+  const timings: TimingData = {};
   try {
+    const tHash = Date.now();
     const tokenHash = await hashPassword(token);
+    timings["hash"] = Date.now() - tHash;
 
+    const tSelect = Date.now();
     const result = await env.DB.prepare(
       "SELECT t.id, t.user_id FROM tokens t WHERE t.token_hash = ?"
     )
       .bind(tokenHash)
       .first<{ id: string; user_id: string }>();
-    console.log(`validateToken: SELECT took ${Date.now() - t0}ms`);
+    timings["d1-select"] = Date.now() - tSelect;
+    timings["total"] = Date.now() - t0;
+    console.log(`validateToken: total ${timings["total"]}ms | hash=${timings["hash"]}ms d1=${timings["d1-select"]}ms`);
 
     if (!result) {
       return null;
@@ -305,9 +343,13 @@ export async function validateToken(
       .run()
       .catch(() => {}); // Ignore errors
 
-    return { userId: result.user_id, tokenId: result.id };
+    // Calculate token expiry (1 hour from now)
+    const expiresAt = Date.now() + TOKEN_EXPIRY_MS;
+
+    return { userId: result.user_id, tokenId: result.id, expiresAt, _timing: timings };
   } catch (err) {
-    console.error(`Validate token error after ${Date.now() - t0}ms:`, err);
+    timings["total"] = Date.now() - t0;
+    console.error(`Validate token error after ${timings["total"]}ms:`, err);
     return null;
   }
 }
@@ -426,6 +468,27 @@ export async function userOwnsBoard(
   } catch (err) {
     console.error("Check board ownership error:", err);
     return false;
+  }
+}
+
+// Check if user owns a specific project (by project ID / board name)
+export async function userOwnsProject(
+  env: Env,
+  userId: string,
+  projectId: string
+): Promise<boolean> {
+  try {
+    const result = await withRetry(() =>
+      env.DB.prepare(
+        'SELECT 1 FROM boards WHERE user_id = ? AND name = ?'
+      )
+        .bind(userId, projectId)
+        .first()
+    );
+    return result !== null;
+  } catch (err) {
+    console.error('Check project ownership error:', err);
+    return false; // Fail closed
   }
 }
 

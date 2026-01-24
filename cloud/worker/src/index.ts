@@ -10,11 +10,12 @@
  */
 
 import * as auth from "./auth";
-import { landingPage, appPage } from "./landing";
+import { landingPage } from "./landing";
+import type { ProjectRoom } from "./project-room";
 
 export interface Env {
   AGENT_HUB: DurableObjectNamespace;
-  PROJECT_ROOMS: DurableObjectNamespace;
+  PROJECT_ROOMS: DurableObjectNamespace<ProjectRoom>;
   DB: D1Database;
   ASSETS?: Fetcher; // Static UI assets
 }
@@ -38,6 +39,28 @@ function jsonResponse(data: unknown, status = 200): Response {
   });
 }
 
+// Helper to authenticate user and verify project ownership
+// Returns userId on success, or a Response (error) on failure
+async function withProjectAuth(
+  env: Env,
+  request: Request,
+  projectId: string
+): Promise<{ userId: string } | Response> {
+  // Authenticate user
+  const user = await auth.getUserFromRequest(env, request);
+  if (!user) {
+    return jsonResponse({ error: "Unauthorized" }, 401);
+  }
+
+  // Verify ownership
+  const ownsProject = await auth.userOwnsProject(env, user.userId, projectId);
+  if (!ownsProject) {
+    return jsonResponse({ error: "Project not found or access denied" }, 403);
+  }
+
+  return { userId: user.userId };
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try {
@@ -46,13 +69,6 @@ export default {
       console.error("Worker error:", err);
       return jsonResponse({ error: "Internal server error", details: String(err) }, 500);
     }
-  },
-
-  // Cron trigger to keep worker and D1 warm
-  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    const t0 = Date.now();
-    await env.DB.prepare("SELECT 1").first();
-    console.log(`scheduled: D1 warmup took ${Date.now() - t0}ms`);
   },
 };
 
@@ -101,31 +117,212 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 
     // ProjectRoom sync endpoint: /api/projects/:project/sync
     // Handles real-time WebSocket sync for tick state
-    const projectSyncMatch = url.pathname.match(/^\/api\/projects\/([^\/]+)\/sync/);
+    // Project ID is URL-encoded (e.g., owner%2Frepo for owner/repo)
+    const projectSyncMatch = url.pathname.match(/^\/api\/projects\/(.+?)\/sync/);
     if (projectSyncMatch) {
-      const projectId = projectSyncMatch[1];
+      const projectId = decodeURIComponent(projectSyncMatch[1]);
+
+      // Extract token from Sec-WebSocket-Protocol header (preferred, more secure)
+      // Format: "ticks-v1, token-<encoded_token>"
+      // Falls back to query param for backward compatibility during migration
+      let token: string | null = null;
+      const protocols = request.headers.get("Sec-WebSocket-Protocol") || "";
+      const tokenMatch = protocols.match(/token-([^,\s]+)/);
+      if (tokenMatch) {
+        token = decodeURIComponent(tokenMatch[1]);
+      }
+
+      // Fallback to query param (legacy, will be removed after migration)
+      if (!token) {
+        token = url.searchParams.get("token");
+      }
+
+      if (!token) {
+        return jsonResponse({ error: "Unauthorized - token required" }, 401);
+      }
+
+      // Validate token
+      const tokenInfo = await auth.validateToken(env, token);
+      if (!tokenInfo) {
+        return jsonResponse({ error: "Invalid or expired token" }, 401);
+      }
+
+      // Verify user owns this project
+      const ownsProject = await auth.userOwnsProject(env, tokenInfo.userId, projectId);
+      if (!ownsProject) {
+        return jsonResponse({ error: "Project not found or access denied" }, 403);
+      }
+
+      // Pass validated userId via header (like AgentHub pattern)
+      const headers = new Headers(request.headers);
+      headers.set("X-Validated-User-Id", tokenInfo.userId);
+      headers.set("X-Validated-Project-Id", projectId);
+      headers.set("X-Token-Id", tokenInfo.tokenId);
+      headers.set("X-Token-Expires-At", String(tokenInfo.expiresAt));
+
+      // If token was provided via Sec-WebSocket-Protocol, tell ProjectRoom to accept "ticks-v1" protocol
+      if (tokenMatch) {
+        headers.set("X-Accept-Protocol", "ticks-v1");
+      }
+
+      const modifiedRequest = new Request(request.url, {
+        method: request.method,
+        headers,
+        body: request.body,
+      });
+
       // Each project gets its own Durable Object instance
       const doId = env.PROJECT_ROOMS.idFromName(projectId);
       const room = env.PROJECT_ROOMS.get(doId);
-      return room.fetch(request);
+      return room.fetch(modifiedRequest);
     }
 
     // ProjectRoom state endpoint: /api/projects/:project/state (for debugging)
-    const projectStateMatch = url.pathname.match(/^\/api\/projects\/([^\/]+)\/state/);
+    const projectStateMatch = url.pathname.match(/^\/api\/projects\/(.+?)\/state/);
     if (projectStateMatch) {
-      const projectId = projectStateMatch[1];
+      const projectId = decodeURIComponent(projectStateMatch[1]);
       const doId = env.PROJECT_ROOMS.idFromName(projectId);
       const room = env.PROJECT_ROOMS.get(doId);
       return room.fetch(request);
     }
 
     // ProjectRoom connections endpoint: /api/projects/:project/connections
-    const projectConnsMatch = url.pathname.match(/^\/api\/projects\/([^\/]+)\/connections/);
+    const projectConnsMatch = url.pathname.match(/^\/api\/projects\/(.+?)\/connections/);
     if (projectConnsMatch) {
-      const projectId = projectConnsMatch[1];
+      const projectId = decodeURIComponent(projectConnsMatch[1]);
       const doId = env.PROJECT_ROOMS.idFromName(projectId);
       const room = env.PROJECT_ROOMS.get(doId);
       return room.fetch(request);
+    }
+
+    // =========================================================================
+    // Tick Operations API - Forward to ProjectRoom via RPC
+    // =========================================================================
+
+    // Add note: POST /api/projects/:project/ticks/:tickId/note
+    const addNoteMatch = url.pathname.match(/^\/api\/projects\/(.+?)\/ticks\/([^\/]+)\/note$/);
+    if (addNoteMatch && request.method === "POST") {
+      const projectId = decodeURIComponent(addNoteMatch[1]);
+      const tickId = decodeURIComponent(addNoteMatch[2]);
+
+      // Auth check
+      const authResult = await withProjectAuth(env, request, projectId);
+      if (authResult instanceof Response) {
+        return authResult;
+      }
+
+      try {
+        const body = await request.json() as { message?: string };
+        if (!body.message) {
+          return jsonResponse({ error: "Message is required" }, 400);
+        }
+
+        const doId = env.PROJECT_ROOMS.idFromName(projectId);
+        const room = env.PROJECT_ROOMS.get(doId);
+        const tick = await room.addNote(tickId, body.message, authResult.userId);
+        return jsonResponse(tick);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return jsonResponse({ error: message }, 500);
+      }
+    }
+
+    // Approve tick: POST /api/projects/:project/ticks/:tickId/approve
+    const approveMatch = url.pathname.match(/^\/api\/projects\/(.+?)\/ticks\/([^\/]+)\/approve$/);
+    if (approveMatch && request.method === "POST") {
+      const projectId = decodeURIComponent(approveMatch[1]);
+      const tickId = decodeURIComponent(approveMatch[2]);
+
+      // Auth check
+      const authResult = await withProjectAuth(env, request, projectId);
+      if (authResult instanceof Response) {
+        return authResult;
+      }
+
+      try {
+        const doId = env.PROJECT_ROOMS.idFromName(projectId);
+        const room = env.PROJECT_ROOMS.get(doId);
+        const tick = await room.approveTick(tickId, authResult.userId);
+        return jsonResponse(tick);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return jsonResponse({ error: message }, 500);
+      }
+    }
+
+    // Reject tick: POST /api/projects/:project/ticks/:tickId/reject
+    const rejectMatch = url.pathname.match(/^\/api\/projects\/(.+?)\/ticks\/([^\/]+)\/reject$/);
+    if (rejectMatch && request.method === "POST") {
+      const projectId = decodeURIComponent(rejectMatch[1]);
+      const tickId = decodeURIComponent(rejectMatch[2]);
+
+      // Auth check
+      const authResult = await withProjectAuth(env, request, projectId);
+      if (authResult instanceof Response) {
+        return authResult;
+      }
+
+      try {
+        const body = await request.json() as { reason?: string };
+        if (!body.reason) {
+          return jsonResponse({ error: "Reason is required" }, 400);
+        }
+
+        const doId = env.PROJECT_ROOMS.idFromName(projectId);
+        const room = env.PROJECT_ROOMS.get(doId);
+        const tick = await room.rejectTick(tickId, body.reason, authResult.userId);
+        return jsonResponse(tick);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return jsonResponse({ error: message }, 500);
+      }
+    }
+
+    // Close tick: POST /api/projects/:project/ticks/:tickId/close
+    const closeMatch = url.pathname.match(/^\/api\/projects\/(.+?)\/ticks\/([^\/]+)\/close$/);
+    if (closeMatch && request.method === "POST") {
+      const projectId = decodeURIComponent(closeMatch[1]);
+      const tickId = decodeURIComponent(closeMatch[2]);
+
+      // Auth check
+      const authResult = await withProjectAuth(env, request, projectId);
+      if (authResult instanceof Response) {
+        return authResult;
+      }
+
+      try {
+        const body = await request.json() as { reason?: string };
+        const doId = env.PROJECT_ROOMS.idFromName(projectId);
+        const room = env.PROJECT_ROOMS.get(doId);
+        const tick = await room.closeTick(tickId, body.reason, authResult.userId);
+        return jsonResponse(tick);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return jsonResponse({ error: message }, 500);
+      }
+    }
+
+    // Reopen tick: POST /api/projects/:project/ticks/:tickId/reopen
+    const reopenMatch = url.pathname.match(/^\/api\/projects\/(.+?)\/ticks\/([^\/]+)\/reopen$/);
+    if (reopenMatch && request.method === "POST") {
+      const projectId = decodeURIComponent(reopenMatch[1]);
+      const tickId = decodeURIComponent(reopenMatch[2]);
+
+      // Auth check
+      const authResult = await withProjectAuth(env, request, projectId);
+      if (authResult instanceof Response) {
+        return authResult;
+      }
+
+      try {
+        const doId = env.PROJECT_ROOMS.idFromName(projectId);
+        const room = env.PROJECT_ROOMS.get(doId);
+        const tick = await room.reopenTick(tickId, authResult.userId);
+        return jsonResponse(tick);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return jsonResponse({ error: message }, 500);
+      }
     }
 
     // SSE events endpoint: /events/:boardName
@@ -232,7 +429,12 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     }
 
     // Protected routes - require authentication
+    const tAuthStart = Date.now();
     const user = await auth.getUserFromRequest(env, request);
+    const authDuration = Date.now() - tAuthStart;
+    if (user) {
+      console.log(`auth: validateToken took ${authDuration}ms`);
+    }
 
     // Token management
     if (url.pathname === "/api/tokens") {
@@ -266,18 +468,31 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 
     // List boards
     if (url.pathname === "/api/boards" && request.method === "GET") {
+      const t0 = Date.now();
       if (!user) {
         return jsonResponse({ error: "Unauthorized" }, 401);
       }
 
-      // Get online boards from AgentHub
+      // Get online boards from AgentHub (this is the Durable Object call)
+      const tHubStart = Date.now();
       const hubId = env.AGENT_HUB.idFromName("global");
       const hub = env.AGENT_HUB.get(hubId);
       const boardsResp = await hub.fetch(new Request("http://internal/boards"));
       const boardsData = await boardsResp.json() as { boards: string[] };
       const onlineBoards = new Set(boardsData.boards);
+      const tHub = Date.now() - tHubStart;
 
-      return auth.listBoards(env, user.userId, onlineBoards);
+      const tDbStart = Date.now();
+      const response = await auth.listBoards(env, user.userId, onlineBoards);
+      const tDb = Date.now() - tDbStart;
+      const tTotal = Date.now() - t0;
+
+      console.log(`/api/boards: total=${tTotal}ms (auth=${authDuration}ms hub=${tHub}ms db=${tDb}ms)`);
+
+      // Add Server-Timing header (auth already happened before this route)
+      const headers = new Headers(response.headers);
+      headers.set("Server-Timing", `auth;dur=${authDuration}, hub;dur=${tHub}, db;dur=${tDb}, total;dur=${tTotal + authDuration}`);
+      return new Response(response.body, { status: response.status, headers });
     }
 
     // Delete board
@@ -290,12 +505,8 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       return auth.deleteBoard(env, user.userId, boardId);
     }
 
-    // Health check - also warms up D1 connection
+    // Health check
     if (url.pathname === "/health") {
-      // Simple query to keep D1 connection warm
-      const t0 = Date.now();
-      await env.DB.prepare("SELECT 1").first();
-      console.log(`health: D1 warmup took ${Date.now() - t0}ms`);
       return new Response("ok", { status: 200 });
     }
 
@@ -306,11 +517,12 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       });
     }
 
-    // App pages (login/dashboard) - served from worker, not assets
+    // App pages (login/dashboard) - served from static assets
     if (url.pathname === "/login" || url.pathname === "/app") {
-      return new Response(appPage, {
-        headers: { "Content-Type": "text/html" },
-      });
+      if (env.ASSETS) {
+        const appRequest = new Request(new URL("/app.html", url.origin), request);
+        return env.ASSETS.fetch(appRequest);
+      }
     }
 
     // Serve static assets for board UI
@@ -321,8 +533,29 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         return assetResponse;
       }
 
+      // Handle /p/assets/* - relative paths from /p/projectname resolve here
+      // (because ./assets/foo from /p/projectname becomes /p/assets/foo)
+      if (url.pathname.startsWith("/p/assets/")) {
+        const assetPath = url.pathname.replace(/^\/p/, ""); // /p/assets/foo -> /assets/foo
+        const assetRequest = new Request(new URL(assetPath, url.origin), request);
+        return env.ASSETS.fetch(assetRequest);
+      }
+
       // Board routes get the board SPA
+      // But first check if this is an asset request under /p/projectname/ (relative path resolution)
       if (url.pathname.startsWith("/p/")) {
+        // Check if this looks like an asset request (has file extension)
+        const lastSegment = url.pathname.split("/").pop() || "";
+        if (lastSegment.includes(".") && !lastSegment.startsWith(".")) {
+          // This is an asset request with a file extension - try to serve from /assets/
+          const assetPath = url.pathname.replace(/^\/p\/[^/]+/, "");
+          const assetRequest = new Request(new URL(assetPath, url.origin), request);
+          const assetResp = await env.ASSETS.fetch(assetRequest);
+          if (assetResp.status !== 404) {
+            return assetResp;
+          }
+        }
+        // Otherwise serve the SPA
         const indexRequest = new Request(new URL("/index.html", url.origin), request);
         return env.ASSETS.fetch(indexRequest);
       }

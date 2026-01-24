@@ -45,6 +45,8 @@ interface Connection {
   socket: WebSocket;
   type: "local" | "cloud";
   userId: string;
+  tokenId?: string;     // Track which token authenticated this connection
+  expiresAt?: number;   // When the session expires (for cloud connections)
   lastSeen: number;
 }
 
@@ -116,7 +118,19 @@ interface RunEventMessage {
   };
 }
 
-type ClientMessage = SyncFullMessage | TickUpdateMessage | TickDeleteMessage | TickOperationResponse | RunEventMessage;
+// Heartbeat message for session keep-alive and token refresh
+interface HeartbeatMessage {
+  type: "heartbeat";
+  token?: string;  // Optional: new token for session refresh
+}
+
+// Heartbeat response from server
+interface HeartbeatResponseMessage {
+  type: "heartbeat_response";
+  expiresAt: number;
+}
+
+type ClientMessage = SyncFullMessage | TickUpdateMessage | TickDeleteMessage | TickOperationResponse | RunEventMessage | HeartbeatMessage;
 
 // Message types to clients
 interface StateFullMessage {
@@ -158,6 +172,7 @@ type ServerMessage =
   | TickOperationRequest
   | LocalStatusMessage
   | RunEventMessage
+  | HeartbeatResponseMessage
   | ErrorMessage;
 
 // Cleanup: delete DO storage after 30 days of inactivity
@@ -235,8 +250,17 @@ export class ProjectRoom extends DurableObject<Env> {
       this.ctx.storage.put("projectId", this.projectId).catch(() => {});
     }
 
-    // WebSocket upgrade for sync connections
+    // Defense-in-depth: Require pre-validated user header for WebSocket requests
+    // Primary auth happens in the main worker, but we re-validate here to protect against:
+    // - Bugs in worker routing that bypass auth
+    // - Direct DO access if somehow exposed
+    // - Future code changes that accidentally remove auth
     if (request.headers.get("Upgrade") === "websocket") {
+      const validatedUserId = request.headers.get("X-Validated-User-Id");
+      if (!validatedUserId) {
+        console.error(`[ProjectRoom:${this.projectId}] WebSocket request missing X-Validated-User-Id header`);
+        return new Response("Unauthorized - missing validation", { status: 401 });
+      }
       return this.handleWebSocketUpgrade(request, url);
     }
 
@@ -269,13 +293,29 @@ export class ProjectRoom extends DurableObject<Env> {
     url: URL
   ): Promise<Response> {
     try {
-      // Extract auth token and connection type from query params
-      const token = url.searchParams.get("token");
+      // Get pre-validated userId from main worker (auth is done there, not in DO)
+      const preValidatedUserId = request.headers.get("X-Validated-User-Id");
+      if (!preValidatedUserId) {
+        // Auth should have been performed by the main worker
+        return new Response("Unauthorized", { status: 401 });
+      }
+
+      // Defense-in-depth: Validate project ID matches what worker validated
+      // This protects against routing bugs where a request intended for one project
+      // gets sent to a different project's Durable Object
+      const validatedProjectId = request.headers.get("X-Validated-Project-Id");
+      if (validatedProjectId && validatedProjectId !== this.projectId) {
+        console.error(`[ProjectRoom:${this.projectId}] Project ID mismatch: header=${validatedProjectId} do=${this.projectId}`);
+        return new Response("Forbidden - project mismatch", { status: 403 });
+      }
+
+      // Extract connection type from query params
       const connType = (url.searchParams.get("type") as "local" | "cloud") || "cloud";
 
-      // Skip auth for now - D1 calls from DO seem to fail
-      // TODO: Move auth to main worker, pass via header like AgentHub does
-      const tokenInfo = { userId: token ? "authenticated" : "anonymous" };
+      // Extract token info for session expiry tracking (cloud connections only)
+      const tokenId = request.headers.get("X-Token-Id") || undefined;
+      const expiresAtHeader = request.headers.get("X-Token-Expires-At");
+      const expiresAt = expiresAtHeader ? parseInt(expiresAtHeader, 10) : undefined;
 
       // Create WebSocket pair
       const pair = new WebSocketPair();
@@ -288,10 +328,13 @@ export class ProjectRoom extends DurableObject<Env> {
       const connId = crypto.randomUUID();
 
       // Create connection record (without socket - can't serialize WebSocket)
-      const connMeta = {
+      // Include tokenId and expiresAt for cloud connections to enable session expiry
+      const connMeta: Omit<Connection, "socket"> = {
         id: connId,
         type: connType,
-        userId: tokenInfo.userId,
+        userId: preValidatedUserId,
+        tokenId: connType === "cloud" ? tokenId : undefined,
+        expiresAt: connType === "cloud" ? expiresAt : undefined,
         lastSeen: Date.now(),
       };
 
@@ -337,10 +380,18 @@ export class ProjectRoom extends DurableObject<Env> {
       }
 
       console.log(
-        `[ProjectRoom:${this.projectId}] Connection ${connId} (${connType}) from user ${tokenInfo.userId}`
+        `[ProjectRoom:${this.projectId}] Connection ${connId} (${connType}) from user ${preValidatedUserId}`
       );
 
-      return new Response(null, { status: 101, webSocket: client });
+      // Check if we need to include Sec-WebSocket-Protocol in response
+      // This is required when client passes token via subprotocol
+      const acceptProtocol = request.headers.get("X-Accept-Protocol");
+      const responseHeaders: Record<string, string> = {};
+      if (acceptProtocol) {
+        responseHeaders["Sec-WebSocket-Protocol"] = acceptProtocol;
+      }
+
+      return new Response(null, { status: 101, webSocket: client, headers: responseHeaders });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`[ProjectRoom:${this.projectId}] WebSocket upgrade error:`, message);
@@ -395,6 +446,10 @@ export class ProjectRoom extends DurableObject<Env> {
           if (conn.type === "local") {
             this.broadcastToCloudClients(msg);
           }
+          break;
+
+        case "heartbeat":
+          await this.handleHeartbeat(conn, msg);
           break;
 
         default:
@@ -572,6 +627,44 @@ export class ProjectRoom extends DurableObject<Env> {
     return incomingTime > existingTime;
   }
 
+  /**
+   * Handle heartbeat message from client.
+   * Extends session expiry for cloud connections.
+   * If a new token is provided, it could be validated to refresh the session
+   * (token validation requires D1, so for now we just extend the current session).
+   */
+  private async handleHeartbeat(conn: Connection, msg: HeartbeatMessage): Promise<void> {
+    // Only extend expiry for cloud connections
+    if (conn.type !== "cloud") {
+      return;
+    }
+
+    // Extend session by 1 hour from now
+    const TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+    const newExpiresAt = Date.now() + TOKEN_EXPIRY_MS;
+    conn.expiresAt = newExpiresAt;
+
+    // Update serialized attachment for hibernation recovery
+    const connMeta: Omit<Connection, "socket"> = {
+      id: conn.id,
+      type: conn.type,
+      userId: conn.userId,
+      tokenId: conn.tokenId,
+      expiresAt: conn.expiresAt,
+      lastSeen: conn.lastSeen,
+    };
+    conn.socket.serializeAttachment(connMeta);
+
+    // Send response with new expiry time
+    const response: HeartbeatResponseMessage = {
+      type: "heartbeat_response",
+      expiresAt: newExpiresAt,
+    };
+    conn.socket.send(JSON.stringify(response));
+
+    console.log(`[ProjectRoom:${this.projectId}] Heartbeat from ${conn.id}, session extended to ${new Date(newExpiresAt).toISOString()}`);
+  }
+
   private broadcast(msg: ServerMessage, excludeConnId?: string) {
     const data = JSON.stringify(msg);
     for (const [id, conn] of this.connections) {
@@ -625,6 +718,21 @@ export class ProjectRoom extends DurableObject<Env> {
       }
     }
 
+    // Check for expired sessions (cloud connections only)
+    for (const [id, conn] of this.connections) {
+      if (conn.type === "cloud" && conn.expiresAt) {
+        if (now > conn.expiresAt) {
+          console.log(`[ProjectRoom:${this.projectId}] Session expired, closing connection ${id}`);
+          try {
+            conn.socket.close(4001, "Session expired");
+          } catch {
+            // Already closed
+          }
+          this.connections.delete(id);
+        }
+      }
+    }
+
     // Persist state periodically (in case of missed updates)
     if (this.ticks.size > 0) {
       await this.persistState();
@@ -643,41 +751,42 @@ export class ProjectRoom extends DurableObject<Env> {
 
   // ============================================================================
   // RPC Methods - Called by Worker to perform tick operations
+  // All methods accept an optional initiatingUserId for defense-in-depth logging
   // ============================================================================
 
   /**
    * Add a note to a tick. Forwards to local client which writes to file.
    */
-  async addNote(tickId: string, message: string): Promise<Tick> {
-    return this.sendOperation("add_note", tickId, { message });
+  async addNote(tickId: string, message: string, initiatingUserId?: string): Promise<Tick> {
+    return this.sendOperation("add_note", tickId, { message }, initiatingUserId);
   }
 
   /**
    * Approve a tick awaiting human action.
    */
-  async approveTick(tickId: string): Promise<Tick> {
-    return this.sendOperation("approve", tickId);
+  async approveTick(tickId: string, initiatingUserId?: string): Promise<Tick> {
+    return this.sendOperation("approve", tickId, undefined, initiatingUserId);
   }
 
   /**
    * Reject a tick with a reason.
    */
-  async rejectTick(tickId: string, reason: string): Promise<Tick> {
-    return this.sendOperation("reject", tickId, { reason });
+  async rejectTick(tickId: string, reason: string, initiatingUserId?: string): Promise<Tick> {
+    return this.sendOperation("reject", tickId, { reason }, initiatingUserId);
   }
 
   /**
    * Close a tick with optional reason.
    */
-  async closeTick(tickId: string, reason?: string): Promise<Tick> {
-    return this.sendOperation("close", tickId, { reason });
+  async closeTick(tickId: string, reason?: string, initiatingUserId?: string): Promise<Tick> {
+    return this.sendOperation("close", tickId, { reason }, initiatingUserId);
   }
 
   /**
    * Reopen a closed tick.
    */
-  async reopenTick(tickId: string): Promise<Tick> {
-    return this.sendOperation("reopen", tickId);
+  async reopenTick(tickId: string, initiatingUserId?: string): Promise<Tick> {
+    return this.sendOperation("reopen", tickId, undefined, initiatingUserId);
   }
 
   // ============================================================================
@@ -686,16 +795,25 @@ export class ProjectRoom extends DurableObject<Env> {
 
   /**
    * Send an operation to the local client and wait for response.
+   * @param initiatingUserId Optional: The user who initiated this operation (for defense-in-depth logging)
    */
   private async sendOperation(
     operation: TickOperationRequest["operation"],
     tickId: string,
-    payload?: TickOperationRequest["payload"]
+    payload?: TickOperationRequest["payload"],
+    initiatingUserId?: string
   ): Promise<Tick> {
     // Find a local connection to send the operation to
     const localConn = this.getLocalConnection();
     if (!localConn) {
       throw new Error("No local client connected - cannot perform operation");
+    }
+
+    // Defense-in-depth: Log if operation is initiated by a different user than the local connection owner
+    // This is informational - the user was already validated by the main worker
+    // It helps detect routing anomalies where operations from one user end up at another user's local client
+    if (initiatingUserId && localConn.userId !== "system" && localConn.userId !== initiatingUserId) {
+      console.warn(`[ProjectRoom:${this.projectId}] Operation by user ${initiatingUserId} routed to local client owned by ${localConn.userId}`);
     }
 
     // Generate unique request ID

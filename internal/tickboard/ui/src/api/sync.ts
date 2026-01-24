@@ -138,11 +138,16 @@ export class SyncClient {
     // Get token from localStorage if available
     const token = localStorage.getItem('ticks_token') || '';
 
-    const url = `${protocol}//${host}/api/projects/${encodeURIComponent(this.projectId)}/sync?token=${encodeURIComponent(token)}&type=cloud`;
+    // Build URL without token in query params (security: avoid token exposure in logs/history)
+    const url = `${protocol}//${host}/api/projects/${encodeURIComponent(this.projectId)}/sync?type=cloud`;
 
-    console.log('[SyncClient] Connecting to', url.replace(/token=[^&]+/, 'token=***'));
+    console.log('[SyncClient] Connecting to', url);
 
-    this.ws = new WebSocket(url);
+    // Pass token via Sec-WebSocket-Protocol header (more secure than query params)
+    // Format: "ticks-v1, token-<encoded_token>"
+    // The server will accept "ticks-v1" as the subprotocol in its response
+    const subprotocols = ['ticks-v1', `token-${encodeURIComponent(token)}`];
+    this.ws = new WebSocket(url, subprotocols);
 
     this.ws.onopen = () => {
       console.log('[SyncClient] Connected');
