@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#1e1e2e">
-  <meta name="description" content="Kanban-style issue tracker for AI-assisted development">
+  <meta name="theme-color" content="#11111b">
+  <meta name="description" content="ticks - Issue tracking for AI agents">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="ticks">
-  <title>ticks board</title>
+  <title>ticks</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png">
@@ -20,7 +20,24 @@
   <link href="https://cdn.jsdelivr.net/npm/geist@1.2.0/dist/fonts/geist-mono/style.css" rel="stylesheet">
 
   <style>
-    /* Base reset styles - theme colors loaded via main.ts */
+    :root {
+      --green: #a6e3a1;
+      --red: #f38ba8;
+      --yellow: #f9e2af;
+      --blue: #89dceb;
+      --peach: #fab387;
+      --mauve: #cba6f7;
+      --text: #cdd6f4;
+      --subtext: #a6adc8;
+      --overlay: #6c7086;
+      --surface: #313244;
+      --base: #1e1e2e;
+      --mantle: #181825;
+      --crust: #11111b;
+      --font-sans: 'Geist', system-ui, -apple-system, sans-serif;
+      --font-mono: 'Geist Mono', ui-monospace, monospace;
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -28,26 +45,24 @@
     }
 
     body {
-      font-family: 'Geist', system-ui, -apple-system, sans-serif;
-      background-color: var(--base);
+      font-family: var(--font-sans);
+      background-color: var(--crust);
       color: var(--text);
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
     }
 
-    tick-board {
+    ticks-app {
       display: block;
       min-height: 100vh;
     }
-
   </style>
 
-  <script type="module" crossorigin src="./assets/main-DcvqiZZp.js"></script>
+  <script type="module" crossorigin src="./assets/app-Buc-G3UK.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/ticks-logo-DYgrblNn.js">
   <link rel="stylesheet" crossorigin href="./assets/ticks-logo-u1yPq_7x.css">
-  <link rel="stylesheet" crossorigin href="./assets/main-DYh9rypV.css">
 </head>
 <body class="sl-theme-dark">
-  <tick-board></tick-board>
+  <ticks-app></ticks-app>
 </body>
 </html>
