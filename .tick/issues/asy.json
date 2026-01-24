@@ -1,0 +1,20 @@
+{
+  "id": "asy",
+  "title": "Add defense-in-depth validation in ProjectRoom DO",
+  "description": "Add secondary validation inside ProjectRoom Durable Object as defense-in-depth.\n\n## Context\n\nEven though the main worker validates auth, Codex recommends re-validating inside the DO. This protects against:\n- Bugs in worker routing that bypass auth\n- Direct DO access if somehow exposed\n- Future code changes that accidentally remove auth\n\n## Implementation\n\n### 1. Validate X-Validated-User-Id header exists\n\nIn ProjectRoom.fetch():\n\nasync fetch(request: Request): Promise\u003cResponse\u003e {\n  const url = new URL(request.url);\n  \n  // Defense-in-depth: Require pre-validated user header\n  const validatedUserId = request.headers.get('X-Validated-User-Id');\n  if (\\!validatedUserId \u0026\u0026 request.headers.get('Upgrade') === 'websocket') {\n    console.error('[ProjectRoom] WebSocket request missing X-Validated-User-Id header');\n    return new Response('Unauthorized - missing validation', { status: 401 });\n  }\n  \n  // ... rest of fetch\n}\n\n### 2. Store and validate project ownership claim\n\nAdd a field to track the validated project:\n\nprivate validatedProjectId: string | null = null;\n\nIn handleWebSocketUpgrade:\n\nconst validatedProjectId = request.headers.get('X-Validated-Project-Id');\nif (validatedProjectId \u0026\u0026 validatedProjectId \\!== this.projectId) {\n  console.error(`[ProjectRoom] Project ID mismatch: header=${validatedProjectId} do=${this.projectId}`);\n  return new Response('Forbidden - project mismatch', { status: 403 });\n}\n\n### 3. Validate connection userId matches for operations\n\nIn sendOperation and other mutating methods:\n\nprivate async sendOperation(...): Promise\u003cTick\u003e {\n  const localConn = this.getLocalConnection();\n  if (\\!localConn) {\n    throw new Error('No local client connected');\n  }\n  \n  // Defense: Log if operation initiated by different user than local conn\n  // (This is informational - the user was already validated by worker)\n  if (localConn.userId \\!== 'system' \u0026\u0026 initiatingUserId \u0026\u0026 localConn.userId \\!== initiatingUserId) {\n    console.warn(`[ProjectRoom] Operation by ${initiatingUserId} routed to local client ${localConn.userId}`);\n  }\n  \n  // ... rest of operation\n}\n\n## Test Cases\n\n1. Request without X-Validated-User-Id header -\u003e 401\n2. Request with mismatched project ID -\u003e 403\n3. Valid request -\u003e Proceeds normally\n4. DO logs show validation happening\n\n## Note\n\nThis is defense-in-depth - the primary auth happens in the worker. These checks catch bugs/misconfigurations.",
+  "status": "closed",
+  "priority": 1,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "blocked_by": [
+    "vga",
+    "ec2"
+  ],
+  "parent": "5jf",
+  "acceptance_criteria": "ProjectRoom validates X-Validated-User-Id header and logs mismatches",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-24T10:10:23.785443Z",
+  "updated_at": "2026-01-24T10:36:55.321366Z",
+  "closed_at": "2026-01-24T10:36:55.321366Z",
+  "closed_reason": "Completed via swarm - Added defense-in-depth validation in ProjectRoom DO"
+}

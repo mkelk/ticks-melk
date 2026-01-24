@@ -177,23 +177,8 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       return room.fetch(modifiedRequest);
     }
 
-    // ProjectRoom state endpoint: /api/projects/:project/state (for debugging)
-    const projectStateMatch = url.pathname.match(/^\/api\/projects\/(.+?)\/state/);
-    if (projectStateMatch) {
-      const projectId = decodeURIComponent(projectStateMatch[1]);
-      const doId = env.PROJECT_ROOMS.idFromName(projectId);
-      const room = env.PROJECT_ROOMS.get(doId);
-      return room.fetch(request);
-    }
-
-    // ProjectRoom connections endpoint: /api/projects/:project/connections
-    const projectConnsMatch = url.pathname.match(/^\/api\/projects\/(.+?)\/connections/);
-    if (projectConnsMatch) {
-      const projectId = decodeURIComponent(projectConnsMatch[1]);
-      const doId = env.PROJECT_ROOMS.idFromName(projectId);
-      const room = env.PROJECT_ROOMS.get(doId);
-      return room.fetch(request);
-    }
+    // NOTE: Debug endpoints (/state, /connections) removed for security.
+    // Use wrangler tail or DO logging for debugging.
 
     // =========================================================================
     // Tick Operations API - Forward to ProjectRoom via RPC

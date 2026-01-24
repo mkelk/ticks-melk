@@ -1,0 +1,19 @@
+{
+  "id": "thb",
+  "title": "Move token from URL query params to Authorization header",
+  "description": "Refactor token transmission to use Authorization header instead of URL query parameters.\n\n## Current State (Security Risk)\n\nTokens are passed in WebSocket URL query params:\nwss://ticks.sh/api/projects/owner%2Frepo/sync?token=abc123...\n\nThis exposes tokens in:\n- Browser history\n- Proxy/CDN logs  \n- Referrer headers\n- Server logs\n\n## Challenge\n\nWebSocket connections can't set custom headers directly from browser JavaScript. The WebSocket constructor only accepts URL and protocols.\n\n## Solutions\n\n### Option 1: Sec-WebSocket-Protocol Header (Recommended)\n\nUse the subprotocol field to pass the token:\n\n**Client (sync.ts):**\nconst ws = new WebSocket(url, ['ticks-v1', `token-${token}`]);\n\n**Server (index.ts):**\nconst protocols = request.headers.get('Sec-WebSocket-Protocol');\nconst tokenMatch = protocols?.match(/token-([^,\\s]+)/);\nconst token = tokenMatch?.[1];\n\n// In response, accept the protocol\nreturn new Response(null, {\n  status: 101,\n  webSocket: client,\n  headers: {\n    'Sec-WebSocket-Protocol': 'ticks-v1'\n  }\n});\n\n### Option 2: First Message Auth\n\nConnect without token in URL, send token as first message:\n\n**Client:**\nconst ws = new WebSocket(url);\nws.onopen = () =\u003e ws.send(JSON.stringify({ type: 'auth', token }));\n\n**Server:**\nAccept connection, wait for auth message, validate, then proceed.\n\nDownside: Connection is open before auth, requires state machine.\n\n### Option 3: HTTP Upgrade with Header (Local clients only)\n\nFor local tk clients (not browser), can use fetch with headers:\n\nconst response = await fetch(url, {\n  headers: {\n    'Upgrade': 'websocket',\n    'Authorization': `Bearer ${token}`\n  }\n});\n\n## Implementation Plan (Option 1)\n\n### 1. Update client (sync.ts)\n\n// Before\nconst url = `${protocol}//${host}/api/projects/${encodeURIComponent(this.projectId)}/sync?token=${encodeURIComponent(token)}\u0026type=cloud`;\nconst ws = new WebSocket(url);\n\n// After  \nconst url = `${protocol}//${host}/api/projects/${encodeURIComponent(this.projectId)}/sync?type=cloud`;\nconst ws = new WebSocket(url, ['ticks-v1', `token-${token}`]);\n\n### 2. Update server (index.ts)\n\n// Extract token from Sec-WebSocket-Protocol header\nconst protocols = request.headers.get('Sec-WebSocket-Protocol') || '';\nconst tokenMatch = protocols.match(/token-([^,\\s]+)/);\nconst token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;\n\n// Fall back to query param for backwards compatibility during migration\nif (\\!token) {\n  token = url.searchParams.get('token');\n}\n\n### 3. Update local client (Go sync code)\n\nSimilar change for the Go WebSocket client.\n\n## Test Cases\n\n1. Token via protocol header -\u003e Connection succeeds\n2. Token via query param (legacy) -\u003e Still works during migration\n3. No token -\u003e 401 Unauthorized\n4. Invalid token -\u003e 401 Unauthorized\n5. Token not visible in server logs\n\n## Migration Strategy\n\n1. Deploy server with both methods supported\n2. Deploy clients using new method\n3. After 1 week, remove query param support\n4. Verify no tokens in logs",
+  "status": "closed",
+  "priority": 1,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "blocked_by": [
+    "vga"
+  ],
+  "parent": "5jf",
+  "acceptance_criteria": "Tokens transmitted via Sec-WebSocket-Protocol header, not URL",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-24T10:10:06.986259Z",
+  "updated_at": "2026-01-24T10:36:56.287057Z",
+  "closed_at": "2026-01-24T10:36:56.287057Z",
+  "closed_reason": "Completed via swarm - Token moved to Sec-WebSocket-Protocol header with fallback"
+}

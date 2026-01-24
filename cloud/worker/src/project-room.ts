@@ -264,26 +264,8 @@ export class ProjectRoom extends DurableObject<Env> {
       return this.handleWebSocketUpgrade(request, url);
     }
 
-    // REST endpoint: GET /state - returns current tick state (for debugging)
-    if (url.pathname.endsWith("/state") && request.method === "GET") {
-      return Response.json({
-        projectId: this.projectId,
-        tickCount: this.ticks.size,
-        connectionCount: this.connections.size,
-        ticks: Object.fromEntries(this.ticks),
-      });
-    }
-
-    // REST endpoint: GET /connections - list active connections
-    if (url.pathname.endsWith("/connections") && request.method === "GET") {
-      const conns = Array.from(this.connections.values()).map((c) => ({
-        id: c.id,
-        type: c.type,
-        userId: c.userId,
-        lastSeen: c.lastSeen,
-      }));
-      return Response.json({ connections: conns });
-    }
+    // NOTE: Debug endpoints (/state, /connections) removed for security.
+    // Use wrangler tail or DO logging for debugging.
 
     return new Response("Not found", { status: 404 });
   }

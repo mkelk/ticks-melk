@@ -1,0 +1,20 @@
+{
+  "id": "7vz",
+  "title": "Document security architecture and auth flow",
+  "description": "Document the security architecture for future reference and onboarding.\n\n## Documentation Location\n\ndocs/security/cloud-auth-architecture.md\n\n## Content Outline\n\n### 1. Overview\n\nDescribe the multi-layer auth architecture:\n- Main Worker: Authentication \u0026 Authorization\n- Durable Objects: Defense-in-depth validation\n- D1 Database: User/token/board storage\n\n### 2. Authentication Flow\n\nDiagram showing:\n1. Client sends request with token\n2. Worker validates token against D1\n3. Worker checks project ownership\n4. Worker passes validated claims to DO\n5. DO performs secondary validation\n6. Request processed or rejected\n\n### 3. Authorization Model\n\n- Users own boards (projects)\n- Board name = Project ID\n- Ownership stored in boards table\n- All project access requires ownership verification\n\n### 4. Security Headers\n\nDocument internal headers:\n- X-Validated-User-Id: Authenticated user ID\n- X-Validated-Project-Id: Verified project ID\n- X-Token-Expires-At: Session expiry time\n\nNote: These are SET by worker, never trusted from external requests.\n\n### 5. Token Management\n\n- Tokens stored hashed in D1\n- Session tokens auto-expire\n- API tokens can be revoked\n- Token transmission via Sec-WebSocket-Protocol (not URL)\n\n### 6. Threat Model\n\nDocument known threats and mitigations:\n- Cross-user data access: Ownership verification\n- Token theft: HTTPS, no URL exposure, expiry\n- DO direct access: CF routing prevents, header validation as backup\n- Timing attacks: Constant-time comparisons\n\n### 7. Incident Response\n\nIf auth bypass discovered:\n1. Immediately deploy fix\n2. Review logs for exploitation\n3. Notify affected users if data accessed\n4. Post-mortem and improvements\n\n## Code References\n\nLink to key files:\n- cloud/worker/src/auth.ts - Auth functions\n- cloud/worker/src/index.ts - Route handlers\n- cloud/worker/src/project-room.ts - DO implementation\n\n## Maintenance\n\n- Review quarterly\n- Update when auth changes\n- Include in security audits",
+  "notes": "2026-01-24 11:44 - Blocked until deployment (koe) is complete. Security documentation will be created after production deployment.",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "blocked_by": [
+    "koe"
+  ],
+  "parent": "5jf",
+  "acceptance_criteria": "Security documentation complete and reviewed",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-24T10:11:48.727488Z",
+  "updated_at": "2026-01-24T11:08:16.371061Z",
+  "closed_at": "2026-01-24T11:08:16.371061Z",
+  "closed_reason": "Created docs/security/cloud-auth-architecture.md with complete security architecture documentation including auth flow, threat model, and code references."
+}

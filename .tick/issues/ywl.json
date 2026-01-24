@@ -1,0 +1,16 @@
+{
+  "id": "ywl",
+  "title": "Add userOwnsProject auth helper function",
+  "description": "Create a new auth helper to verify project ownership.\n\n## Context\n\nCurrently we have userOwnsBoard() which checks the boards table. We need a similar function for project ownership that can handle both:\n1. Direct project IDs (owner/repo format)\n2. Board name to project mapping\n\n## Implementation\n\nIn cloud/worker/src/auth.ts, add:\n\nexport async function userOwnsProject(\n  env: Env,\n  userId: string,\n  projectId: string\n): Promise\u003cboolean\u003e {\n  try {\n    const result = await withRetry(() =\u003e\n      env.DB.prepare(\n        'SELECT 1 FROM boards WHERE user_id = ? AND name = ?'\n      )\n        .bind(userId, projectId)\n        .first()\n    );\n    return result !== null;\n  } catch (err) {\n    console.error('Check project ownership error:', err);\n    return false; // Fail closed\n  }\n}\n\n## Test Cases\n\n1. User owns project -\u003e returns true\n2. User doesn't own project -\u003e returns false  \n3. Project doesn't exist -\u003e returns false\n4. Database error -\u003e returns false (fail closed)\n\n## Acceptance Criteria\n\n- Function exported from auth.ts\n- Returns false on any error (fail closed security)\n- Unit tests pass for all scenarios",
+  "status": "closed",
+  "priority": 1,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "5jf",
+  "acceptance_criteria": "userOwnsProject function exists and tests pass",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-24T10:09:00.11922Z",
+  "updated_at": "2026-01-24T10:30:25.37926Z",
+  "closed_at": "2026-01-24T10:30:25.37926Z",
+  "closed_reason": "Completed via swarm - userOwnsProject function added to auth.ts"
+}
