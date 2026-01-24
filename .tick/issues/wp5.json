@@ -1,0 +1,18 @@
+{
+  "id": "wp5",
+  "title": "Style tk stats output with colors",
+  "description": "Update cmd/tk/cmd/stats.go to use lipgloss. Color-code the status counts (open gray, in_progress blue, closed green), priority counts (P0-P1 red, P2 peach, P3+ green), type counts. Add subtle bordered box around the output.",
+  "status": "closed",
+  "priority": 3,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "labels": [
+    "feature"
+  ],
+  "parent": "oji",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T15:36:37.490732Z",
+  "updated_at": "2026-01-21T15:42:24.122611Z",
+  "closed_at": "2026-01-21T15:42:24.122611Z",
+  "closed_reason": "Updated stats.go with bordered box and colored status/priority/type counts"
+}

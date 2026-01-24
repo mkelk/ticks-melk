@@ -1,0 +1,18 @@
+{
+  "id": "duc",
+  "title": "Create shared styles package",
+  "description": "Extract color definitions and render functions from TUI (internal/tui/model.go lines 208-235) to a new shared package internal/styles/styles.go. Include: status colors/icons (open/in_progress/closed/awaiting/blocked), priority colors (P1-P3), type colors (epic/bug/feature), section header style, label style, dim style.",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "labels": [
+    "refactor"
+  ],
+  "parent": "oji",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T15:35:19.809298Z",
+  "updated_at": "2026-01-21T15:42:23.893046Z",
+  "closed_at": "2026-01-21T15:42:23.893046Z",
+  "closed_reason": "Created internal/styles/styles.go with shared Catppuccin Mocha color palette and render functions"
+}

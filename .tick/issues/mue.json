@@ -1,0 +1,13 @@
+{
+  "id": "mue",
+  "title": "Implement tk attachments list command",
+  "description": "Add 'tk attachments' command to list attachments for a tick.\n\n## Command\n\n```bash\ntk attachments \u003ctick-id\u003e [flags]\n\nFlags:\n  --json    Output as JSON\n  --urls    Output only URLs (one per line, for scripting)\n```\n\n## Output (default)\n\n```\nAttachments for abc (2):\n  a1b2  Login page redesign       login.png     245KB  2024-01-15 10:30\n  c3d4  Error state               error.png      89KB  2024-01-15 10:35\n```\n\n## Output (--urls)\n\n```\nhttps://attachments.tickboard.dev/x7k2.../login.png\nhttps://attachments.tickboard.dev/y8m3.../error.png\n```\n\n## Output (--json)\n\n```json\n{\n  \"tick_id\": \"abc\",\n  \"attachments\": [\n    {\"id\": \"a1b2\", \"filename\": \"login.png\", \"url\": \"...\", ...}\n  ]\n}\n```",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "7ab",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T16:22:15.751027Z",
+  "updated_at": "2026-01-21T16:22:15.751027Z"
+}

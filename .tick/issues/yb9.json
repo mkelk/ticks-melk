@@ -1,0 +1,17 @@
+{
+  "id": "yb9",
+  "title": "Add API documentation",
+  "description": "Create API documentation for third-party integrations. Include: authentication (Bearer token), all endpoints with request/response examples, error codes, rate limits, sync behavior explanation. Add to docs/API.md or similar. Consider OpenAPI/Swagger spec for machine-readable docs.",
+  "status": "open",
+  "priority": 3,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "labels": [
+    "docs",
+    "api"
+  ],
+  "parent": "qr4",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-22T07:34:39.539768Z",
+  "updated_at": "2026-01-22T07:34:39.539768Z"
+}

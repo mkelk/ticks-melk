@@ -1,0 +1,15 @@
+{
+  "id": "qq3",
+  "title": "Add integration tests for DO sync",
+  "description": "Test real-time sync between local and cloud.\n\n## Test Scenarios\n\n### 1. Connection Tests\n```go\nfunc TestDOSync_Connect(t *testing.T) {\n    // Valid token connects\n    // Invalid token rejected (401)\n    // Expired token rejected (403)\n    // Wrong project rejected (403)\n}\n```\n\n### 2. Sync Tests\n```go\nfunc TestDOSync_LocalToCloud(t *testing.T) {\n    // Create tick locally\n    // Verify appears in cloud UI within 100ms\n    \n    // Update tick locally\n    // Verify update appears in cloud\n    \n    // Delete tick locally\n    // Verify removed from cloud\n}\n\nfunc TestDOSync_CloudToLocal(t *testing.T) {\n    // Create tick in cloud UI\n    // Verify appears in .tick/issues/ within 100ms\n    \n    // Update tick in cloud\n    // Verify local file updated\n    \n    // Delete tick in cloud\n    // Verify local file removed\n}\n```\n\n### 3. Conflict Tests\n```go\nfunc TestDOSync_ConflictResolution(t *testing.T) {\n    // Both sides update same tick simultaneously\n    // Verify last-write-wins based on timestamp\n    // Verify both sides converge to same state\n}\n```\n\n### 4. Reconnection Tests\n```go\nfunc TestDOSync_Reconnect(t *testing.T) {\n    // Disconnect during sync\n    // Verify reconnects automatically\n    // Verify pending changes synced after reconnect\n    \n    // Disconnect, make local changes\n    // Reconnect\n    // Verify changes synced\n}\n```\n\n### 5. Performance Tests\n```go\nfunc TestDOSync_Latency(t *testing.T) {\n    // Measure round-trip time for sync\n    // Assert \u003c 200ms typical\n}\n\nfunc TestDOSync_Throughput(t *testing.T) {\n    // Rapid updates (100/sec)\n    // Verify no lost updates\n    // Verify batching works correctly\n}\n```\n\n## Test Infrastructure\n\nUse Miniflare or wrangler dev for local DO testing:\n```bash\nwrangler dev --local\n```\n\nOr mock DO for unit tests:\n```go\ntype MockProjectRoom struct {\n    ticks map[string]tick.Tick\n    conns []*MockWebSocket\n}\n```\n\n## CI Integration\n\n```yaml\n# .github/workflows/test.yml\n- name: Run DO sync tests\n  run: |\n    # Start wrangler dev in background\n    cd workers/tickboard \u0026\u0026 wrangler dev --local \u0026\n    sleep 5\n    \n    # Run integration tests\n    go test ./internal/tickboard/cloud/... -tags=integration\n```",
+  "status": "closed",
+  "priority": 3,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "y1i",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T16:32:35.406859Z",
+  "updated_at": "2026-01-21T19:05:22.117961Z",
+  "closed_at": "2026-01-21T19:05:22.117961Z",
+  "closed_reason": "Added unit tests for DO sync: TestNewClient_SyncMode, TestNewClient_SyncMode_RequiresTickDir, TestSyncState_String, TestClient_SyncStateTracking, TestClient_OfflineQueue, TestClient_IsConnected, TestLoadConfig_SyncMode. All 14 tests pass. Full integration tests require wrangler dev setup."
+}

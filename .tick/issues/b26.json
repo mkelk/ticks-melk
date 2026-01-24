@@ -1,0 +1,13 @@
+{
+  "id": "b26",
+  "title": "Add attachment icon and styles to shared styles package",
+  "description": "Update internal/styles/styles.go with attachment-related styles.\n\n## Additions\n\n1. Add attachment icon constant:\n```go\nconst IconAttachment = \"📎\"\n```\n\n2. Add attachment style:\n```go\nvar AttachmentStyle = lipgloss.NewStyle().Foreground(ColorSubtext)\n```\n\n3. Add helper function for file size formatting:\n```go\nfunc FormatFileSize(bytes int64) string {\n    switch {\n    case bytes \u003c 1024:\n        return fmt.Sprintf(\"%dB\", bytes)\n    case bytes \u003c 1024*1024:\n        return fmt.Sprintf(\"%dKB\", bytes/1024)\n    case bytes \u003c 1024*1024*1024:\n        return fmt.Sprintf(\"%.1fMB\", float64(bytes)/(1024*1024))\n    default:\n        return fmt.Sprintf(\"%.1fGB\", float64(bytes)/(1024*1024*1024))\n    }\n}\n```\n\n4. Add RenderAttachment helper:\n```go\nfunc RenderAttachment(a tick.Attachment) string {\n    desc := a.Filename\n    if a.Description != \"\" {\n        desc = a.Description + \" (\" + a.Filename + \")\"\n    }\n    return fmt.Sprintf(\"%s %s  %s  %s\",\n        AttachmentStyle.Render(IconAttachment),\n        BoldStyle.Render(a.ID),\n        desc,\n        DimStyle.Render(FormatFileSize(a.Size)),\n    )\n}\n```\n\n## Update STYLEGUIDE.md\n\nAdd attachment icon to the icons table.",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "7ab",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T16:23:11.070265Z",
+  "updated_at": "2026-01-21T16:23:11.070265Z"
+}

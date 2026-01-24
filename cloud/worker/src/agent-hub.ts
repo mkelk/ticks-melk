@@ -1,12 +1,13 @@
 /**
  * AgentHub Durable Object
  *
- * Manages WebSocket connections from local tickboard agents.
+ * Manages WebSocket connections from local ticks agents.
  * Relays HTTP requests to connected agents and returns responses.
  */
 
 import type { Env } from "./index";
-import { validateToken, registerBoard } from "./auth";
+// Note: D1 operations (validateToken, registerBoard) are now done in the main worker
+// to avoid D1 calls inside Durable Objects which can cause DO resets on timeout
 
 interface AgentConnection {
   socket: WebSocket;
@@ -57,12 +58,23 @@ export class AgentHub {
   private state: DurableObjectState;
   private env: Env;
   private agents: Map<WebSocket, AgentConnection> = new Map();
-  private boardIndex: Map<string, WebSocket> = new Map(); // boardName -> socket
+  private boardIndex: Map<string, WebSocket> = new Map(); // boardName -> socket (relay mode)
+  private syncBoards: Set<string> = new Set(); // boardName (sync mode - ProjectRoom connections)
   private eventSubscribers: Map<string, Set<EventSubscriber>> = new Map(); // boardName -> subscribers
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
     this.env = env;
+
+    // Restore state from storage (blocking to ensure it's ready before fetch)
+    this.state.blockConcurrencyWhile(async () => {
+      // Restore syncBoards from storage
+      const storedSyncBoards = await this.state.storage.get<string[]>("syncBoards");
+      if (storedSyncBoards) {
+        this.syncBoards = new Set(storedSyncBoards);
+        console.log(`[AgentHub] Restored ${this.syncBoards.size} sync boards from storage`);
+      }
+    });
 
     // Set up WebSocket hibernation handlers
     this.state.getWebSockets().forEach((ws) => {
@@ -97,19 +109,22 @@ export class AgentHub {
         return new Response("Expected WebSocket", { status: 426 });
       }
 
+      // Get pre-validated userId from main worker (avoids D1 calls in DO)
+      const preValidatedUserId = request.headers.get("X-Validated-User-Id") || "";
+
       const pair = new WebSocketPair();
       const [client, server] = Object.values(pair);
 
       // Accept the WebSocket with hibernation
       this.state.acceptWebSocket(server);
 
-      // Initialize connection state (will be populated on register message)
+      // Initialize connection state with pre-validated userId
       const conn: AgentConnection = {
         socket: server,
         boardName: "",
         machineId: "",
         token: "",
-        userId: "",
+        userId: preValidatedUserId, // Pre-validated by main worker
         lastSeen: Date.now(),
         pendingRequests: new Map(),
       };
@@ -128,9 +143,33 @@ export class AgentHub {
     }
 
     // List connected boards (for debugging/admin)
+    // Includes both relay-mode (WebSocket) and sync-mode (ProjectRoom) boards
     if (url.pathname === "/boards") {
-      const boards = Array.from(this.boardIndex.keys());
-      return Response.json({ boards, count: boards.length });
+      const relayBoards = Array.from(this.boardIndex.keys());
+      const syncBoardsList = Array.from(this.syncBoards);
+      // Combine and dedupe (in case both modes are somehow active)
+      const allBoards = [...new Set([...relayBoards, ...syncBoardsList])];
+      return Response.json({ boards: allBoards, count: allBoards.length });
+    }
+
+    // Register a sync-mode board as online (called by ProjectRoom)
+    if (url.pathname.startsWith("/sync-register/")) {
+      const boardName = decodeURIComponent(url.pathname.slice("/sync-register/".length));
+      this.syncBoards.add(boardName);
+      // Persist to storage so it survives hibernation/restart
+      await this.state.storage.put("syncBoards", Array.from(this.syncBoards));
+      console.log(`[AgentHub] Sync board registered: ${boardName} (total: ${this.syncBoards.size})`);
+      return Response.json({ ok: true, board: boardName });
+    }
+
+    // Unregister a sync-mode board (called by ProjectRoom)
+    if (url.pathname.startsWith("/sync-unregister/")) {
+      const boardName = decodeURIComponent(url.pathname.slice("/sync-unregister/".length));
+      this.syncBoards.delete(boardName);
+      // Persist to storage so it survives hibernation/restart
+      await this.state.storage.put("syncBoards", Array.from(this.syncBoards));
+      console.log(`[AgentHub] Sync board unregistered: ${boardName} (total: ${this.syncBoards.size})`);
+      return Response.json({ ok: true, board: boardName });
     }
 
     // SSE endpoint: /events/:boardName
@@ -266,28 +305,19 @@ export class AgentHub {
     conn: AgentConnection,
     data: RegisterMessage
   ) {
-    // Validate token format
-    if (!data.token || data.token.length < 8) {
-      ws.send(JSON.stringify({ type: "error", data: "Invalid token format" }));
-      ws.close(4001, "Invalid token");
-      return;
-    }
-
-    // Validate token against database
-    const tokenInfo = await validateToken(this.env, data.token);
-    if (!tokenInfo) {
+    // Check if userId was pre-validated by main worker
+    if (!conn.userId) {
       ws.send(JSON.stringify({ type: "error", data: "Invalid or revoked token" }));
       ws.close(4001, "Invalid token");
       return;
     }
 
     conn.token = data.token;
-    conn.userId = tokenInfo.userId;
     conn.boardName = data.board_name;
     conn.machineId = data.machine_id;
 
-    // Register/update board in database
-    await registerBoard(this.env, tokenInfo.userId, data.board_name, data.machine_id);
+    // Note: Board registration is now done lazily or skipped
+    // The board will be registered when first accessed via the API
 
     // Serialize attachment for hibernation
     ws.serializeAttachment({

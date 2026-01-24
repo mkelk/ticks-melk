@@ -1,0 +1,13 @@
+{
+  "id": "hm8",
+  "title": "Update ticks skill with attachment commands",
+  "description": "Update .ticker/ticks.md skill file with attachment documentation.\n\n## Additions\n\nAdd to commands section:\n\n```markdown\n## Attachments\n\nFor content review workflows, attach screenshots to ticks:\n\n### Attach a file\n\\`\\`\\`bash\ntk attach \u003ctick-id\u003e \u003cfile\u003e [--description \"caption\"]\n\\`\\`\\`\n\n### List attachments\n\\`\\`\\`bash\ntk attachments \u003ctick-id\u003e\n\\`\\`\\`\n\n### Remove attachment\n\\`\\`\\`bash\ntk detach \u003ctick-id\u003e \u003cattachment-id\u003e\n\\`\\`\\`\n\n### Requirements\n- Requires tickboard.dev token in ~/.tickboardrc\n- Allowed types: PNG, JPEG, GIF, WebP\n- Max size: 10MB per file\n- Max 10 attachments per tick\n```\n\n## Context for LLM\n\nAdd guidance for when to use attachments:\n- Content review tasks (--requires content)\n- UI/design changes needing visual verification\n- Bug reports with screenshots\n- Before/after comparisons",
+  "status": "open",
+  "priority": 3,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "7ab",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T16:23:11.175915Z",
+  "updated_at": "2026-01-21T16:23:11.175915Z"
+}

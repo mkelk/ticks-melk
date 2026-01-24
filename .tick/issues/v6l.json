@@ -1,0 +1,18 @@
+{
+  "id": "v6l",
+  "title": "Update show.go to use lipgloss styled output",
+  "description": "Modify cmd/tk/cmd/show.go to use lipgloss for formatted output: rounded box border, color-coded status icon + text, color-coded priority badge, color-coded type, bold section headers, aligned label columns, prominent title. Preserve --json flag behavior (no styling for JSON output).",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "labels": [
+    "feature"
+  ],
+  "parent": "oji",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T15:35:20.789625Z",
+  "updated_at": "2026-01-21T15:42:23.939142Z",
+  "closed_at": "2026-01-21T15:42:23.939142Z",
+  "closed_reason": "Updated show.go with lipgloss bordered box, colored status icons, priority, type, and aligned labels"
+}

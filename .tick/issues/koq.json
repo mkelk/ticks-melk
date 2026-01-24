@@ -1,0 +1,18 @@
+{
+  "id": "koq",
+  "title": "Style tk blocked output with colors and icons",
+  "description": "Update cmd/tk/cmd/blocked.go table output to use lipgloss with same styling as list command. Uses shared styles package.",
+  "status": "closed",
+  "priority": 3,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "labels": [
+    "feature"
+  ],
+  "parent": "oji",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T15:36:35.868296Z",
+  "updated_at": "2026-01-21T15:42:24.044891Z",
+  "closed_at": "2026-01-21T15:42:24.044891Z",
+  "closed_reason": "Updated blocked.go with same styling as list command using shared styles"
+}

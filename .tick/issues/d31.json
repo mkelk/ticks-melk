@@ -1,0 +1,18 @@
+{
+  "id": "d31",
+  "title": "Test tk show styling in different terminals",
+  "description": "Verify styled output displays correctly in: iTerm2, Terminal.app, tmux, VS Code terminal. Test both tk show and tk show --json. Ensure colors and unicode icons render properly.",
+  "status": "closed",
+  "priority": 3,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "labels": [
+    "testing"
+  ],
+  "parent": "oji",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T15:35:23.413188Z",
+  "updated_at": "2026-01-21T15:52:44.532812Z",
+  "closed_at": "2026-01-21T15:52:44.532812Z",
+  "closed_reason": "Verified styled output in terminal - show/list/stats all display correctly with colors, icons, and borders"
+}

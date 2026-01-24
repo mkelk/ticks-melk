@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
+import { resolve } from 'path';
 
 export default defineConfig({
   base: './',  // Use relative paths for cloud proxy compatibility
@@ -7,10 +8,14 @@ export default defineConfig({
     outDir: '../server/static',
     emptyOutDir: true,
     rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        app: resolve(__dirname, 'app.html'),
+      },
       output: {
-        entryFileNames: 'assets/app-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/app-[hash][extname]',
+        assetFileNames: 'assets/[name]-[hash][extname]',
       },
     },
   },

@@ -1,0 +1,29 @@
+/**
+ * ticks — Brand Tokens
+ * Catppuccin Mocha color palette + Geist fonts
+ */
+
+:root {
+  /* Fonts */
+  --ticks-font-sans: 'Geist', system-ui, -apple-system, sans-serif;
+  --ticks-font-mono: 'Geist Mono', ui-monospace, monospace;
+
+  /* Primary */
+  --ticks-green: #A6E3A1;
+
+  /* Text */
+  --ticks-text: #CDD6F4;
+  --ticks-subtext: #A6ADC8;
+  --ticks-overlay: #6C7086;
+
+  /* Backgrounds */
+  --ticks-surface: #313244;
+  --ticks-base: #1E1E2E;
+  --ticks-mantle: #181825;
+  --ticks-crust: #11111B;
+
+  /* Accents */
+  --ticks-red: #F38BA8;
+  --ticks-yellow: #F9E2AF;
+  --ticks-blue: #89DCEB;
+}

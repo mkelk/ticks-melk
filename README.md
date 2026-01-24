@@ -249,12 +249,12 @@ See `internal/tickboard/ui/README.md` for development docs.
 
 ## Cloud Sync
 
-Access your ticks from anywhere at [tickboard.dev](https://tickboard.dev).
+Access your ticks from anywhere at [ticks.sh](https://ticks.sh).
 
 ### Setup
 
-1. Get a token from https://tickboard.dev/settings
-2. Add to `~/.tickboardrc`:
+1. Get a token from https://ticks.sh/settings
+2. Add to `~/.ticksrc`:
    ```
    token=your-token-here
    ```
@@ -306,6 +306,47 @@ Critical path: 3 waves (minimum sequential steps)
 ```
 
 Use `--json` for machine-readable output (useful for agents planning parallel work).
+
+## Parallel Execution
+
+Run multiple tasks concurrently using git worktrees for isolation:
+
+```bash
+tk run abc123 --parallel 3    # Run 3 tasks in parallel
+```
+
+Each parallel worker gets its own git worktree, preventing file conflicts between concurrent tasks. Changes are merged back to the main branch as tasks complete.
+
+### How It Works
+
+1. `tk run` analyzes the dependency graph to find tasks that can run in parallel
+2. Creates isolated git worktrees for each worker
+3. Spawns agents that work independently without file conflicts
+4. Merges completed work back to the main branch
+5. Proceeds to the next wave of parallelizable tasks
+
+### Planning Parallel Work
+
+Use `tk graph` to understand how many parallel workers make sense:
+
+```bash
+tk graph abc123
+```
+
+The "max parallel" stat tells you the optimal `--parallel` value. Setting it higher than the maximum parallelizable tasks at any wave just wastes resources.
+
+### Combining with Other Flags
+
+```bash
+# Parallel execution with cost limit
+tk run abc123 --parallel 3 --max-cost 10.00
+
+# Parallel execution in watch mode
+tk run abc123 --parallel 2 --watch
+
+# Parallel execution with iteration limit per task
+tk run abc123 --parallel 4 --max-iterations 20
+```
 
 ## Search and Filtering
 

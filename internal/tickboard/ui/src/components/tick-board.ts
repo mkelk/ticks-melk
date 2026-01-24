@@ -1,11 +1,45 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { provide } from '@lit/context';
+import { StoreController } from '@nanostores/lit';
 import { boardContext, initialBoardState, type BoardState } from '../contexts/board-context.js';
 import type { BoardTick, TickColumn, Epic } from '../types/tick.js';
-import { fetchTicks, fetchTick, fetchInfo, fetchRunStatus, type EpicInfo, type Note, type BlockerDetail, type RunStatusResponse, type MetricsRecord as ApiMetricsRecord } from '../api/ticks.js';
+import { fetchTicks, fetchTick, fetchInfo, fetchRunStatus, setCloudProject as setCloudProjectApi, type Note, type BlockerDetail, type RunStatusResponse, type MetricsRecord as ApiMetricsRecord } from '../api/ticks.js';
 import type { ToolActivityInfo } from './tool-activity.js';
 import type { MetricsRecord } from './run-metrics.js';
+import {
+  // Connection stores
+  $isCloudMode,
+  $localClientConnected,
+  $isReadOnly,
+  setCloudMode,
+  setLocalMode,
+  // Tick stores
+  $ticksList,
+  $epics,
+  $repoName,
+  $selectedTick,
+  $selectedTickNotes,
+  $selectedTickBlockers,
+  $selectedTickParentTitle,
+  $loading,
+  $error,
+  updateTick,
+  removeTick,
+  selectTick,
+  setRepoName,
+  setLoading,
+  setError,
+  setTicks,
+} from '../stores/index.js';
+// Import sync store and explicitly initialize
+import { initSync } from '../stores/sync.js';
+
+// Ensure sync is initialized
+console.log('[TickBoard] Initializing sync module');
+initSync();
+import './ticks-button.js';
+import './ticks-alert.js';
 
 // Column definitions for the kanban board
 const COLUMNS = [
@@ -508,20 +542,43 @@ export class TickBoard extends LitElement {
   @state()
   boardState: BoardState = { ...initialBoardState };
 
-  // Local state
-  @state() private ticks: BoardTick[] = [];
-  @state() private epics: EpicInfo[] = [];
-  @state() private repoName = '';
+  // ============================================================================
+  // Store subscriptions (synced state from nanostores)
+  // ============================================================================
+  private ticksController = new StoreController(this, $ticksList);
+  private epicsController = new StoreController(this, $epics);
+  private repoNameController = new StoreController(this, $repoName);
+  private selectedTickController = new StoreController(this, $selectedTick);
+  private selectedTickNotesController = new StoreController(this, $selectedTickNotes);
+  private selectedTickBlockersController = new StoreController(this, $selectedTickBlockers);
+  private selectedTickParentTitleController = new StoreController(this, $selectedTickParentTitle);
+  private loadingController = new StoreController(this, $loading);
+  private errorController = new StoreController(this, $error);
+  private isCloudModeController = new StoreController(this, $isCloudMode);
+  private localClientConnectedController = new StoreController(this, $localClientConnected);
+  private isReadOnlyController = new StoreController(this, $isReadOnly);
+
+  // Getters for store values (cleaner access in templates)
+  private get ticks() { return this.ticksController.value; }
+  private get epics() { return this.epicsController.value; }
+  private get repoName() { return this.repoNameController.value; }
+  private get selectedTick() { return this.selectedTickController.value; }
+  private get selectedTickNotes() { return this.selectedTickNotesController.value; }
+  private get selectedTickBlockers() { return this.selectedTickBlockersController.value; }
+  private get selectedTickParentTitle() { return this.selectedTickParentTitleController.value; }
+  private get loading() { return this.loadingController.value; }
+  private get error() { return this.errorController.value; }
+  private get isCloudMode() { return this.isCloudModeController.value; }
+  private get localClientConnected() { return this.localClientConnectedController.value; }
+  private get isReadOnly() { return this.isReadOnlyController.value; }
+
+  // ============================================================================
+  // Local UI state (not synced)
+  // ============================================================================
   @state() private selectedEpic = '';
   @state() private searchTerm = '';
   @state() private activeColumn: TickColumn = 'blocked';
   @state() private isMobile = window.matchMedia('(max-width: 480px)').matches;
-  @state() private selectedTick: BoardTick | null = null;
-  @state() private selectedTickNotes: Note[] = [];
-  @state() private selectedTickBlockers: BlockerDetail[] = [];
-  @state() private selectedTickParentTitle = '';
-  @state() private loading = true;
-  @state() private error: string | null = null;
 
   // Keyboard navigation state
   @state() private focusedColumnIndex = -1; // -1 means no column focused
@@ -555,33 +612,87 @@ export class TickBoard extends LitElement {
     super.connectedCallback();
     this.mediaQuery.addEventListener('change', this.handleMediaChange);
     document.addEventListener('keydown', this.handleKeyDown);
-    this.loadData();
-    this.connectSSE();
-    // Start polling for active runs
-    this.startRunStatusPolling();
+
+    // Detect cloud mode from URL or config (sets store, auto-connects sync)
+    this.detectCloudMode();
+
+    // Load data (only needed in local mode - cloud mode uses sync store)
+    if (!this.isCloudMode) {
+      this.loadData();
+      this.connectSSE();
+      this.startRunStatusPolling();
+    }
+  }
+
+  /**
+   * Detect if running in cloud mode.
+   * Sets cloud mode in store which auto-triggers sync connection.
+   */
+  private detectCloudMode() {
+    // Check URL path for cloud pattern: /p/<project-id>
+    const pathMatch = window.location.pathname.match(/^\/p\/(.+?)(?:\/|$)/);
+    if (pathMatch) {
+      const projectId = decodeURIComponent(pathMatch[1]);
+      console.log('[TickBoard] Cloud mode detected, project:', projectId);
+      setCloudMode(projectId);
+      setCloudProjectApi(projectId); // Also set for API calls
+      return;
+    }
+
+    // Check localStorage for project config
+    const storedProject = localStorage.getItem('ticks_project');
+    if (storedProject) {
+      console.log('[TickBoard] Cloud mode from localStorage, project:', storedProject);
+      setCloudMode(storedProject);
+      setCloudProjectApi(storedProject);
+      return;
+    }
+
+    // Check if served from ticks.sh (not localhost)
+    if (window.location.hostname === 'ticks.sh' || window.location.hostname.endsWith('.ticks.sh')) {
+      const projectFromUrl = new URLSearchParams(window.location.search).get('project');
+      if (projectFromUrl) {
+        console.log('[TickBoard] Cloud mode from query param, project:', projectFromUrl);
+        setCloudMode(projectFromUrl);
+        setCloudProjectApi(projectFromUrl);
+        return;
+      }
+    }
+
+    console.log('[TickBoard] Local mode');
+    setLocalMode();
+    setCloudProjectApi(null);
   }
 
   private async loadData() {
-    this.loading = true;
-    this.error = null;
+    // In cloud mode, data comes from SyncClient WebSocket, not local API
+    if (this.isCloudMode) {
+      console.log('[TickBoard] Cloud mode: waiting for data from SyncClient');
+      setLoading(true);
+      // Loading state will be cleared when SyncClient receives state
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
 
     try {
-      // Fetch ticks and info in parallel
+      // Fetch ticks and info in parallel (local mode only)
       const [ticks, info] = await Promise.all([
         fetchTicks(),
         fetchInfo(),
       ]);
 
-      this.ticks = ticks;
-      this.epics = info.epics;
-      this.repoName = info.repoName;
+      // Update stores with fetched data
+      setTicks(ticks);
+      setRepoName(info.repoName);
+      // Note: epics are computed from ticks where type === 'epic'
       this.updateBoardState();
     } catch (err) {
-      this.error = err instanceof Error ? err.message : 'Failed to load data';
+      setError(err instanceof Error ? err.message : 'Failed to load data');
       console.error('Failed to load board data:', err);
-    } finally {
-      this.loading = false;
     }
+    // Note: setTicks and setError automatically set loading to false
   }
 
   disconnectedCallback() {
@@ -589,6 +700,7 @@ export class TickBoard extends LitElement {
     this.mediaQuery.removeEventListener('change', this.handleMediaChange);
     document.removeEventListener('keydown', this.handleKeyDown);
     this.disconnectSSE();
+    // Note: Sync client disconnect is handled automatically by store subscriptions
     this.disconnectRunStream();
     this.stopRunStatusPolling();
   }
@@ -962,52 +1074,10 @@ export class TickBoard extends LitElement {
         // Fetch the updated tick from the server
         try {
           const response = await fetchTick(tickId);
-          const updatedTick: BoardTick = {
-            ...response,
-            is_blocked: response.isBlocked,
-          };
-
-          // Find existing tick in our list
-          const existingIndex = this.ticks.findIndex(t => t.id === tickId);
-
-          if (existingIndex >= 0) {
-            // Update existing tick
-            this.ticks = [
-              ...this.ticks.slice(0, existingIndex),
-              updatedTick,
-              ...this.ticks.slice(existingIndex + 1),
-            ];
-          } else {
-            // Add new tick (only if it's a task, not an epic)
-            if (updatedTick.type !== 'epic') {
-              this.ticks = [...this.ticks, updatedTick];
-            } else {
-              // Add new epic to the epics list for the dropdown
-              if (!this.epics.find(e => e.id === updatedTick.id)) {
-                this.epics = [...this.epics, { id: updatedTick.id, title: updatedTick.title }];
-              }
-            }
-          }
-
-          // Update epic in epics list if it already exists (for title changes)
-          if (updatedTick.type === 'epic') {
-            const epicIndex = this.epics.findIndex(e => e.id === updatedTick.id);
-            if (epicIndex >= 0) {
-              this.epics = [
-                ...this.epics.slice(0, epicIndex),
-                { id: updatedTick.id, title: updatedTick.title },
-                ...this.epics.slice(epicIndex + 1),
-              ];
-            }
-          }
-
-          // If this is the currently selected tick, update drawer details
-          if (this.selectedTick?.id === tickId) {
-            this.selectedTick = updatedTick;
-            this.selectedTickNotes = response.notesList || [];
-            this.selectedTickBlockers = response.blockerDetails || [];
-          }
-
+          // Update store - tickToBoardTick is called inside updateTick
+          updateTick(response);
+          // Note: epics are computed from ticks, so no need to update separately
+          // Note: selectedTickNotes/blockers are computed from selectedTick, auto-updated
           this.updateBoardState();
         } catch (err) {
           console.error(`[SSE] Failed to fetch tick ${tickId}:`, err);
@@ -1016,24 +1086,10 @@ export class TickBoard extends LitElement {
       }
 
       case 'delete': {
-        // Remove tick from our list
-        const tickIndex = this.ticks.findIndex(t => t.id === tickId);
-        if (tickIndex >= 0) {
-          this.ticks = [
-            ...this.ticks.slice(0, tickIndex),
-            ...this.ticks.slice(tickIndex + 1),
-          ];
-          this.updateBoardState();
-        }
-
-        // Also remove from epics list if it was an epic
-        const epicIndex = this.epics.findIndex(e => e.id === tickId);
-        if (epicIndex >= 0) {
-          this.epics = [
-            ...this.epics.slice(0, epicIndex),
-            ...this.epics.slice(epicIndex + 1),
-          ];
-        }
+        // Remove tick from store (also clears selection if deleted tick was selected)
+        removeTick(tickId);
+        // Note: epics are computed from ticks, so removing an epic tick updates the list
+        this.updateBoardState();
         break;
       }
 
@@ -1278,7 +1334,7 @@ export class TickBoard extends LitElement {
 
     const ticks = this.getFocusedColumnTicks();
     if (this.focusedTickIndex < ticks.length) {
-      this.selectedTick = ticks[this.focusedTickIndex];
+      selectTick(ticks[this.focusedTickIndex].id);
     }
   }
 
@@ -1289,7 +1345,7 @@ export class TickBoard extends LitElement {
     if (this.showKeyboardHelp) {
       this.showKeyboardHelp = false;
     } else if (this.selectedTick) {
-      this.selectedTick = null;
+      selectTick(null);
     } else if (this.showRunPanel) {
       this.showRunPanel = false;
     } else {
@@ -1305,7 +1361,7 @@ export class TickBoard extends LitElement {
     if (header?.shadowRoot) {
       const searchInput = header.shadowRoot.querySelector('sl-input');
       if (searchInput) {
-        (searchInput as HTMLElement).focus();
+        (searchInput as unknown as HTMLElement).focus();
       }
     }
   }
@@ -1363,10 +1419,11 @@ export class TickBoard extends LitElement {
   }
 
   private handleTickCreated(e: CustomEvent) {
-    // Add the new tick to the list and refresh
+    // Add the new tick to the store
     const { tick } = e.detail;
-    this.ticks = [...this.ticks, tick];
+    updateTick(tick);
     this.showCreateDialog = false;
+    this.updateBoardState();
     window.showToast?.({ message: `Created tick ${tick.id}`, variant: 'success' });
   }
 
@@ -1411,7 +1468,7 @@ export class TickBoard extends LitElement {
     const tickId = e.detail.tickId;
     const tick = this.ticks.find(t => t.id === tickId);
     if (tick) {
-      this.selectedTick = tick;
+      selectTick(tick.id);
     } else {
       // Tick not in current view, show toast
       if (window.showToast) {
@@ -1426,63 +1483,31 @@ export class TickBoard extends LitElement {
   // Handle tick selection from columns
   private async handleTickSelected(e: CustomEvent<{ tick: BoardTick }>) {
     const tick = e.detail.tick;
-    this.selectedTick = tick;
+    // Select tick in store - computed stores will derive notes, blockers, parent title
+    selectTick(tick.id);
 
-    // Reset drawer details
-    this.selectedTickNotes = [];
-    this.selectedTickBlockers = [];
-    this.selectedTickParentTitle = '';
-
-    // Fetch full tick details (notes, blockers, etc.)
-    try {
-      const details = await fetchTick(tick.id);
-      this.selectedTickNotes = details.notesList || [];
-      this.selectedTickBlockers = details.blockerDetails || [];
-
-      // Look up parent title if tick has a parent
-      if (tick.parent) {
-        const parentEpic = this.epics.find(e => e.id === tick.parent);
-        this.selectedTickParentTitle = parentEpic?.title || '';
+    // In local mode, fetch detailed tick info to ensure notes are up-to-date
+    // (The computed store parseNotes works for both modes, but local API may have more detail)
+    if (!this.isCloudMode) {
+      try {
+        const details = await fetchTick(tick.id);
+        // Update the tick in store with full details
+        updateTick(details);
+      } catch (err) {
+        console.error('Failed to fetch tick details:', err);
       }
-    } catch (err) {
-      console.error('Failed to fetch tick details:', err);
     }
   }
 
   // Handle drawer close
   private handleDrawerClose() {
-    this.selectedTick = null;
-    this.selectedTickNotes = [];
-    this.selectedTickBlockers = [];
-    this.selectedTickParentTitle = '';
+    selectTick(null);
   }
 
   private handleTickUpdated(e: CustomEvent<{ tick: BoardTick & { notesList?: Note[]; blockerDetails?: BlockerDetail[] } }>) {
     const { tick } = e.detail;
-
-    // Update notes and blockers if provided
-    if (tick.notesList) {
-      this.selectedTickNotes = tick.notesList;
-    }
-    if (tick.blockerDetails) {
-      this.selectedTickBlockers = tick.blockerDetails;
-    }
-
-    // Update the tick in our list
-    const existingIndex = this.ticks.findIndex(t => t.id === tick.id);
-    if (existingIndex >= 0) {
-      this.ticks = [
-        ...this.ticks.slice(0, existingIndex),
-        tick,
-        ...this.ticks.slice(existingIndex + 1),
-      ];
-    }
-
-    // Update selected tick if it's the same one
-    if (this.selectedTick?.id === tick.id) {
-      this.selectedTick = tick;
-    }
-
+    // Update the tick in store - computed stores will auto-update notes/blockers/etc.
+    updateTick(tick);
     this.updateBoardState();
   }
 
@@ -1630,12 +1655,11 @@ export class TickBoard extends LitElement {
     if (this.error) {
       return html`
         <div class="error-state">
-          <sl-alert variant="danger" open>
-            <sl-icon slot="icon" name="exclamation-octagon"></sl-icon>
+          <ticks-alert variant="error">
             <strong>Failed to load board</strong><br>
             ${this.error}
-          </sl-alert>
-          <sl-button variant="primary" @click=${this.loadData}>Retry</sl-button>
+          </ticks-alert>
+          <ticks-button variant="primary" @click=${this.loadData}>Retry</ticks-button>
         </div>
       `;
     }
@@ -1650,6 +1674,7 @@ export class TickBoard extends LitElement {
         search-term=${this.searchTerm}
         ?run-panel-open=${this.showRunPanel}
         ?run-active=${this.runStatus?.isRunning}
+        ?readonly-mode=${this.isCloudMode && !this.localClientConnected}
         @search-change=${this.handleSearchChange}
         @epic-filter-change=${this.handleEpicFilterChange}
         @create-click=${this.handleCreateClick}
@@ -1668,6 +1693,7 @@ export class TickBoard extends LitElement {
         .notesList=${this.selectedTickNotes}
         .blockerDetails=${this.selectedTickBlockers}
         parent-title=${this.selectedTickParentTitle}
+        ?readonly-mode=${this.isCloudMode && !this.localClientConnected}
         @drawer-close=${this.handleDrawerClose}
         @tick-updated=${this.handleTickUpdated}
       ></tick-detail-drawer>
@@ -1772,13 +1798,13 @@ export class TickBoard extends LitElement {
             </sl-select>
           </div>
         </div>
-        <sl-button
+        <ticks-button
           slot="footer"
           variant="primary"
           @click=${() => { this.showMobileFilterDrawer = false; }}
         >
           Apply
-        </sl-button>
+        </ticks-button>
       </sl-drawer>
 
       <!-- Keyboard shortcuts help dialog -->

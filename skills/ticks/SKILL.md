@@ -160,26 +160,64 @@ Walk the user through each blocking task, then close it:
 tk close <id> "Completed - connection string in .env"
 ```
 
-### Step 5: Run Agent
+### Step 5: Choose Execution Mode
+
+Ticks supports two execution approaches. If the user hasn't specified a preference, ask:
+
+```
+Question: "How would you like to execute this epic?"
+Header: "Execution"
+Options:
+  - "tk run" - "Rich monitoring via tickboard, HITL support, cost tracking, git worktree isolation"
+  - "Claude Code" - "Native parallel subagents, seamless session execution, direct visibility"
+```
+
+#### Option A: tk run
+
+Uses the Ticks agent runner with tickboard monitoring.
 
 ```bash
 # Run on specific epic
 tk run <epic-id>
 
-# Run multiple epics in parallel
-tk run <epic1> <epic2> --parallel 2
+# Run with parallel workers (uses git worktrees for isolation)
+tk run <epic-id> --parallel 2
 
-# Auto-select next ready epic
-tk run --auto
-
-# Run in isolated worktree (recommended for parallel runs)
+# Run in isolated worktree
 tk run <epic-id> --worktree
+
+# With cost limit
+tk run <epic-id> --max-cost 5.00
 ```
 
-**Monitor progress with the web board:**
-```bash
-tk board  # Opens http://localhost:3000
-```
+**Monitor:** `tk board` opens local web interface.
+
+**Best for:** Production epics, rich HITL workflows, long-running tasks, cost tracking.
+
+#### Option B: Claude Code Native
+
+Uses Claude Code's Task tool to spawn parallel subagents.
+
+**Best for:** Quick parallel execution within a Claude session, direct visibility into agents.
+
+See **`references/claude-runner.md`** for full documentation including:
+- Task tool parameters and options
+- Agent naming conventions (epic/tick/wave)
+- Wave orchestration algorithm
+- Polling strategy to avoid hangs
+- HITL-aware state transitions
+- Example session
+
+#### Quick Comparison
+
+| Aspect | `tk run` | Claude Code |
+|--------|----------|-------------|
+| Monitoring | Tickboard | Claude Code UI |
+| HITL | Rich (approvals, checkpoints) | Basic (conversation) |
+| Parallelization | Git worktrees | Task subagents |
+| File isolation | Worktrees (proven) | Shared workspace |
+| State persistence | Tick files (survives crashes) | Session-bound |
+| Cost tracking | Built-in (`--max-cost`) | Manual |
 
 ## Quick Reference
 
@@ -218,16 +256,37 @@ tk approve <id>              # Approve awaiting tick
 tk reject <id> "feedback"    # Reject with feedback
 ```
 
-### Running Agent
+### Running Agent (Two Modes)
 
+**Mode A: Native tk run**
 ```bash
 tk run <epic-id>                      # Run on epic
 tk run --auto                         # Auto-select epic
 tk run <epic-id> --worktree           # Use git worktree
+tk run <epic-id> --parallel 3         # Parallel workers
 tk run <epic-id> --max-iterations 10  # Limit iterations
 tk run <epic-id> --max-cost 5.00      # Cost limit
 tk run <epic-id> --watch              # Restart when tasks ready
 tk board                              # Web interface
+```
+
+**Mode B: Claude Code Native**
+```bash
+# See references/claude-runner.md for full details
+
+# 1. Get dependency graph
+tk graph <epic-id> --json
+
+# 2. Ask user for MAX_AGENTS (1-10)
+
+# 3. For each wave, launch Task agents:
+#    Task(subagent_type: "general-purpose",
+#         name: "<epic>-w<wave>-<tick>",
+#         run_in_background: true,
+#         mode: "bypassPermissions")
+
+# 4. Poll for completion, sync to ticks
+tk close <tick-id> --reason "Completed via Claude runner"
 ```
 
 ### Planning Parallel Execution

@@ -1,0 +1,15 @@
+{
+  "id": "h9y",
+  "title": "Deprecate tk board command",
+  "description": "Deprecate tk board in favor of tk run --board/--cloud.\n\n## Phase 1: Deprecation Warning\n\nIn board.go:\n```go\nfunc runBoard(cmd *cobra.Command, args []string) error {\n    // Show deprecation warning\n    if !boardQuiet {\n        fmt.Fprintln(os.Stderr, \n            styles.Yellow(\"Warning: 'tk board' is deprecated.\"))\n        \n        if boardCloud {\n            fmt.Fprintln(os.Stderr, \n                styles.Dim(\"  Use instead: tk run --cloud\"))\n        } else {\n            fmt.Fprintln(os.Stderr, \n                styles.Dim(\"  Use instead: tk run --board\"))\n        }\n        fmt.Fprintln(os.Stderr)\n    }\n    \n    // Continue with existing implementation for now\n    return runBoardImpl(cmd, args)\n}\n```\n\nAdd --quiet flag to suppress warning (for scripts):\n```go\nvar boardQuiet bool\nboardCmd.Flags().BoolVarP(\u0026boardQuiet, \"quiet\", \"q\", false, \"suppress warnings\")\n```\n\n## Phase 2: Update Documentation\n\n- Update README.md command reference\n- Update help text in run.go\n- Add migration notes\n\n## Phase 3: Remove (Later Release)\n\nIn a future version (e.g., v1.0):\n- Remove board.go entirely\n- Remove from command registration\n- Update all references\n\n## Timeline\n\n- v0.6.0: Add deprecation warning\n- v0.7.0: Warn more prominently\n- v1.0.0: Remove tk board command",
+  "status": "closed",
+  "priority": 3,
+  "type": "task",
+  "owner": "peter@engelbrecht.dk",
+  "parent": "y1i",
+  "created_by": "peter@engelbrecht.dk",
+  "created_at": "2026-01-21T16:32:10.192626Z",
+  "updated_at": "2026-01-21T18:53:28.089154Z",
+  "closed_at": "2026-01-21T18:53:28.089154Z",
+  "closed_reason": "Added --quiet/-q flag to suppress deprecation warning. Warning already present from task o0c, now conditional on !boardQuiet. Future: v0.7 more prominent warning, v1.0 remove command."
+}
