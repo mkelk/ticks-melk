@@ -24,7 +24,7 @@ type RunnerConfig struct {
 	// WorktreeManager handles worktree creation/cleanup.
 	WorktreeManager *worktree.Manager
 
-	// MergeManager handles merging completed worktrees to main.
+	// MergeManager handles merging completed worktrees to their target branch.
 	MergeManager *worktree.MergeManager
 
 	// EngineFactory creates Engine instances for each epic.

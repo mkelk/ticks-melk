@@ -36,7 +36,7 @@ type MergeResult struct {
 	TargetBranch string   // The branch that was merged into
 }
 
-// MergeManager handles merging worktree branches to main.
+// MergeManager handles merging worktree branches to their target branch.
 type MergeManager struct {
 	repoRoot   string
 	mainBranch string // Usually "main" or "master"
