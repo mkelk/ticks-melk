@@ -584,6 +584,103 @@ describe('LocalCommsClient Integration', () => {
       expect(context).toContain('Test Context');
     });
   });
+
+  // ===========================================================================
+  // Error Handling Tests
+  // ===========================================================================
+
+  describe('error handling', () => {
+    it('createTick() throws on server error', async () => {
+      // Configure next write to fail
+      await fetch(`${TEST_RIG_URL}/test/fail-next`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Database connection failed' }),
+      });
+
+      await expect(
+        client.createTick({ title: 'Should Fail' })
+      ).rejects.toThrow();
+    });
+
+    it('updateTick() throws on server error', async () => {
+      // Create a tick first
+      const tick = await client.createTick({ title: 'Update Error Test' });
+
+      // Configure next write to fail
+      await fetch(`${TEST_RIG_URL}/test/fail-next`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Update failed' }),
+      });
+
+      await expect(
+        client.updateTick(tick.id, { title: 'New Title' })
+      ).rejects.toThrow();
+    });
+
+    it('deleteTick() throws on server error', async () => {
+      // Create a tick first
+      const tick = await client.createTick({ title: 'Delete Error Test' });
+
+      // Configure next write to fail
+      await fetch(`${TEST_RIG_URL}/test/fail-next`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Delete failed' }),
+      });
+
+      await expect(client.deleteTick(tick.id)).rejects.toThrow();
+    });
+
+    it('closeTick() throws on server error', async () => {
+      // Create a tick first
+      const tick = await client.createTick({ title: 'Close Error Test' });
+
+      // Configure next write to fail
+      await fetch(`${TEST_RIG_URL}/test/fail-next`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Close failed' }),
+      });
+
+      await expect(client.closeTick(tick.id)).rejects.toThrow();
+    });
+
+    it('fetchTick() throws for non-existent tick', async () => {
+      await expect(client.fetchTick('non-existent-id')).rejects.toThrow();
+    });
+
+    it('operations throw when local agent is offline', async () => {
+      // Simulate local agent going offline
+      await fetch(`${TEST_RIG_URL}/test/local-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connected: false }),
+      });
+
+      await expect(
+        client.createTick({ title: 'Offline Test' })
+      ).rejects.toThrow(/Service Unavailable|offline/i);
+
+      // Restore local agent status
+      await fetch(`${TEST_RIG_URL}/test/local-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connected: true }),
+      });
+    });
+
+    it('connect() rejects on connection failure', async () => {
+      // Create a client with invalid URL
+      const badClient = new LocalCommsClient('http://localhost:99999');
+
+      // connect() should reject when the connection fails
+      await expect(badClient.connect()).rejects.toThrow(/connection|failed|error/i);
+
+      badClient.disconnect();
+    });
+  });
 });
 
 // =============================================================================

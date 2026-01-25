@@ -6,6 +6,8 @@ export default defineConfig({
     environment: 'happy-dom',
     include: ['src/**/*.test.ts'],
     setupFiles: ['./src/comms/test-setup.ts'],
+    // Run test files sequentially to avoid race conditions with shared test rig
+    fileParallelism: false,
     coverage: {
       provider: 'v8',
       include: ['src/comms/**/*.ts'],

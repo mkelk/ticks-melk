@@ -184,6 +184,8 @@ func (s *TestServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.handleRunStream(w, r, epicID)
 
 	// REST endpoints for write operations
+	case path == "/api/ticks" && r.Method == "GET":
+		s.handleListTicks(w, r)
 	case path == "/api/ticks" && r.Method == "POST":
 		s.handleCreateTick(w, r)
 	case strings.HasPrefix(path, "/api/ticks/") && r.Method == "GET" && !strings.Contains(path, "/note") && !strings.Contains(path, "/approve") && !strings.Contains(path, "/reject") && !strings.Contains(path, "/close") && !strings.Contains(path, "/reopen"):
@@ -838,6 +840,61 @@ func (s *TestServer) handleGetTicks(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, s.ticks)
 }
 
+// handleListTicks returns all ticks as a list with computed BoardTick fields.
+func (s *TestServer) handleListTicks(w http.ResponseWriter, r *http.Request) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	// Build set of open tick IDs for blocker checking
+	openTickIDs := make(map[string]bool)
+	for id, tick := range s.ticks {
+		if tick.Status != "closed" {
+			openTickIDs[id] = true
+		}
+	}
+
+	// Convert ticks to BoardTick format
+	type BoardTick struct {
+		Tick
+		IsBlocked bool   `json:"isBlocked"`
+		Column    string `json:"column"`
+	}
+
+	result := make([]BoardTick, 0, len(s.ticks))
+	for _, tick := range s.ticks {
+		// Check if blocked by any open tick
+		isBlocked := false
+		for _, blockerID := range tick.BlockedBy {
+			if openTickIDs[blockerID] {
+				isBlocked = true
+				break
+			}
+		}
+
+		// Compute column
+		column := "ready"
+		if tick.Status == "closed" {
+			column = "done"
+		} else if isBlocked {
+			column = "blocked"
+		} else if tick.Status == "in_progress" {
+			if tick.Awaiting != "" {
+				column = "human"
+			} else {
+				column = "agent"
+			}
+		}
+
+		result = append(result, BoardTick{
+			Tick:      tick,
+			IsBlocked: isBlocked,
+			Column:    column,
+		})
+	}
+
+	jsonResponse(w, map[string]interface{}{"ticks": result})
+}
+
 func (s *TestServer) handleGetClients(w http.ResponseWriter, r *http.Request) {
 	s.sseClientsMu.RLock()
 	sseCount := len(s.sseClients)
@@ -1184,10 +1241,29 @@ var wsUpgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true // Allow all origins for testing
 	},
+	// Handle subprotocol negotiation for cloud client
+	Subprotocols: []string{"ticks-v1"},
 }
 
 func (s *TestServer) handleWebSocketHTTP(w http.ResponseWriter, r *http.Request) {
-	ws, err := wsUpgrader.Upgrade(w, r, nil)
+	// Check if this is a WebSocket upgrade request
+	if r.Header.Get("Upgrade") != "websocket" {
+		// Not a WebSocket request - handle as regular HTTP via ServeHTTP
+		s.ServeHTTP(w, r)
+		return
+	}
+
+	// Set response header to echo back the ticks-v1 protocol
+	responseHeader := http.Header{}
+	requestedProtocols := websocket.Subprotocols(r)
+	for _, p := range requestedProtocols {
+		if p == "ticks-v1" {
+			responseHeader.Set("Sec-WebSocket-Protocol", "ticks-v1")
+			break
+		}
+	}
+
+	ws, err := wsUpgrader.Upgrade(w, r, responseHeader)
 	if err != nil {
 		log.Printf("[WS] Upgrade error: %v", err)
 		return

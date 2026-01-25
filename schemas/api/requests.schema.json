@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ticks.sh/schemas/api/requests.schema.json",
+  "title": "API Requests",
+  "description": "Request body types for ticks API endpoints",
+  "$defs": {
+    "CreateTickRequest": {
+      "type": "object",
+      "description": "Request body for POST /api/ticks",
+      "required": ["title"],
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Title of the new tick"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description"
+        },
+        "type": {
+          "$ref": "../tick.schema.json#/$defs/TickType",
+          "description": "Type of tick (defaults to task)"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4,
+          "description": "Priority level (defaults to 2)"
+        },
+        "parent": {
+          "type": "string",
+          "description": "Parent epic ID"
+        },
+        "requires": {
+          "$ref": "../tick.schema.json#/$defs/TickRequires",
+          "description": "Pre-declared gate for closing"
+        }
+      }
+    },
+    "UpdateTickRequest": {
+      "type": "object",
+      "description": "Request body for PATCH /api/ticks/:id",
+      "properties": {
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4,
+          "description": "New priority level"
+        },
+        "type": {
+          "$ref": "../tick.schema.json#/$defs/TickType",
+          "description": "New tick type"
+        },
+        "parent": {
+          "type": "string",
+          "description": "New parent epic ID"
+        },
+        "owner": {
+          "type": "string",
+          "description": "New owner"
+        },
+        "requires": {
+          "$ref": "../tick.schema.json#/$defs/TickRequires",
+          "description": "Pre-declared gate for closing"
+        }
+      }
+    },
+    "RejectTickRequest": {
+      "type": "object",
+      "description": "Request body for POST /api/ticks/:id/reject",
+      "properties": {
+        "feedback": {
+          "type": "string",
+          "description": "Feedback explaining why the tick was rejected"
+        }
+      }
+    },
+    "AddNoteRequest": {
+      "type": "object",
+      "description": "Request body for POST /api/ticks/:id/note",
+      "required": ["message"],
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "Note content to add"
+        }
+      }
+    },
+    "CloseTickRequest": {
+      "type": "object",
+      "description": "Request body for POST /api/ticks/:id/close",
+      "properties": {
+        "reason": {
+          "type": "string",
+          "description": "Reason for closing"
+        }
+      }
+    }
+  }
+}

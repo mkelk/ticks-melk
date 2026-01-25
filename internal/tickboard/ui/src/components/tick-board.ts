@@ -4,7 +4,7 @@ import { provide } from '@lit/context';
 import { StoreController } from '@nanostores/lit';
 import { boardContext, initialBoardState, type BoardState } from '../contexts/board-context.js';
 import type { BoardTick, TickColumn, Epic } from '../types/tick.js';
-import { fetchTicks, setCloudProject as setCloudProjectApi, type Note, type BlockerDetail, type RunStatusResponse, type MetricsRecord as ApiMetricsRecord } from '../api/ticks.js';
+import { type Note, type BlockerDetail, type RunStatusResponse, type MetricsRecord as ApiMetricsRecord } from '../api/ticks.js';
 import type { ToolActivityInfo } from './tool-activity.js';
 import type { MetricsRecord } from './run-metrics.js';
 import {
@@ -39,6 +39,7 @@ import {
   subscribeRun,
   onRunEvent,
   // Read operations (comms wrappers)
+  fetchTicks,
   fetchInfo,
   fetchTickDetails,
   fetchRunStatus,
@@ -641,7 +642,6 @@ export class TickBoard extends LitElement {
       const projectId = decodeURIComponent(pathMatch[1]);
       console.log('[TickBoard] Cloud mode detected, project:', projectId);
       setCloudMode(projectId);
-      setCloudProjectApi(projectId); // Also set for API calls
       return;
     }
 
@@ -650,7 +650,6 @@ export class TickBoard extends LitElement {
     if (storedProject) {
       console.log('[TickBoard] Cloud mode from localStorage, project:', storedProject);
       setCloudMode(storedProject);
-      setCloudProjectApi(storedProject);
       return;
     }
 
@@ -660,14 +659,12 @@ export class TickBoard extends LitElement {
       if (projectFromUrl) {
         console.log('[TickBoard] Cloud mode from query param, project:', projectFromUrl);
         setCloudMode(projectFromUrl);
-        setCloudProjectApi(projectFromUrl);
         return;
       }
     }
 
     console.log('[TickBoard] Local mode');
     setLocalMode();
-    setCloudProjectApi(null);
   }
 
   private async loadData() {

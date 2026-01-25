@@ -388,6 +388,7 @@ export async function reopenTick(id: string): Promise<Tick> {
 // Read Operations (convenience wrappers)
 // =============================================================================
 
+import type { BoardTick } from '../types/tick.js';
 import type {
   InfoResponse,
   TickDetail,
@@ -395,6 +396,13 @@ import type {
   RunRecord,
   RunStatusResponse,
 } from '../comms/index.js';
+
+/**
+ * Fetch all ticks (initial load).
+ */
+export async function fetchTicks(): Promise<BoardTick[]> {
+  return getCommsClient().fetchTicks();
+}
 
 /**
  * Fetch server info including project metadata and epic list.

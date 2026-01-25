@@ -1,8 +1,9 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { StoreController } from '@nanostores/lit';
 import type { Tick, BoardTick } from '../types/tick.js';
 import type { Note, BlockerDetail, RunRecord, ToolRecord, VerificationRecord, VerifierResult } from '../api/ticks.js';
-import { getCloudProject, parseNotes } from '../api/ticks.js';
+import { parseNotes } from '../api/ticks.js';
 // Note: Action functions (approveTick, rejectTick, etc.) are imported from stores/comms.js
 // which provides unified communication handling for both local and cloud modes.
 import {
@@ -13,6 +14,7 @@ import {
   addNote,
   fetchRecord,
 } from '../stores/comms.js';
+import { $isCloudMode } from '../stores/connection.js';
 import './run-record.js';
 import './ticks-button.js';
 
@@ -971,6 +973,10 @@ export class TickDetailDrawer extends LitElement {
   // Tab state
   @state() private activeTab = 'overview';
 
+  // Store subscriptions
+  private isCloudModeController = new StoreController(this, $isCloudMode);
+  private get isCloudMode() { return this.isCloudModeController.value; }
+
   private handleDrawerHide() {
     // Reset action state when drawer closes
     this.resetActionState();
@@ -997,7 +1003,7 @@ export class TickDetailDrawer extends LitElement {
     if (!this.tick) return;
 
     // Skip in cloud mode - run records are local only
-    if (getCloudProject()) {
+    if (this.isCloudMode) {
       this.loadingRunRecord = false;
       return;
     }

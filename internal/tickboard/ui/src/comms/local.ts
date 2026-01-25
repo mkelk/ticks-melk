@@ -407,6 +407,22 @@ export class LocalCommsClient implements CommsClient {
   // Read Operations
   // ---------------------------------------------------------------------------
 
+  async fetchTicks(): Promise<import('../types/tick.js').BoardTick[]> {
+    const response = await fetch(`${this.baseUrl}/api/ticks`);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ticks: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    // Map TickResponse to BoardTick (field name differences: isBlocked -> is_blocked)
+    return data.ticks.map((tick: { isBlocked: boolean; verificationStatus?: string; [key: string]: unknown }) => ({
+      ...tick,
+      is_blocked: tick.isBlocked,
+      verification_status: tick.verificationStatus,
+    }));
+  }
+
   async fetchInfo(): Promise<InfoResponse> {
     const response = await fetch(`${this.baseUrl}/api/info`);
 

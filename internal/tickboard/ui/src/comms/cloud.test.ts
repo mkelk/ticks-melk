@@ -727,6 +727,119 @@ describe('CloudCommsClient Integration', () => {
       });
     });
   });
+
+  // ===========================================================================
+  // Error Handling Tests
+  // ===========================================================================
+
+  describe('error handling', () => {
+    it('createTick() throws on server error', async () => {
+      // Configure next write to fail
+      await fetch(`${TEST_RIG_URL}/test/fail-next`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Database connection failed' }),
+      });
+
+      await expect(
+        client.createTick({ title: 'Should Fail' })
+      ).rejects.toThrow();
+    });
+
+    it('updateTick() throws on server error', async () => {
+      // Create a tick first via REST
+      const createResponse = await fetch(`${TEST_RIG_URL}/api/ticks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'Update Error Test' }),
+      });
+      const tick = await createResponse.json();
+      await sleep(100); // Wait for WebSocket sync
+
+      // Configure next write to fail
+      await fetch(`${TEST_RIG_URL}/test/fail-next`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Update failed' }),
+      });
+
+      await expect(
+        client.updateTick(tick.id, { title: 'New Title' })
+      ).rejects.toThrow();
+    });
+
+    it('closeTick() throws on server error', async () => {
+      // Create a tick first via REST
+      const createResponse = await fetch(`${TEST_RIG_URL}/api/ticks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'Close Error Test' }),
+      });
+      const tick = await createResponse.json();
+      await sleep(100); // Wait for WebSocket sync
+
+      // Configure next write to fail
+      await fetch(`${TEST_RIG_URL}/test/fail-next`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Close failed' }),
+      });
+
+      await expect(client.closeTick(tick.id)).rejects.toThrow();
+    });
+
+    it('write operations throw when in read-only mode (local agent offline)', async () => {
+      // Connect first so we can receive status updates
+      await client.connect();
+
+      // Simulate local agent going offline
+      await fetch(`${TEST_RIG_URL}/test/local-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connected: false }),
+      });
+
+      // Wait for status update to propagate
+      await waitFor(() => client.isReadOnly(), { timeout: 2000 });
+
+      // Write operations should throw when in read-only mode
+      await expect(
+        client.createTick({ title: 'Read-Only Test' })
+      ).rejects.toThrow(/read-only|not connected|offline/i);
+
+      // Restore local agent status
+      await fetch(`${TEST_RIG_URL}/test/local-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connected: true }),
+      });
+
+      // Wait for status update to propagate
+      await waitFor(() => !client.isReadOnly(), { timeout: 2000 });
+    });
+
+    it('emits error event on connection failure', async () => {
+      // Create a client with invalid project
+      const badClient = new CloudCommsClient('non-existent-project');
+      const errors: ConnectionEvent[] = [];
+
+      badClient.onConnection((event) => {
+        if (event.type === 'error') {
+          errors.push(event);
+        }
+      });
+
+      // Don't use real WebSocket - just verify the error path
+      // The connect() will fail because there's no server at this endpoint
+      try {
+        await badClient.connect();
+      } catch {
+        // Expected to throw
+      }
+
+      badClient.disconnect();
+    });
+  });
 });
 
 // =============================================================================

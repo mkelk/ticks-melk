@@ -3,15 +3,9 @@ import { customElement, property, state, query } from 'lit/decorators.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import type { ShowToastOptions } from './tick-toast-stack.js';
 import type { ContextPane } from './context-pane.js';
-import {
-  LocalOutputStreamAdapter,
-  type OutputStreamAdapter,
-  type RunEvent,
-} from '../streams/output-stream.js';
-import { $isCloudMode } from '../stores/connection.js';
-import { onRunEvent, subscribeRun, $connectionStatus } from '../stores/comms.js';
+import type { RunEvent } from '../streams/output-stream.js';
+import { onRunEvent, subscribeRun, $connectionStatus, onContextEvent } from '../stores/comms.js';
 import type { RunEvent as CommsRunEvent, ContextEvent as CommsContextEvent } from '../comms/types.js';
-import { onContextEvent } from '../stores/comms.js';
 
 const TAB_STORAGE_KEY = 'run-output-pane-active-tab';
 
@@ -452,7 +446,6 @@ export class RunOutputPane extends LitElement {
   @query('context-pane')
   private contextPane!: ContextPane;
 
-  private adapter: OutputStreamAdapter | null = null;
   private unregisterAdapter: (() => void) | null = null;
   private userScrolled = false;
 
@@ -504,64 +497,58 @@ export class RunOutputPane extends LitElement {
       },
     };
 
-    // Choose adapter based on mode
-    if ($isCloudMode.get()) {
-      // Cloud mode: use comms store directly for run events
-      // Subscribe to run events for this epic
-      const unsubscribeRun = subscribeRun(this.epicId);
+    // Use CommsClient for both local and cloud modes
+    // Subscribe to run events for this epic
+    const unsubscribeRun = subscribeRun(this.epicId);
 
-      // Listen for run events and convert to local format
-      const unsubscribeRunEvents = onRunEvent((event: CommsRunEvent) => {
-        // Filter by epicId
-        if (event.epicId !== this.epicId) return;
+    // Listen for run events and convert to local format
+    const unsubscribeRunEvents = onRunEvent((event: CommsRunEvent) => {
+      // Filter by epicId
+      if (event.epicId !== this.epicId) return;
 
-        // Convert comms RunEvent to local RunEvent format
-        const localEvent = this.convertCommsRunEvent(event);
-        if (localEvent) {
-          this.handleRunEvent(localEvent);
-        }
-      });
-
-      // Listen for context events
-      const unsubscribeContextEvents = onContextEvent((event: CommsContextEvent) => {
-        if (event.epicId !== this.epicId) return;
-
-        // Convert context events to local format
-        const localEvent = this.convertCommsContextEvent(event);
-        if (localEvent) {
-          this.handleRunEvent(localEvent);
-        }
-      });
-
-      // Track unsubscribers
-      this.unregisterAdapter = () => {
-        unsubscribeRun();
-        unsubscribeRunEvents();
-        unsubscribeContextEvents();
-      };
-
-      // Mark as connected (cloud connection is managed by comms store)
-      if ($connectionStatus.get() === 'connected') {
-        callbacks.onConnected();
-      } else {
-        // Subscribe to connection status changes
-        const unsubscribeStatus = $connectionStatus.subscribe((status) => {
-          if (status === 'connected') {
-            callbacks.onConnected();
-          } else if (status === 'disconnected') {
-            callbacks.onDisconnected();
-          }
-        });
-        // Add to cleanup
-        const originalUnregister = this.unregisterAdapter;
-        this.unregisterAdapter = () => {
-          originalUnregister?.();
-          unsubscribeStatus();
-        };
+      // Convert comms RunEvent to local RunEvent format
+      const localEvent = this.convertCommsRunEvent(event);
+      if (localEvent) {
+        this.handleRunEvent(localEvent);
       }
+    });
+
+    // Listen for context events
+    const unsubscribeContextEvents = onContextEvent((event: CommsContextEvent) => {
+      if (event.epicId !== this.epicId) return;
+
+      // Convert context events to local format
+      const localEvent = this.convertCommsContextEvent(event);
+      if (localEvent) {
+        this.handleRunEvent(localEvent);
+      }
+    });
+
+    // Track unsubscribers
+    this.unregisterAdapter = () => {
+      unsubscribeRun();
+      unsubscribeRunEvents();
+      unsubscribeContextEvents();
+    };
+
+    // Mark as connected (connection is managed by comms store)
+    if ($connectionStatus.get() === 'connected') {
+      callbacks.onConnected();
     } else {
-      this.adapter = new LocalOutputStreamAdapter(callbacks);
-      this.adapter.connect(this.epicId);
+      // Subscribe to connection status changes
+      const unsubscribeStatus = $connectionStatus.subscribe((status) => {
+        if (status === 'connected') {
+          callbacks.onConnected();
+        } else if (status === 'disconnected') {
+          callbacks.onDisconnected();
+        }
+      });
+      // Add to cleanup
+      const originalUnregister = this.unregisterAdapter;
+      this.unregisterAdapter = () => {
+        originalUnregister?.();
+        unsubscribeStatus();
+      };
     }
   }
 
@@ -785,15 +772,7 @@ export class RunOutputPane extends LitElement {
       this.unregisterAdapter();
       this.unregisterAdapter = null;
     }
-    if (this.adapter) {
-      this.adapter.disconnect();
-      this.adapter = null;
-    }
-    // Note: Don't set connectionStatus to disconnected here for cloud mode
-    // as the connection is managed by the comms store
-    if (!$isCloudMode.get()) {
-      this.connectionStatus = 'disconnected';
-    }
+    // Connection status is managed by the comms store
   }
 
   /**

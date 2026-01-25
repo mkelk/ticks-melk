@@ -1,0 +1,101 @@
+{
+  "infoResponse": {
+    "repoName": "owner/repo",
+    "epics": [
+      { "id": "epic-001", "title": "Feature Epic" },
+      { "id": "epic-002", "title": "Bug Fix Epic" }
+    ]
+  },
+  "listTicksResponse": {
+    "ticks": [
+      {
+        "id": "tick-001",
+        "title": "First task",
+        "status": "open",
+        "priority": 1,
+        "type": "task",
+        "owner": "agent",
+        "created_by": "user",
+        "created_at": "2024-01-25T10:00:00Z",
+        "updated_at": "2024-01-25T10:00:00Z",
+        "isBlocked": false,
+        "column": "ready"
+      },
+      {
+        "id": "tick-002",
+        "title": "Blocked task",
+        "status": "open",
+        "priority": 2,
+        "type": "task",
+        "owner": "agent",
+        "blocked_by": ["tick-001"],
+        "created_by": "user",
+        "created_at": "2024-01-25T10:00:00Z",
+        "updated_at": "2024-01-25T10:00:00Z",
+        "isBlocked": true,
+        "column": "blocked"
+      }
+    ]
+  },
+  "tickResponse": {
+    "id": "tick-001",
+    "title": "Task with computed fields",
+    "status": "in_progress",
+    "priority": 1,
+    "type": "task",
+    "owner": "agent",
+    "awaiting": "review",
+    "created_by": "user",
+    "created_at": "2024-01-25T10:00:00Z",
+    "updated_at": "2024-01-25T10:00:00Z",
+    "isBlocked": false,
+    "column": "human",
+    "verificationStatus": "pending"
+  },
+  "getTickResponse": {
+    "id": "tick-001",
+    "title": "Detailed task",
+    "description": "Full description",
+    "notes": "2024-01-25 10:30 - Note text",
+    "status": "open",
+    "priority": 1,
+    "type": "task",
+    "owner": "agent",
+    "blocked_by": ["tick-002"],
+    "created_by": "user",
+    "created_at": "2024-01-25T10:00:00Z",
+    "updated_at": "2024-01-25T10:00:00Z",
+    "isBlocked": true,
+    "column": "blocked",
+    "notesList": [
+      { "timestamp": "2024-01-25 10:30", "author": "human", "text": "Note text" }
+    ],
+    "blockerDetails": [
+      { "id": "tick-002", "title": "Blocking task", "status": "open" }
+    ]
+  },
+  "runStatusResponse": {
+    "epicId": "epic-001",
+    "isRunning": true,
+    "activeTask": {
+      "tickId": "tick-001",
+      "title": "Active task",
+      "status": "tool_use",
+      "numTurns": 2,
+      "metrics": {
+        "input_tokens": 1000,
+        "output_tokens": 500,
+        "cache_read_tokens": 200,
+        "cache_creation_tokens": 100,
+        "cost_usd": 0.01,
+        "duration_ms": 5000
+      },
+      "lastUpdated": "2024-01-25T10:30:00Z",
+      "activeTool": {
+        "name": "Bash",
+        "input": "npm test",
+        "duration_ms": 1000
+      }
+    }
+  }
+}

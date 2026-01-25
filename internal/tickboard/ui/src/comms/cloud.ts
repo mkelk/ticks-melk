@@ -211,7 +211,7 @@ export class CloudCommsClient implements CommsClient {
         // Build WebSocket URL
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.host;
-        const token = localStorage.getItem('ticks_token') || '';
+        const token = localStorage.getItem('token') || '';
         const url = `${protocol}//${host}/api/projects/${encodeURIComponent(this.projectId)}/sync?type=cloud`;
 
         console.log('[CloudComms] Connecting to', url);
@@ -482,6 +482,48 @@ export class CloudCommsClient implements CommsClient {
   // ---------------------------------------------------------------------------
   // Read Operations
   // ---------------------------------------------------------------------------
+
+  /**
+   * Fetch all ticks (initial load).
+   * In cloud mode, returns from tick cache with computed fields.
+   */
+  async fetchTicks(): Promise<import('../types/tick.js').BoardTick[]> {
+    const result: import('../types/tick.js').BoardTick[] = [];
+
+    for (const tick of this.tickCache.values()) {
+      // Compute isBlocked - a tick is blocked if any of its blockers are not closed
+      let isBlocked = false;
+      if (tick.blocked_by && tick.blocked_by.length > 0) {
+        for (const blockerId of tick.blocked_by) {
+          const blocker = this.tickCache.get(blockerId);
+          if (!blocker || blocker.status !== 'closed') {
+            isBlocked = true;
+            break;
+          }
+        }
+      }
+
+      // Compute column based on tick state
+      let column: 'blocked' | 'ready' | 'agent' | 'human' | 'done' = 'ready';
+      if (tick.status === 'closed') {
+        column = 'done';
+      } else if (isBlocked) {
+        column = 'blocked';
+      } else if (tick.awaiting) {
+        column = 'human';
+      } else if (tick.status === 'in_progress') {
+        column = 'agent';
+      }
+
+      result.push({
+        ...tick,
+        is_blocked: isBlocked,
+        column,
+      });
+    }
+
+    return result;
+  }
 
   /**
    * Fetch server info including project metadata and epic list.
@@ -884,7 +926,7 @@ export class CloudCommsClient implements CommsClient {
     body?: Record<string, unknown>
   ): Promise<Tick> {
     const endpoint = `/api/projects/${encodeURIComponent(this.projectId)}/ticks/${encodeURIComponent(tickId)}/${operation}`;
-    const token = localStorage.getItem('ticks_token') || '';
+    const token = localStorage.getItem('token') || '';
 
     const response = await fetch(endpoint, {
       method: 'POST',

@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ticks.sh/schemas/tick.schema.json",
+  "title": "Tick",
+  "description": "A single work item (task, bug, feature, epic, or chore)",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "status",
+    "priority",
+    "type",
+    "owner",
+    "created_by",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for the tick"
+    },
+    "title": {
+      "type": "string",
+      "description": "Short title describing the work item"
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed description of the work to be done"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Timestamped notes appended during work"
+    },
+    "status": {
+      "$ref": "#/$defs/TickStatus"
+    },
+    "priority": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4,
+      "description": "Priority level (0=highest, 4=lowest)"
+    },
+    "type": {
+      "$ref": "#/$defs/TickType"
+    },
+    "owner": {
+      "type": "string",
+      "description": "Who is responsible for this tick (agent or human)"
+    },
+    "labels": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Optional labels for categorization"
+    },
+    "blocked_by": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "IDs of ticks that block this one"
+    },
+    "parent": {
+      "type": "string",
+      "description": "Parent epic ID if this tick belongs to an epic"
+    },
+    "discovered_from": {
+      "type": "string",
+      "description": "ID of tick during which this tick was discovered"
+    },
+    "acceptance_criteria": {
+      "type": "string",
+      "description": "Criteria that must be met for completion"
+    },
+    "defer_until": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp - tick is deferred until this time"
+    },
+    "external_ref": {
+      "type": "string",
+      "description": "Reference to external issue tracker (e.g., GitHub issue URL)"
+    },
+    "manual": {
+      "type": "boolean",
+      "description": "Legacy field - use awaiting instead. True means awaiting=work"
+    },
+    "requires": {
+      "$ref": "#/$defs/TickRequires",
+      "description": "Pre-declared gate that must be satisfied before closing"
+    },
+    "awaiting": {
+      "$ref": "#/$defs/TickAwaiting",
+      "description": "Current wait state - what the tick is waiting for"
+    },
+    "verdict": {
+      "$ref": "#/$defs/TickVerdict",
+      "description": "Human response to an awaiting state"
+    },
+    "created_by": {
+      "type": "string",
+      "description": "Who created this tick"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the tick was created"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the tick was last updated"
+    },
+    "closed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the tick was closed"
+    },
+    "closed_reason": {
+      "type": "string",
+      "description": "Reason for closing (e.g., completed, wont-fix, duplicate)"
+    }
+  },
+  "$defs": {
+    "TickStatus": {
+      "type": "string",
+      "enum": ["open", "in_progress", "closed"],
+      "description": "Workflow status of the tick"
+    },
+    "TickType": {
+      "type": "string",
+      "enum": ["bug", "feature", "task", "epic", "chore"],
+      "description": "Category of work item"
+    },
+    "TickRequires": {
+      "type": "string",
+      "enum": ["approval", "review", "content"],
+      "description": "Pre-declared gates that must be satisfied before closing"
+    },
+    "TickAwaiting": {
+      "type": "string",
+      "enum": ["work", "approval", "input", "review", "content", "escalation", "checkpoint"],
+      "description": "Current handoff state when waiting for human action"
+    },
+    "TickVerdict": {
+      "type": "string",
+      "enum": ["approved", "rejected"],
+      "description": "Human response to an awaiting tick"
+    }
+  }
+}

@@ -1,7 +1,10 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
 import type { TickType } from '../types/tick.js';
-import { createTick, type NewTick, type CreateTickResponse, ApiError } from '../api/ticks.js';
+import { createTick } from '../stores/comms.js';
+import { ApiError } from '../api/ticks.js';
+import type { TickCreate } from '../comms/types.js';
+import type { Tick } from '../types/tick.js';
 import './ticks-button.js';
 
 // Type options with labels
@@ -253,7 +256,7 @@ export class TickCreateDialog extends LitElement {
     this.error = null;
 
     // Build the new tick object
-    const newTick: NewTick = {
+    const newTick: TickCreate = {
       title: this.tickTitle.trim(),
       type: this.type,
       priority: this.priority,
@@ -272,7 +275,7 @@ export class TickCreateDialog extends LitElement {
 
       // Emit success event with the created tick
       this.dispatchEvent(
-        new CustomEvent<{ tick: CreateTickResponse; labels: string[]; manual: boolean }>('tick-created', {
+        new CustomEvent<{ tick: Tick; labels: string[]; manual: boolean }>('tick-created', {
           detail: {
             tick: createdTick,
             labels: this.labels ? this.labels.split(',').map(l => l.trim()).filter(Boolean) : [],

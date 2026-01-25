@@ -65,6 +65,7 @@ export {
   closeTick,
   reopenTick,
   // Read operations
+  fetchTicks,
   fetchInfo,
   fetchTickDetails,
   fetchActivity,

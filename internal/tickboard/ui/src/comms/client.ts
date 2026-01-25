@@ -160,6 +160,12 @@ export interface CommsClient {
   // ===========================================================================
 
   /**
+   * Fetch all ticks (initial load).
+   * Returns BoardTick[] with computed isBlocked and column fields.
+   */
+  fetchTicks(): Promise<import('../types/tick.js').BoardTick[]>;
+
+  /**
    * Fetch server info including project metadata and epic list.
    */
   fetchInfo(): Promise<InfoResponse>;

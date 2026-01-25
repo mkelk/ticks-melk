@@ -1,0 +1,258 @@
+/**
+ * Schema roundtrip tests for generated TypeScript types.
+ *
+ * These tests validate that:
+ * 1. TypeScript types can deserialize JSON fixtures
+ * 2. The fixtures are compatible with both Go and TS generated types
+ */
+
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+import type {
+  Tick,
+  TickStatus,
+  TickType,
+  TickRequires,
+  TickAwaiting,
+} from './tick.js';
+import type {
+  RunRecord,
+  MetricsRecord,
+  ToolRecord,
+  VerificationRecord,
+} from './run.js';
+import type {
+  InfoResponse,
+  ListTicksResponse,
+  TickResponse,
+  GetTickResponse,
+  RunStatusResponse,
+  EpicInfo,
+  Note,
+  BlockerDetail,
+} from './api/responses.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+// Path: src/types/generated -> ../../.. -> src -> ../.. -> internal/tickboard/ui -> ../../../schemas
+const FIXTURES_DIR = join(__dirname, '..', '..', '..', '..', '..', '..', 'schemas', 'fixtures');
+
+function readFixture(name: string): unknown {
+  const content = readFileSync(join(FIXTURES_DIR, name), 'utf-8');
+  return JSON.parse(content);
+}
+
+describe('Schema Roundtrip Tests', () => {
+  describe('Tick', () => {
+    it('deserializes tick.json fixture correctly', () => {
+      const tick = readFixture('tick.json') as Tick;
+
+      // Verify required fields
+      expect(tick.id).toBe('abc123');
+      expect(tick.title).toBe('Test tick for schema validation');
+      expect(tick.status).toBe('in_progress');
+      expect(tick.priority).toBe(2);
+      expect(tick.type).toBe('task');
+      expect(tick.owner).toBe('agent');
+      expect(tick.created_by).toBe('test-user');
+      expect(tick.created_at).toBe('2024-01-25T10:00:00Z');
+      expect(tick.updated_at).toBe('2024-01-25T10:30:00Z');
+    });
+
+    it('deserializes enum values correctly', () => {
+      const tick = readFixture('tick.json') as Tick;
+
+      const status: TickStatus = tick.status;
+      expect(status).toBe('in_progress');
+
+      const type: TickType = tick.type;
+      expect(type).toBe('task');
+
+      const requires: TickRequires | undefined = tick.requires;
+      expect(requires).toBe('approval');
+
+      const awaiting: TickAwaiting | undefined = tick.awaiting;
+      expect(awaiting).toBe('review');
+    });
+
+    it('deserializes optional fields correctly', () => {
+      const tick = readFixture('tick.json') as Tick;
+
+      expect(tick.description).toBe('This is a comprehensive test tick that includes all fields');
+      expect(tick.notes).toContain('Initial note');
+      expect(tick.labels).toEqual(['test', 'schema']);
+      expect(tick.blocked_by).toEqual(['xyz789']);
+      expect(tick.parent).toBe('epic-001');
+      expect(tick.discovered_from).toBe('def456');
+      expect(tick.acceptance_criteria).toBe('All tests pass');
+      expect(tick.defer_until).toBe('2024-02-01T00:00:00Z');
+      expect(tick.external_ref).toBe('https://github.com/org/repo/issues/1');
+      expect(tick.manual).toBe(false);
+      expect(tick.verdict).toBe('approved');
+      expect(tick.closed_at).toBe('2024-01-25T11:00:00Z');
+      expect(tick.closed_reason).toBe('completed');
+    });
+
+    it('can re-serialize without data loss', () => {
+      const original = readFixture('tick.json') as Tick;
+      const serialized = JSON.stringify(original);
+      const deserialized = JSON.parse(serialized) as Tick;
+
+      expect(deserialized.id).toBe(original.id);
+      expect(deserialized.title).toBe(original.title);
+      expect(deserialized.status).toBe(original.status);
+      expect(deserialized.labels).toEqual(original.labels);
+    });
+  });
+
+  describe('RunRecord', () => {
+    it('deserializes run-record.json fixture correctly', () => {
+      const run = readFixture('run-record.json') as RunRecord;
+
+      expect(run.session_id).toBe('sess-12345');
+      expect(run.model).toBe('claude-sonnet-4-20250514');
+      expect(run.started_at).toBe('2024-01-25T10:00:00Z');
+      expect(run.ended_at).toBe('2024-01-25T10:05:00Z');
+      expect(run.output).toContain('Task completed successfully');
+      expect(run.thinking).toContain('Let me analyze');
+      expect(run.success).toBe(true);
+      expect(run.num_turns).toBe(3);
+    });
+
+    it('deserializes metrics correctly', () => {
+      const run = readFixture('run-record.json') as RunRecord;
+      const metrics: MetricsRecord = run.metrics;
+
+      expect(metrics.input_tokens).toBe(5000);
+      expect(metrics.output_tokens).toBe(2500);
+      expect(metrics.cache_read_tokens).toBe(1000);
+      expect(metrics.cache_creation_tokens).toBe(500);
+      expect(metrics.cost_usd).toBe(0.05);
+      expect(metrics.duration_ms).toBe(300000);
+    });
+
+    it('deserializes tools array correctly', () => {
+      const run = readFixture('run-record.json') as RunRecord;
+
+      expect(run.tools).toHaveLength(2);
+
+      const firstTool: ToolRecord = run.tools![0];
+      expect(firstTool.name).toBe('Read');
+      expect(firstTool.input).toBe('/path/to/file.ts');
+      expect(firstTool.duration_ms).toBe(150);
+      expect(firstTool.is_error).toBe(false);
+    });
+
+    it('deserializes verification correctly', () => {
+      const run = readFixture('run-record.json') as RunRecord;
+      const verification: VerificationRecord | undefined = run.verification;
+
+      expect(verification).toBeDefined();
+      expect(verification!.all_passed).toBe(true);
+      expect(verification!.results).toHaveLength(1);
+      expect(verification!.results![0].verifier).toBe('git');
+      expect(verification!.results![0].passed).toBe(true);
+    });
+  });
+
+  describe('API Responses', () => {
+    interface ApiFixtures {
+      infoResponse: InfoResponse;
+      listTicksResponse: ListTicksResponse;
+      tickResponse: TickResponse;
+      getTickResponse: GetTickResponse;
+      runStatusResponse: RunStatusResponse;
+    }
+
+    const fixtures = readFixture('api-responses.json') as ApiFixtures;
+
+    it('deserializes InfoResponse correctly', () => {
+      const info = fixtures.infoResponse;
+
+      expect(info.repoName).toBe('owner/repo');
+      expect(info.epics).toHaveLength(2);
+
+      const epic: EpicInfo = info.epics[0];
+      expect(epic.id).toBe('epic-001');
+      expect(epic.title).toBe('Feature Epic');
+    });
+
+    it('deserializes ListTicksResponse correctly', () => {
+      const list = fixtures.listTicksResponse;
+
+      expect(list.ticks).toHaveLength(2);
+
+      // First tick - not blocked
+      expect(list.ticks[0].id).toBe('tick-001');
+      expect(list.ticks[0].isBlocked).toBe(false);
+      expect(list.ticks[0].column).toBe('ready');
+
+      // Second tick - blocked
+      expect(list.ticks[1].id).toBe('tick-002');
+      expect(list.ticks[1].isBlocked).toBe(true);
+      expect(list.ticks[1].column).toBe('blocked');
+      expect(list.ticks[1].blocked_by).toEqual(['tick-001']);
+    });
+
+    it('deserializes TickResponse with computed fields', () => {
+      const tick = fixtures.tickResponse;
+
+      // Base tick fields
+      expect(tick.id).toBe('tick-001');
+      expect(tick.status).toBe('in_progress');
+      expect(tick.awaiting).toBe('review');
+
+      // Computed fields
+      expect(tick.isBlocked).toBe(false);
+      expect(tick.column).toBe('human');
+      expect(tick.verificationStatus).toBe('pending');
+    });
+
+    it('deserializes GetTickResponse with notesList and blockerDetails', () => {
+      const tick = fixtures.getTickResponse;
+
+      // Base fields
+      expect(tick.id).toBe('tick-001');
+      expect(tick.isBlocked).toBe(true);
+      expect(tick.column).toBe('blocked');
+
+      // Notes list
+      expect(tick.notesList).toHaveLength(1);
+      const note: Note = tick.notesList[0];
+      expect(note.timestamp).toBe('2024-01-25 10:30');
+      expect(note.author).toBe('human');
+      expect(note.text).toBe('Note text');
+
+      // Blocker details
+      expect(tick.blockerDetails).toHaveLength(1);
+      const blocker: BlockerDetail = tick.blockerDetails[0];
+      expect(blocker.id).toBe('tick-002');
+      expect(blocker.title).toBe('Blocking task');
+      expect(blocker.status).toBe('open');
+    });
+
+    it('deserializes RunStatusResponse with activeTask', () => {
+      const status = fixtures.runStatusResponse;
+
+      expect(status.epicId).toBe('epic-001');
+      expect(status.isRunning).toBe(true);
+
+      expect(status.activeTask).toBeDefined();
+      expect(status.activeTask!.tickId).toBe('tick-001');
+      expect(status.activeTask!.title).toBe('Active task');
+      expect(status.activeTask!.status).toBe('tool_use');
+      expect(status.activeTask!.numTurns).toBe(2);
+
+      // Active tool
+      expect(status.activeTask!.activeTool).toBeDefined();
+      expect(status.activeTask!.activeTool!.name).toBe('Bash');
+      expect(status.activeTask!.activeTool!.input).toBe('npm test');
+
+      // Metrics
+      expect(status.activeTask!.metrics.input_tokens).toBe(1000);
+      expect(status.activeTask!.metrics.cost_usd).toBe(0.01);
+    });
+  });
+});

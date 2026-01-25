@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ticks.sh/schemas/activity.schema.json",
+  "title": "Activity",
+  "description": "Activity log entry tracking changes to ticks",
+  "type": "object",
+  "required": ["ts", "tick", "action", "actor"],
+  "properties": {
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the activity occurred"
+    },
+    "tick": {
+      "type": "string",
+      "description": "ID of the tick this activity is about"
+    },
+    "action": {
+      "type": "string",
+      "description": "Type of action (create, update, close, approve, reject, etc.)"
+    },
+    "actor": {
+      "type": "string",
+      "description": "Who performed the action (user name or agent)"
+    },
+    "epic": {
+      "type": "string",
+      "description": "Parent epic ID if the tick belongs to an epic"
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Additional action-specific data"
+    }
+  }
+}
