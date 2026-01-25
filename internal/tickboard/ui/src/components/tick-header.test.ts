@@ -452,4 +452,284 @@ describe('tick-header mobile view', () => {
       expect(handler).toHaveBeenCalledTimes(1);
     });
   });
+
+  // ===========================================================================
+  // Epic Filter
+  // ===========================================================================
+
+  describe('epic filter', () => {
+    // -------------------------------------------------------------------------
+    // Dropdown Rendering
+    // -------------------------------------------------------------------------
+
+    describe('dropdown rendering', () => {
+      it('renders sl-select for epic filter', async () => {
+        const select = element.shadowRoot?.querySelector('.header-center sl-select');
+        expect(select).not.toBeNull();
+      });
+
+      it('epic select has placeholder "All Ticks"', async () => {
+        const select = element.shadowRoot?.querySelector('.header-center sl-select');
+        expect(select?.getAttribute('placeholder')).toBe('All Ticks');
+      });
+
+      it('epic select is clearable', async () => {
+        const select = element.shadowRoot?.querySelector('.header-center sl-select');
+        expect(select?.hasAttribute('clearable')).toBe(true);
+      });
+
+      it('epic select has size small', async () => {
+        const select = element.shadowRoot?.querySelector('.header-center sl-select');
+        expect(select?.getAttribute('size')).toBe('small');
+      });
+
+      it('renders options for each epic', async () => {
+        const options = element.shadowRoot?.querySelectorAll('.header-center sl-option');
+        expect(options?.length).toBe(2);
+      });
+
+      it('renders epic options with correct values', async () => {
+        const options = element.shadowRoot?.querySelectorAll('.header-center sl-option');
+        expect(options?.[0]?.getAttribute('value')).toBe('e1');
+        expect(options?.[1]?.getAttribute('value')).toBe('e2');
+      });
+
+      it('renders epic options with ID and title', async () => {
+        const options = element.shadowRoot?.querySelectorAll('.header-center sl-option');
+        expect(options?.[0]?.textContent).toContain('e1');
+        expect(options?.[0]?.textContent).toContain('Epic One');
+        expect(options?.[1]?.textContent).toContain('e2');
+        expect(options?.[1]?.textContent).toContain('Epic Two');
+      });
+
+      it('displays epic ID as badge before title', async () => {
+        const epicIds = element.shadowRoot?.querySelectorAll('.header-center sl-option .epic-id');
+        expect(epicIds?.length).toBe(2);
+        expect(epicIds?.[0]?.textContent).toBe('e1');
+        expect(epicIds?.[1]?.textContent).toBe('e2');
+      });
+
+      it('updates options when epics property changes', async () => {
+        element.epics = [
+          { id: 'new1', title: 'New Epic One' },
+          { id: 'new2', title: 'New Epic Two' },
+          { id: 'new3', title: 'New Epic Three' },
+        ];
+        await element.updateComplete;
+
+        const options = element.shadowRoot?.querySelectorAll('.header-center sl-option');
+        expect(options?.length).toBe(3);
+        expect(options?.[0]?.getAttribute('value')).toBe('new1');
+        expect(options?.[2]?.getAttribute('value')).toBe('new3');
+      });
+
+      it('renders empty select when no epics provided', async () => {
+        element.epics = [];
+        await element.updateComplete;
+
+        const options = element.shadowRoot?.querySelectorAll('.header-center sl-option');
+        expect(options?.length).toBe(0);
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // Selected Epic State
+    // -------------------------------------------------------------------------
+
+    describe('selected epic state', () => {
+      it('has empty selectedEpic by default', async () => {
+        expect(element.selectedEpic).toBe('');
+      });
+
+      it('can set selectedEpic property', async () => {
+        element.selectedEpic = 'e1';
+        await element.updateComplete;
+
+        const select = element.shadowRoot?.querySelector('.header-center sl-select') as any;
+        expect(select?.value).toBe('e1');
+      });
+
+      it('selectedEpic can be set via attribute', async () => {
+        const newElement = document.createElement('tick-header') as TickHeader;
+        newElement.setAttribute('selected-epic', 'e2');
+        newElement.epics = [{ id: 'e2', title: 'Epic Two' }];
+        document.body.appendChild(newElement);
+        await newElement.updateComplete;
+
+        expect(newElement.selectedEpic).toBe('e2');
+        document.body.removeChild(newElement);
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // Epic Filter Change Event
+    // -------------------------------------------------------------------------
+
+    describe('epic-filter-change event', () => {
+      it('fires epic-filter-change when selection changes', async () => {
+        const handler = vi.fn();
+        element.addEventListener('epic-filter-change', handler);
+
+        const select = element.shadowRoot?.querySelector('.header-center sl-select') as any;
+        select.value = 'e1';
+        select.dispatchEvent(new CustomEvent('sl-change', { bubbles: true }));
+
+        expect(handler).toHaveBeenCalledTimes(1);
+      });
+
+      it('epic-filter-change event includes selected value in detail', async () => {
+        const handler = vi.fn();
+        element.addEventListener('epic-filter-change', handler);
+
+        const select = element.shadowRoot?.querySelector('.header-center sl-select') as any;
+        select.value = 'e2';
+        select.dispatchEvent(new CustomEvent('sl-change', { bubbles: true }));
+
+        expect(handler.mock.calls[0][0].detail.value).toBe('e2');
+      });
+
+      it('epic-filter-change event bubbles', async () => {
+        const handler = vi.fn();
+        element.addEventListener('epic-filter-change', handler);
+
+        const select = element.shadowRoot?.querySelector('.header-center sl-select') as any;
+        select.value = 'e1';
+        select.dispatchEvent(new CustomEvent('sl-change', { bubbles: true }));
+
+        expect(handler.mock.calls[0][0].bubbles).toBe(true);
+      });
+
+      it('epic-filter-change event is composed', async () => {
+        const handler = vi.fn();
+        element.addEventListener('epic-filter-change', handler);
+
+        const select = element.shadowRoot?.querySelector('.header-center sl-select') as any;
+        select.value = 'e1';
+        select.dispatchEvent(new CustomEvent('sl-change', { bubbles: true }));
+
+        expect(handler.mock.calls[0][0].composed).toBe(true);
+      });
+
+      it('fires epic-filter-change with empty value when cleared', async () => {
+        element.selectedEpic = 'e1';
+        await element.updateComplete;
+
+        const handler = vi.fn();
+        element.addEventListener('epic-filter-change', handler);
+
+        const select = element.shadowRoot?.querySelector('.header-center sl-select') as any;
+        select.value = '';
+        select.dispatchEvent(new CustomEvent('sl-change', { bubbles: true }));
+
+        expect(handler.mock.calls[0][0].detail.value).toBe('');
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // Epic ID Badge Styling
+    // -------------------------------------------------------------------------
+
+    describe('epic ID badge styling', () => {
+      it('epic ID badges have .epic-id class', async () => {
+        const epicIds = element.shadowRoot?.querySelectorAll('.epic-id');
+        expect(epicIds?.length).toBeGreaterThan(0);
+      });
+
+      it('styles define epic-id class', () => {
+        const styles = (element.constructor as typeof LitElement).styles;
+        const cssText = Array.isArray(styles)
+          ? styles.map(s => s.cssText || s.toString()).join('')
+          : styles?.cssText || styles?.toString() || '';
+
+        expect(cssText).toContain('.epic-id');
+      });
+
+      it('epic-id uses monospace font', () => {
+        const styles = (element.constructor as typeof LitElement).styles;
+        const cssText = Array.isArray(styles)
+          ? styles.map(s => s.cssText || s.toString()).join('')
+          : styles?.cssText || styles?.toString() || '';
+
+        expect(cssText).toContain('.epic-id');
+        expect(cssText).toContain('font-family');
+        expect(cssText).toContain('--sl-font-mono');
+      });
+
+      it('epic-id has smaller font size', () => {
+        const styles = (element.constructor as typeof LitElement).styles;
+        const cssText = Array.isArray(styles)
+          ? styles.map(s => s.cssText || s.toString()).join('')
+          : styles?.cssText || styles?.toString() || '';
+
+        expect(cssText).toContain('.epic-id');
+        expect(cssText).toContain('font-size: 0.75em');
+      });
+
+      it('epic-id has background styling', () => {
+        const styles = (element.constructor as typeof LitElement).styles;
+        const cssText = Array.isArray(styles)
+          ? styles.map(s => s.cssText || s.toString()).join('')
+          : styles?.cssText || styles?.toString() || '';
+
+        expect(cssText).toContain('.epic-id');
+        expect(cssText).toContain('background: var(--surface1)');
+      });
+
+      it('epic-id has border-radius for badge appearance', () => {
+        const styles = (element.constructor as typeof LitElement).styles;
+        const cssText = Array.isArray(styles)
+          ? styles.map(s => s.cssText || s.toString()).join('')
+          : styles?.cssText || styles?.toString() || '';
+
+        expect(cssText).toContain('.epic-id');
+        expect(cssText).toContain('border-radius');
+      });
+
+      it('epic-id has padding', () => {
+        const styles = (element.constructor as typeof LitElement).styles;
+        const cssText = Array.isArray(styles)
+          ? styles.map(s => s.cssText || s.toString()).join('')
+          : styles?.cssText || styles?.toString() || '';
+
+        expect(cssText).toContain('.epic-id');
+        expect(cssText).toContain('padding');
+      });
+
+      it('epic-id has muted text color', () => {
+        const styles = (element.constructor as typeof LitElement).styles;
+        const cssText = Array.isArray(styles)
+          ? styles.map(s => s.cssText || s.toString()).join('')
+          : styles?.cssText || styles?.toString() || '';
+
+        expect(cssText).toContain('.epic-id');
+        expect(cssText).toContain('color: var(--subtext0)');
+      });
+
+      it('epic-id has right margin to separate from title', () => {
+        const styles = (element.constructor as typeof LitElement).styles;
+        const cssText = Array.isArray(styles)
+          ? styles.map(s => s.cssText || s.toString()).join('')
+          : styles?.cssText || styles?.toString() || '';
+
+        expect(cssText).toContain('.epic-id');
+        expect(cssText).toContain('margin-right');
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // Select Dropdown CSS Styling
+    // -------------------------------------------------------------------------
+
+    describe('select dropdown CSS styling', () => {
+      it('epic select has minimum width', () => {
+        const styles = (element.constructor as typeof LitElement).styles;
+        const cssText = Array.isArray(styles)
+          ? styles.map(s => s.cssText || s.toString()).join('')
+          : styles?.cssText || styles?.toString() || '';
+
+        expect(cssText).toContain('.header-center sl-select');
+        expect(cssText).toContain('min-width: 220px');
+      });
+    });
+  });
 });
