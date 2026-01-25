@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CommsClient Test Rig</title>
+  <style>
+    :root {
+      --green: #a6e3a1;
+      --red: #f38ba8;
+      --yellow: #f9e2af;
+      --blue: #89dceb;
+      --text: #cdd6f4;
+      --subtext: #a6adc8;
+      --surface: #313244;
+      --base: #1e1e2e;
+      --crust: #11111b;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'SF Mono', Consolas, monospace;
+      background: var(--crust);
+      color: var(--text);
+      padding: 1rem;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    h1 {
+      color: var(--green);
+      margin-bottom: 1rem;
+      font-size: 1.25rem;
+    }
+
+    h2 {
+      color: var(--blue);
+      margin: 1rem 0 0.5rem;
+      font-size: 1rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .panel {
+      background: var(--base);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--red);
+    }
+
+    .status-dot.connected {
+      background: var(--green);
+    }
+
+    .status-dot.connecting {
+      background: var(--yellow);
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    button {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--subtext);
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.875rem;
+      margin: 0.25rem;
+    }
+
+    button:hover {
+      background: var(--blue);
+      color: var(--base);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      margin: 0.5rem 0;
+    }
+
+    .log {
+      background: var(--crust);
+      border-radius: 4px;
+      padding: 0.5rem;
+      max-height: 300px;
+      overflow-y: auto;
+      font-size: 0.75rem;
+    }
+
+    .log-entry {
+      padding: 0.25rem 0;
+      border-bottom: 1px solid var(--surface);
+    }
+
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+
+    .log-time {
+      color: var(--subtext);
+    }
+
+    .log-type {
+      color: var(--yellow);
+      font-weight: bold;
+    }
+
+    .log-data {
+      color: var(--text);
+      margin-left: 0.5rem;
+    }
+
+    input, select {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--subtext);
+      padding: 0.5rem;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.875rem;
+      margin: 0.25rem 0;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--blue);
+    }
+
+    .form-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin: 0.5rem 0;
+    }
+
+    .form-row label {
+      min-width: 80px;
+      color: var(--subtext);
+    }
+
+    .form-row input, .form-row select {
+      flex: 1;
+    }
+
+    .ticks-list {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .tick-item {
+      padding: 0.5rem;
+      background: var(--crust);
+      border-radius: 4px;
+      margin: 0.25rem 0;
+    }
+
+    .tick-id {
+      color: var(--blue);
+      font-weight: bold;
+    }
+
+    .tick-status {
+      color: var(--yellow);
+    }
+
+    .error {
+      color: var(--red);
+      background: rgba(243, 139, 168, 0.1);
+      padding: 0.5rem;
+      border-radius: 4px;
+      margin: 0.5rem 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>CommsClient Test Rig</h1>
+
+  <div class="grid">
+    <!-- Connection Panel -->
+    <div class="panel">
+      <h2>Connection</h2>
+
+      <div class="status">
+        <div id="sse-status" class="status-dot"></div>
+        <span>SSE: <span id="sse-status-text">disconnected</span></span>
+      </div>
+
+      <div class="status">
+        <div id="ws-status" class="status-dot"></div>
+        <span>WebSocket: <span id="ws-status-text">disconnected</span></span>
+      </div>
+
+      <div class="status">
+        <div id="local-status" class="status-dot"></div>
+        <span>Local Agent: <span id="local-status-text">unknown</span></span>
+      </div>
+
+      <div class="button-group">
+        <button onclick="connectSSE()">Connect SSE</button>
+        <button onclick="disconnectSSE()">Disconnect SSE</button>
+      </div>
+      <div class="button-group">
+        <button onclick="connectWS()">Connect WebSocket</button>
+        <button onclick="disconnectWS()">Disconnect WS</button>
+      </div>
+      <div class="button-group">
+        <button onclick="subscribeRunStream()">Subscribe Run</button>
+        <button onclick="unsubscribeRunStream()">Unsubscribe Run</button>
+      </div>
+      <div class="form-row">
+        <label>Epic ID:</label>
+        <input type="text" id="epic-id" value="epic-test" placeholder="Epic ID">
+      </div>
+    </div>
+
+    <!-- Control Panel -->
+    <div class="panel">
+      <h2>Test Controls</h2>
+
+      <div class="button-group">
+        <button onclick="runScenario('tick-lifecycle')">Tick Lifecycle</button>
+        <button onclick="runScenario('run-complete')">Run Complete</button>
+        <button onclick="runScenario('connection-flaky')">Flaky Connection</button>
+      </div>
+
+      <div class="button-group">
+        <button onclick="setLocalStatus(true)">Local Online</button>
+        <button onclick="setLocalStatus(false)">Local Offline</button>
+        <button onclick="resetServer()">Reset Server</button>
+      </div>
+
+      <h2>Write Operations</h2>
+      <div class="form-row">
+        <label>Title:</label>
+        <input type="text" id="tick-title" value="Test Tick" placeholder="Tick title">
+      </div>
+      <div class="button-group">
+        <button onclick="createTick()">Create Tick</button>
+        <button onclick="closeTick()">Close Selected</button>
+        <button onclick="addNote()">Add Note</button>
+      </div>
+      <div id="error-display"></div>
+    </div>
+
+    <!-- Event Log -->
+    <div class="panel">
+      <h2>Event Log <button onclick="clearLog()" style="float:right;padding:0.25rem 0.5rem">Clear</button></h2>
+      <div id="event-log" class="log"></div>
+    </div>
+
+    <!-- State Panel -->
+    <div class="panel">
+      <h2>State</h2>
+      <h3 style="color:var(--subtext);font-size:0.875rem;margin:0.5rem 0">Ticks (<span id="tick-count">0</span>)</h3>
+      <div id="ticks-list" class="ticks-list"></div>
+
+      <h3 style="color:var(--subtext);font-size:0.875rem;margin:0.5rem 0">Write Log (<span id="write-count">0</span>)</h3>
+      <div id="write-log" class="log" style="max-height:150px"></div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let sseSource = null;
+    let runStreamSource = null;
+    let wsConnection = null;
+    let ticks = {};
+    let selectedTickId = null;
+
+    // Logging
+    function log(type, data) {
+      const logEl = document.getElementById('event-log');
+      const time = new Date().toLocaleTimeString();
+      const dataStr = typeof data === 'object' ? JSON.stringify(data) : data;
+
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML = `<span class="log-time">${time}</span> <span class="log-type">${type}</span><span class="log-data">${dataStr}</span>`;
+      logEl.insertBefore(entry, logEl.firstChild);
+
+      // Keep only last 100 entries
+      while (logEl.children.length > 100) {
+        logEl.removeChild(logEl.lastChild);
+      }
+    }
+
+    function clearLog() {
+      document.getElementById('event-log').innerHTML = '';
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('error-display');
+      el.innerHTML = `<div class="error">${msg}</div>`;
+      setTimeout(() => el.innerHTML = '', 5000);
+    }
+
+    // Status updates
+    function updateSSEStatus(status) {
+      const dot = document.getElementById('sse-status');
+      const text = document.getElementById('sse-status-text');
+      dot.className = 'status-dot ' + status;
+      text.textContent = status;
+    }
+
+    function updateWSStatus(status) {
+      const dot = document.getElementById('ws-status');
+      const text = document.getElementById('ws-status-text');
+      dot.className = 'status-dot ' + status;
+      text.textContent = status;
+    }
+
+    function updateLocalStatus(connected) {
+      const dot = document.getElementById('local-status');
+      const text = document.getElementById('local-status-text');
+      dot.className = 'status-dot ' + (connected ? 'connected' : '');
+      text.textContent = connected ? 'online' : 'offline';
+    }
+
+    // SSE Connection
+    function connectSSE() {
+      if (sseSource) {
+        sseSource.close();
+      }
+
+      updateSSEStatus('connecting');
+      sseSource = new EventSource('/api/events');
+
+      sseSource.addEventListener('connected', () => {
+        updateSSEStatus('connected');
+        log('SSE', 'Connected');
+      });
+
+      sseSource.addEventListener('update', (e) => {
+        const data = JSON.parse(e.data);
+        log('SSE:update', data);
+
+        // Fetch updated tick
+        if (data.tickId && data.type !== 'delete') {
+          fetchTick(data.tickId);
+        } else if (data.type === 'delete') {
+          delete ticks[data.tickId];
+          renderTicks();
+        }
+      });
+
+      sseSource.onerror = () => {
+        updateSSEStatus('disconnected');
+        log('SSE', 'Error/Disconnected');
+      };
+    }
+
+    function disconnectSSE() {
+      if (sseSource) {
+        sseSource.close();
+        sseSource = null;
+      }
+      updateSSEStatus('disconnected');
+      log('SSE', 'Manually disconnected');
+    }
+
+    // Run Stream
+    function subscribeRunStream() {
+      const epicId = document.getElementById('epic-id').value;
+      if (runStreamSource) {
+        runStreamSource.close();
+      }
+
+      runStreamSource = new EventSource(`/api/run-stream/${epicId}`);
+
+      runStreamSource.addEventListener('connected', () => {
+        log('RunStream', `Connected to ${epicId}`);
+      });
+
+      ['task-started', 'task-update', 'task-completed', 'tool-activity', 'epic-started', 'epic-completed'].forEach(type => {
+        runStreamSource.addEventListener(type, (e) => {
+          log(`Run:${type}`, JSON.parse(e.data));
+        });
+      });
+
+      runStreamSource.onerror = () => {
+        log('RunStream', 'Error/Disconnected');
+      };
+    }
+
+    function unsubscribeRunStream() {
+      if (runStreamSource) {
+        runStreamSource.close();
+        runStreamSource = null;
+      }
+      log('RunStream', 'Unsubscribed');
+    }
+
+    // WebSocket Connection
+    function connectWS() {
+      if (wsConnection) {
+        wsConnection.close();
+      }
+
+      updateWSStatus('connecting');
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      wsConnection = new WebSocket(`${protocol}//${location.host}/api/sync`);
+
+      wsConnection.onopen = () => {
+        updateWSStatus('connected');
+        log('WS', 'Connected');
+      };
+
+      wsConnection.onmessage = (e) => {
+        const msg = JSON.parse(e.data);
+        log(`WS:${msg.type}`, msg);
+
+        switch (msg.type) {
+          case 'state_full':
+            ticks = msg.ticks || {};
+            renderTicks();
+            break;
+          case 'tick_updated':
+          case 'tick_created':
+            ticks[msg.tick.id] = msg.tick;
+            renderTicks();
+            break;
+          case 'tick_deleted':
+            delete ticks[msg.id];
+            renderTicks();
+            break;
+          case 'local_status':
+            updateLocalStatus(msg.connected);
+            break;
+        }
+      };
+
+      wsConnection.onclose = () => {
+        updateWSStatus('disconnected');
+        log('WS', 'Disconnected');
+      };
+
+      wsConnection.onerror = () => {
+        log('WS', 'Error');
+      };
+    }
+
+    function disconnectWS() {
+      if (wsConnection) {
+        wsConnection.close();
+        wsConnection = null;
+      }
+      updateWSStatus('disconnected');
+      log('WS', 'Manually disconnected');
+    }
+
+    // Ticks
+    async function fetchTick(tickId) {
+      // For test rig, fetch from /test/ticks
+      const resp = await fetch('/test/ticks');
+      const allTicks = await resp.json();
+      if (allTicks[tickId]) {
+        ticks[tickId] = allTicks[tickId];
+        renderTicks();
+      }
+    }
+
+    function renderTicks() {
+      const list = document.getElementById('ticks-list');
+      const tickArray = Object.values(ticks);
+      document.getElementById('tick-count').textContent = tickArray.length;
+
+      list.innerHTML = tickArray.map(t => `
+        <div class="tick-item" onclick="selectTick('${t.id}')" style="cursor:pointer;${selectedTickId === t.id ? 'border:1px solid var(--blue)' : ''}">
+          <span class="tick-id">${t.id}</span>
+          <span class="tick-status">[${t.status}]</span>
+          ${t.title}
+        </div>
+      `).join('');
+    }
+
+    function selectTick(id) {
+      selectedTickId = id;
+      renderTicks();
+    }
+
+    // Write Operations
+    async function createTick() {
+      const title = document.getElementById('tick-title').value;
+      try {
+        const resp = await fetch('/api/ticks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, type: 'task', priority: 2 })
+        });
+        if (!resp.ok) {
+          const err = await resp.json();
+          showError(err.error);
+          return;
+        }
+        const tick = await resp.json();
+        log('Write:create', tick);
+        ticks[tick.id] = tick;
+        selectedTickId = tick.id;
+        renderTicks();
+        refreshWriteLog();
+      } catch (e) {
+        showError(e.message);
+      }
+    }
+
+    async function closeTick() {
+      if (!selectedTickId) {
+        showError('No tick selected');
+        return;
+      }
+      try {
+        const resp = await fetch(`/api/ticks/${selectedTickId}/close`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        if (!resp.ok) {
+          const err = await resp.json();
+          showError(err.error);
+          return;
+        }
+        const tick = await resp.json();
+        log('Write:close', tick);
+        ticks[tick.id] = tick;
+        renderTicks();
+        refreshWriteLog();
+      } catch (e) {
+        showError(e.message);
+      }
+    }
+
+    async function addNote() {
+      if (!selectedTickId) {
+        showError('No tick selected');
+        return;
+      }
+      const message = prompt('Note message:');
+      if (!message) return;
+
+      try {
+        const resp = await fetch(`/api/ticks/${selectedTickId}/note`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message })
+        });
+        if (!resp.ok) {
+          const err = await resp.json();
+          showError(err.error);
+          return;
+        }
+        const tick = await resp.json();
+        log('Write:note', tick);
+        ticks[tick.id] = tick;
+        renderTicks();
+        refreshWriteLog();
+      } catch (e) {
+        showError(e.message);
+      }
+    }
+
+    // Test Controls
+    async function runScenario(name) {
+      await fetch('/test/scenario', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      log('Scenario', name);
+    }
+
+    async function setLocalStatus(connected) {
+      await fetch('/test/local-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connected })
+      });
+      updateLocalStatus(connected);
+      log('LocalStatus', connected ? 'online' : 'offline');
+    }
+
+    async function resetServer() {
+      await fetch('/test/reset', { method: 'POST' });
+      ticks = {};
+      selectedTickId = null;
+      renderTicks();
+      refreshWriteLog();
+      log('Server', 'Reset');
+    }
+
+    async function refreshWriteLog() {
+      const resp = await fetch('/test/writes');
+      const writes = await resp.json();
+      document.getElementById('write-count').textContent = writes.length;
+
+      const el = document.getElementById('write-log');
+      el.innerHTML = writes.slice(-20).reverse().map(w => `
+        <div class="log-entry">
+          <span class="log-type">${w.type}</span>
+          <span class="log-data">${w.tickId || ''}</span>
+        </div>
+      `).join('');
+    }
+
+    // Initialize
+    refreshWriteLog();
+    setInterval(refreshWriteLog, 5000);
+  </script>
+</body>
+</html>
