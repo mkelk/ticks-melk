@@ -1164,6 +1164,8 @@ export const appPage = `<!DOCTYPE html>
       document.getElementById('signup-form').classList.remove('hidden');
     }
 
+    let boardsPollInterval = null;
+
     function showDashboard() {
       document.getElementById('auth-section').classList.add('hidden');
       document.getElementById('dashboard-section').classList.remove('hidden');
@@ -1174,9 +1176,18 @@ export const appPage = `<!DOCTYPE html>
       if (window.location.pathname !== '/app') {
         history.replaceState(null, '', '/app');
       }
+      // Start polling for board updates every 5 seconds
+      if (!boardsPollInterval) {
+        boardsPollInterval = setInterval(loadBoards, 5000);
+      }
     }
 
     function showAuth() {
+      // Stop polling when leaving dashboard
+      if (boardsPollInterval) {
+        clearInterval(boardsPollInterval);
+        boardsPollInterval = null;
+      }
       document.getElementById('auth-section').classList.remove('hidden');
       document.getElementById('dashboard-section').classList.add('hidden');
       document.getElementById('header-user').style.display = 'none';

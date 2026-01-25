@@ -219,7 +219,7 @@ export interface TickCreate {
   parent?: string;
   labels?: string[];
   blocked_by?: string[];
-  manual?: boolean;
+  awaiting?: 'work' | 'approval' | 'input' | 'review' | 'content' | 'escalation' | 'checkpoint';
 }
 
 /** Data for updating a tick */

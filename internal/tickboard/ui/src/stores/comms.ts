@@ -5,13 +5,14 @@
  * Provides a single entry point for initializing communication.
  */
 
-import { atom, onMount } from 'nanostores';
+import { atom, computed, onMount } from 'nanostores';
 import type { Tick } from '../types/tick.js';
 import type { CommsClient, TickEvent, RunEvent, ContextEvent, ConnectionEvent } from '../comms/index.js';
 import { LocalCommsClient, CloudCommsClient } from '../comms/index.js';
 import {
   $isCloudMode,
   $projectId,
+  $localClientConnected,
   setLocalClientConnected,
   setSyncConnected,
 } from './connection.js';
@@ -41,8 +42,27 @@ export interface CloudConfig {
 /** The active CommsClient instance */
 export const $commsClient = atom<CommsClient | null>(null);
 
-/** Current connection status */
+/** Current WebSocket connection status */
 export const $connectionStatus = atom<ConnectionStatus>('disconnected');
+
+/**
+ * Effective connection status for the UI.
+ * In cloud mode, shows disconnected if local agent is not connected.
+ */
+export const $effectiveConnectionStatus = computed(
+  [$connectionStatus, $isCloudMode, $localClientConnected],
+  (wsStatus, isCloud, localConnected) => {
+    if (!isCloud) {
+      // Local mode: just use WebSocket status
+      return wsStatus;
+    }
+    // Cloud mode: connected only if both WS and local agent are connected
+    if (wsStatus !== 'connected') {
+      return wsStatus;
+    }
+    return localConnected ? 'connected' : 'disconnected';
+  }
+);
 
 // =============================================================================
 // Run Event Dispatching

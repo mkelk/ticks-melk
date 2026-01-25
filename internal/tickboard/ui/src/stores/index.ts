@@ -45,6 +45,7 @@ export {
 export {
   $commsClient,
   $connectionStatus,
+  $effectiveConnectionStatus,
   type ConnectionStatus,
   initComms,
   initLocalComms,

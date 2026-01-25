@@ -18,6 +18,7 @@ export interface Env {
   PROJECT_ROOMS: DurableObjectNamespace<ProjectRoom>;
   DB: D1Database;
   ASSETS?: Fetcher; // Static UI assets
+  ADMIN_SECRET?: string; // Optional admin secret for maintenance endpoints
 }
 
 // CORS headers for API responses
@@ -147,10 +148,19 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         return jsonResponse({ error: "Invalid or expired token" }, 401);
       }
 
-      // Verify user owns this project
+      // Check connection type (local = tk run, cloud = browser)
+      const connType = url.searchParams.get("type") || "cloud";
+
+      // For local connections, auto-register the board if it doesn't exist
+      // For cloud connections, require the board to already exist
       const ownsProject = await auth.userOwnsProject(env, tokenInfo.userId, projectId);
       if (!ownsProject) {
-        return jsonResponse({ error: "Project not found or access denied" }, 403);
+        if (connType === "local") {
+          // Auto-register the board for local connections
+          await auth.registerBoard(env, tokenInfo.userId, projectId, "sync");
+        } else {
+          return jsonResponse({ error: "Project not found or access denied" }, 403);
+        }
       }
 
       // Pass validated userId via header (like AgentHub pattern)
@@ -493,6 +503,18 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     // Health check
     if (url.pathname === "/health") {
       return new Response("ok", { status: 200 });
+    }
+
+    // Admin: clear stale sync boards (requires authenticated user)
+    if (url.pathname === "/api/admin/clear-sync-boards" && request.method === "POST") {
+      if (!user) {
+        return jsonResponse({ error: "Unauthorized" }, 401);
+      }
+      const hubId = env.AGENT_HUB.idFromName("global");
+      const hub = env.AGENT_HUB.get(hubId);
+      const clearResp = await hub.fetch(new Request("http://internal/sync-clear"));
+      const result = await clearResp.json();
+      return jsonResponse(result);
     }
 
     // Landing page at root

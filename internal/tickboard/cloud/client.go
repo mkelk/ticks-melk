@@ -19,6 +19,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/websocket"
 
+	"github.com/pengelbrecht/ticks/internal/github"
 	"github.com/pengelbrecht/ticks/internal/tick"
 )
 
@@ -489,7 +490,7 @@ func (c *Client) Connect(ctx context.Context) error {
 	}
 
 	dialer := websocket.Dialer{
-		HandshakeTimeout: 10 * time.Second,
+		HandshakeTimeout: 30 * time.Second, // Extended for D1 cold starts
 		TLSClientConfig: &tls.Config{
 			ServerName: cloudHost,
 		},
@@ -1276,6 +1277,20 @@ func (c *Client) applyRemoteState(ticks map[string]tick.Tick) {
 func (c *Client) applyRemoteTick(remoteTick tick.Tick) {
 	store := tick.NewStore(c.tickDir)
 
+	// Fill in owner if empty (cloud-created ticks don't have owner)
+	if remoteTick.Owner == "" {
+		if owner, err := github.DetectOwner(nil); err == nil {
+			remoteTick.Owner = owner
+		}
+	}
+
+	// Fill in created_by if empty
+	if remoteTick.CreatedBy == "" {
+		if owner, err := github.DetectOwner(nil); err == nil {
+			remoteTick.CreatedBy = owner
+		}
+	}
+
 	localTick, err := store.Read(remoteTick.ID)
 	if err != nil {
 		// Tick doesn't exist locally - create it
@@ -1521,25 +1536,39 @@ func (c *Client) SendRunEvent(event RunEventMessage) error {
 
 	event.Type = "run_event"
 
-	c.connMu.Lock()
-	conn := c.conn
-	c.connMu.Unlock()
-
-	if conn == nil {
-		// Not connected - skip since run events are ephemeral
-		return nil
-	}
-
 	data, err := json.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("failed to marshal run event: %w", err)
 	}
 
-	if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+	c.connMu.Lock()
+	defer c.connMu.Unlock()
+
+	if c.conn == nil {
+		// Not connected - skip since run events are ephemeral
+		return nil
+	}
+
+	if err := c.conn.WriteMessage(websocket.TextMessage, data); err != nil {
 		// Connection failed - skip since run events are ephemeral
 		return nil
 	}
 
 	return nil
+}
+
+// SendRunEventAny sends a run event to the DO (accepts any type for interface compatibility).
+// This is a wrapper around SendRunEvent that accepts interface{} to avoid import cycles.
+func (c *Client) SendRunEventAny(event interface{}) error {
+	// Convert from interface{} to RunEventMessage via JSON marshaling
+	data, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("failed to marshal run event: %w", err)
+	}
+	var msg RunEventMessage
+	if err := json.Unmarshal(data, &msg); err != nil {
+		return fmt.Errorf("failed to unmarshal run event: %w", err)
+	}
+	return c.SendRunEvent(msg)
 }
 

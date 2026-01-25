@@ -12,7 +12,7 @@ import {
   $isCloudMode,
   $localClientConnected,
   $isReadOnly,
-  $connectionStatus,
+  $effectiveConnectionStatus,
   setCloudMode,
   setLocalMode,
   // Tick stores
@@ -573,7 +573,7 @@ export class TickBoard extends LitElement {
   private isCloudModeController = new StoreController(this, $isCloudMode);
   private localClientConnectedController = new StoreController(this, $localClientConnected);
   private isReadOnlyController = new StoreController(this, $isReadOnly);
-  private connectionStatusController = new StoreController(this, $connectionStatus);
+  private connectionStatusController = new StoreController(this, $effectiveConnectionStatus);
 
   // Getters for store values (cleaner access in templates)
   private get ticks() { return this.ticksController.value; }

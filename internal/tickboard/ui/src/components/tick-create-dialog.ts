@@ -183,7 +183,7 @@ export class TickCreateDialog extends LitElement {
   private labels = '';
 
   @state()
-  private manual = false;
+  private awaiting: '' | 'work' | 'approval' | 'input' | 'review' = '';
 
   @query('sl-input[name="title"]')
   private titleInput!: HTMLInputElement;
@@ -195,7 +195,7 @@ export class TickCreateDialog extends LitElement {
     this.priority = 2;
     this.parent = '';
     this.labels = '';
-    this.manual = false;
+    this.awaiting = '';
     this.error = null;
     this.loading = false;
   }
@@ -249,9 +249,9 @@ export class TickCreateDialog extends LitElement {
     this.labels = input.value;
   }
 
-  private handleManualChange(e: Event) {
-    const checkbox = e.target as HTMLInputElement;
-    this.manual = checkbox.checked;
+  private handleAwaitingChange(e: Event) {
+    const select = e.target as HTMLSelectElement;
+    this.awaiting = select.value as '' | 'work' | 'approval' | 'input' | 'review';
   }
 
   private async handleSubmit() {
@@ -280,16 +280,20 @@ export class TickCreateDialog extends LitElement {
       newTick.parent = this.parent;
     }
 
+    if (this.awaiting) {
+      newTick.awaiting = this.awaiting;
+    }
+
     try {
       const createdTick = await createTick(newTick);
 
       // Emit success event with the created tick
       this.dispatchEvent(
-        new CustomEvent<{ tick: Tick; labels: string[]; manual: boolean }>('tick-created', {
+        new CustomEvent<{ tick: Tick; labels: string[]; awaiting: string }>('tick-created', {
           detail: {
             tick: createdTick,
             labels: this.labels ? this.labels.split(',').map(l => l.trim()).filter(Boolean) : [],
-            manual: this.manual,
+            awaiting: this.awaiting,
           },
           bubbles: true,
           composed: true,
@@ -409,17 +413,21 @@ export class TickCreateDialog extends LitElement {
         </div>
 
         <div class="form-field">
-          <div class="checkbox-field">
-            <sl-checkbox
-              ?checked=${this.manual}
-              @sl-change=${this.handleManualChange}
-              ?disabled=${this.loading}
-            >
-              Manual task
-            </sl-checkbox>
-          </div>
+          <label>Workflow</label>
+          <sl-select
+            placeholder="Agent task (default)"
+            .value=${this.awaiting}
+            @sl-change=${this.handleAwaitingChange}
+            ?disabled=${this.loading}
+            clearable
+          >
+            <sl-option value="work">Human task (manual work)</sl-option>
+            <sl-option value="approval">Awaiting approval</sl-option>
+            <sl-option value="input">Awaiting input</sl-option>
+            <sl-option value="review">Awaiting review</sl-option>
+          </sl-select>
           <div class="checkbox-help">
-            Manual tasks require human intervention and are skipped by automated agents.
+            Leave empty for agent-automated tasks. Select a state if human action is required.
           </div>
         </div>
 

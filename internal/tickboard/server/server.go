@@ -31,8 +31,9 @@ type EventPusher interface {
 }
 
 // RunEventPusher interface for pushing run events to cloud (sync mode).
+// Uses interface{} to avoid import cycles between server and cloud packages.
 type RunEventPusher interface {
-	SendRunEvent(event RunEventMessage) error
+	SendRunEventAny(event interface{}) error
 }
 
 // RunEventMessage for cloud sync (matches cloud.RunEventMessage).
@@ -2231,14 +2232,17 @@ func (s *Server) broadcastRunStreamEvent(epicID string, eventType string, data i
 // pushRunEventToCloud sends a run event to the cloud if connected.
 func (s *Server) pushRunEventToCloud(epicID string, eventType string, data interface{}) {
 	if s.cloudClient == nil {
+		fmt.Fprintf(os.Stderr, "[DEBUG] pushRunEventToCloud: no cloud client\n")
 		return
 	}
 
 	// Check if cloud client supports run events (sync mode)
 	pusher, ok := s.cloudClient.(RunEventPusher)
 	if !ok {
+		fmt.Fprintf(os.Stderr, "[DEBUG] pushRunEventToCloud: cloud client does not support RunEventPusher\n")
 		return
 	}
+	fmt.Fprintf(os.Stderr, "[DEBUG] pushRunEventToCloud: sending %s for epic %s\n", eventType, epicID)
 
 	// Extract taskId from data if present
 	var taskID string
@@ -2290,7 +2294,7 @@ func (s *Server) pushRunEventToCloud(epicID string, eventType string, data inter
 		}
 	}
 
-	if err := pusher.SendRunEvent(event); err != nil {
+	if err := pusher.SendRunEventAny(event); err != nil {
 		fmt.Fprintf(os.Stderr, "cloud: failed to push run event: %v\n", err)
 	}
 }

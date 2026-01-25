@@ -172,6 +172,15 @@ export class AgentHub {
       return Response.json({ ok: true, board: boardName });
     }
 
+    // Clear all sync boards (admin cleanup)
+    if (url.pathname === "/sync-clear") {
+      const cleared = this.syncBoards.size;
+      this.syncBoards.clear();
+      await this.state.storage.put("syncBoards", []);
+      console.log(`[AgentHub] Cleared all sync boards (${cleared} total)`);
+      return Response.json({ ok: true, cleared });
+    }
+
     // SSE endpoint: /events/:boardName
     if (url.pathname.startsWith("/events/")) {
       const boardName = url.pathname.split("/")[2];

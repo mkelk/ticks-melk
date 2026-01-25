@@ -199,9 +199,12 @@ export class ProjectRoom extends DurableObject<Env> {
 
     // Restore state from storage
     this.ctx.blockConcurrencyWhile(async () => {
-      const stored = await this.ctx.storage.get<Record<string, Tick>>("ticks");
-      if (stored) {
-        this.ticks = new Map(Object.entries(stored));
+      // Migration: clear old tick storage format if present
+      // Ticks are now ephemeral (re-synced from local client) to avoid 128KB limit
+      const oldTicks = await this.ctx.storage.get("ticks");
+      if (oldTicks) {
+        console.log(`[ProjectRoom] Migrating: clearing old tick storage format`);
+        await this.ctx.storage.delete("ticks");
       }
 
       // Restore last activity timestamp
@@ -425,7 +428,10 @@ export class ProjectRoom extends DurableObject<Env> {
         case "run_event":
           // Run events are transient - just broadcast to cloud clients, don't store
           // Only local clients send run events, only cloud clients receive them
+          console.log(`[ProjectRoom:${this.projectId}] run_event from ${conn.type} client: ${(msg as RunEventMessage).event?.type}`);
           if (conn.type === "local") {
+            const cloudClientCount = [...this.connections.values()].filter(c => c.type === "cloud").length;
+            console.log(`[ProjectRoom:${this.projectId}] Broadcasting to ${cloudClientCount} cloud clients`);
             this.broadcastToCloudClients(msg);
           }
           break;
@@ -663,7 +669,8 @@ export class ProjectRoom extends DurableObject<Env> {
 
   private async persistState() {
     this.lastActivity = Date.now();
-    await this.ctx.storage.put("ticks", Object.fromEntries(this.ticks));
+    // Only persist activity timestamp - ticks are ephemeral (re-synced from local client)
+    // This avoids the 128KB DO storage limit
     await this.ctx.storage.put("lastActivity", this.lastActivity);
   }
 
@@ -688,16 +695,26 @@ export class ProjectRoom extends DurableObject<Env> {
 
     // Clean up stale connections (5 minutes without activity)
     const staleThreshold = 5 * 60 * 1000;
+    let removedLocalConnection = false;
     for (const [id, conn] of this.connections) {
       if (now - conn.lastSeen > staleThreshold) {
+        if (conn.type === "local") {
+          removedLocalConnection = true;
+        }
         try {
           conn.socket.close(4000, "Connection stale");
         } catch {
           // Already closed
         }
         this.connections.delete(id);
-        console.log(`[ProjectRoom:${this.projectId}] Removed stale connection ${id}`);
+        console.log(`[ProjectRoom:${this.projectId}] Removed stale connection ${id} (type: ${conn.type})`);
       }
+    }
+
+    // If we removed a local connection, check if we need to update status
+    if (removedLocalConnection && !this.hasLocalConnections()) {
+      this.broadcastLocalStatus(false);
+      await this.notifyAgentHub("unregister");
     }
 
     // Check for expired sessions (cloud connections only)

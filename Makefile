@@ -40,7 +40,8 @@ codegen-go: $(GO_JSONSCHEMA)
 		run.schema.json \
 		activity.schema.json \
 		api/requests.schema.json \
-		api/responses.schema.json
+		api/responses.schema.json \
+		websocket/messages.schema.json
 
 	@# Format generated Go files
 	go fmt $(GO_GENERATED_DIR)/...

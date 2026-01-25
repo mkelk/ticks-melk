@@ -37,6 +37,19 @@ import type {
 } from './client.js';
 import { ReadOnlyError, ConnectionError } from './client.js';
 import { parseNotes } from '../api/ticks.js';
+// Generated WebSocket message types (source of truth: schemas/websocket/messages.schema.json)
+import type {
+  StateFullMessage,
+  TickUpdatedMessage,
+  TickDeletedMessage,
+  ConnectedMessage,
+  LocalStatusMessage,
+  RunEventMessage,
+  ErrorMessage,
+  TickUpdateRequest,
+  TickDeleteRequest,
+  RunEventType,
+} from '../types/generated/websocket/messages.js';
 
 // =============================================================================
 // Configuration
@@ -47,76 +60,12 @@ const INITIAL_RECONNECT_DELAY = 1000;
 const MAX_RECONNECT_DELAY = 30000;
 
 // =============================================================================
-// WebSocket Message Types (matching project-room.ts DO)
+// WebSocket Message Types
 // =============================================================================
+// Types imported from generated schemas (source: schemas/websocket/messages.schema.json)
+// See imports at top of file
 
-/** Full state sync from DO */
-interface StateFullMessage {
-  type: 'state_full';
-  ticks: Record<string, Tick>;
-}
-
-/** Single tick update from DO */
-interface TickUpdatedMessage {
-  type: 'tick_updated' | 'tick_created';
-  tick: Tick;
-}
-
-/** Tick deletion from DO */
-interface TickDeletedMessage {
-  type: 'tick_deleted';
-  id: string;
-}
-
-/** Connection info from DO */
-interface ConnectedMessage {
-  type: 'connected';
-  connectionId: string;
-}
-
-/** Error from DO */
-interface ErrorMessage {
-  type: 'error';
-  message: string;
-}
-
-/** Local client connection status from DO */
-interface LocalStatusMessage {
-  type: 'local_status';
-  connected: boolean;
-}
-
-/** Run event from local client */
-interface RunEventMessage {
-  type: 'run_event';
-  epicId: string;
-  taskId?: string;
-  source: 'ralph' | 'swarm-orchestrator' | 'swarm-subagent';
-  event: {
-    type: 'task-started' | 'task-update' | 'tool-activity' | 'task-completed' | 'epic-started' | 'epic-completed';
-    output?: string;
-    status?: string;
-    numTurns?: number;
-    iteration?: number;
-    success?: boolean;
-    metrics?: {
-      inputTokens: number;
-      outputTokens: number;
-      cacheReadTokens: number;
-      cacheCreationTokens: number;
-      costUsd: number;
-      durationMs: number;
-    };
-    activeTool?: {
-      name: string;
-      input?: string;
-      duration?: number;
-    };
-    message?: string;
-    timestamp: string;
-  };
-}
-
+/** Incoming messages from DO to browser client */
 type IncomingMessage =
   | StateFullMessage
   | TickUpdatedMessage
@@ -125,18 +74,6 @@ type IncomingMessage =
   | LocalStatusMessage
   | RunEventMessage
   | ErrorMessage;
-
-/** Outgoing tick update request */
-interface TickUpdateRequest {
-  type: 'tick_update';
-  tick: Tick;
-}
-
-/** Outgoing tick delete request */
-interface TickDeleteRequest {
-  type: 'tick_delete';
-  id: string;
-}
 
 type OutgoingMessage = TickUpdateRequest | TickDeleteRequest;
 
@@ -388,8 +325,9 @@ export class CloudCommsClient implements CommsClient {
       parent: tick.parent,
       labels: tick.labels,
       blocked_by: tick.blocked_by,
-      owner: '',
-      created_by: 'cloud@user',
+      awaiting: tick.awaiting,
+      owner: '', // Filled in by local agent
+      created_by: '', // Filled in by local agent
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -414,8 +352,8 @@ export class CloudCommsClient implements CommsClient {
       labels: updates.labels,
       blocked_by: updates.blocked_by,
       type: 'task',
-      owner: '',
-      created_by: 'cloud@user',
+      owner: '', // Filled in by local agent
+      created_by: '', // Filled in by local agent
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -744,9 +682,11 @@ export class CloudCommsClient implements CommsClient {
 
   private handleRunEventMessage(msg: RunEventMessage): void {
     const { epicId, taskId, event } = msg;
+    console.log(`[CloudComms] Received run_event: epic=${epicId} type=${event.type} subscriptions=${[...this.runSubscriptions].join(',')}`);
 
     // Only forward events for subscribed epics
     if (!this.runSubscriptions.has(epicId) && this.runSubscriptions.size > 0) {
+      console.log(`[CloudComms] Skipping run_event - not subscribed to ${epicId}`);
       return;
     }
 
@@ -847,6 +787,55 @@ export class CloudCommsClient implements CommsClient {
           lastEvent: runEvent,
         });
         break;
+
+      case 'context-generating': {
+        const contextEvent: ContextEvent = {
+          type: 'context:generating',
+          epicId,
+          taskCount: (event as any).taskCount || 0,
+        };
+        this.emitContext(contextEvent);
+        return;
+      }
+
+      case 'context-generated': {
+        const contextEvent: ContextEvent = {
+          type: 'context:generated',
+          epicId,
+          tokenCount: (event as any).tokenCount || 0,
+        };
+        this.emitContext(contextEvent);
+        return;
+      }
+
+      case 'context-loaded': {
+        const contextEvent: ContextEvent = {
+          type: 'context:loaded',
+          epicId,
+        };
+        this.emitContext(contextEvent);
+        return;
+      }
+
+      case 'context-failed': {
+        const contextEvent: ContextEvent = {
+          type: 'context:failed',
+          epicId,
+          error: event.message || 'Context generation failed',
+        };
+        this.emitContext(contextEvent);
+        return;
+      }
+
+      case 'context-skipped': {
+        const contextEvent: ContextEvent = {
+          type: 'context:skipped',
+          epicId,
+          reason: event.message || 'Context generation skipped',
+        };
+        this.emitContext(contextEvent);
+        return;
+      }
 
       default:
         console.warn('[CloudComms] Unknown run event type:', event.type);
