@@ -79,6 +79,33 @@ export class TickHeader extends LitElement {
       font-size: 0.85rem;
     }
 
+    /* Connection status dot */
+    .connection-status {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .connection-status.connected {
+      background: var(--green, #a6e3a1);
+      box-shadow: 0 0 4px var(--green, #a6e3a1);
+    }
+
+    .connection-status.connecting {
+      background: var(--yellow, #f9e2af);
+      animation: pulse-status 1s ease-in-out infinite;
+    }
+
+    .connection-status.disconnected {
+      background: var(--red, #f38ba8);
+    }
+
+    @keyframes pulse-status {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
     .header-center {
       flex: 1;
       display: flex;
@@ -221,6 +248,9 @@ export class TickHeader extends LitElement {
   @property({ type: Boolean, attribute: 'readonly-mode' })
   readonlyMode = false;
 
+  @property({ type: String, attribute: 'connection-status' })
+  connectionStatus: 'disconnected' | 'connecting' | 'connected' = 'disconnected';
+
   @state()
   private debounceTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -293,6 +323,17 @@ export class TickHeader extends LitElement {
     );
   }
 
+  private getConnectionTooltip(): string {
+    switch (this.connectionStatus) {
+      case 'connected':
+        return 'Connected to server';
+      case 'connecting':
+        return 'Connecting...';
+      case 'disconnected':
+        return 'Disconnected from server';
+    }
+  }
+
   disconnectedCallback() {
     super.disconnectedCallback();
     if (this.debounceTimeout) {
@@ -314,6 +355,9 @@ export class TickHeader extends LitElement {
           ${this.readonlyMode
             ? html`<a href="/app" style="text-decoration: none;"><ticks-logo variant="logotype" .size=${24}></ticks-logo></a>`
             : html`<ticks-logo variant="logotype" .size=${24}></ticks-logo>`}
+          <sl-tooltip content=${this.getConnectionTooltip()}>
+            <span class="connection-status ${this.connectionStatus}"></span>
+          </sl-tooltip>
           ${this.repoName
             ? html`<span class="repo-badge">${this.repoName}</span>`
             : null}

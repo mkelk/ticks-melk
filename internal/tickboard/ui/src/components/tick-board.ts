@@ -12,6 +12,7 @@ import {
   $isCloudMode,
   $localClientConnected,
   $isReadOnly,
+  $connectionStatus,
   setCloudMode,
   setLocalMode,
   // Tick stores
@@ -568,6 +569,7 @@ export class TickBoard extends LitElement {
   private isCloudModeController = new StoreController(this, $isCloudMode);
   private localClientConnectedController = new StoreController(this, $localClientConnected);
   private isReadOnlyController = new StoreController(this, $isReadOnly);
+  private connectionStatusController = new StoreController(this, $connectionStatus);
 
   // Getters for store values (cleaner access in templates)
   private get ticks() { return this.ticksController.value; }
@@ -582,6 +584,7 @@ export class TickBoard extends LitElement {
   private get isCloudMode() { return this.isCloudModeController.value; }
   private get localClientConnected() { return this.localClientConnectedController.value; }
   private get isReadOnly() { return this.isReadOnlyController.value; }
+  private get connectionStatus() { return this.connectionStatusController.value; }
 
   // ============================================================================
   // Local UI state (not synced)
@@ -1547,6 +1550,7 @@ export class TickBoard extends LitElement {
         .epics=${this.epics}
         selected-epic=${this.selectedEpic}
         search-term=${this.searchTerm}
+        connection-status=${this.connectionStatus}
         ?run-panel-open=${this.showRunPanel}
         ?run-active=${this.runStatus?.isRunning}
         ?readonly-mode=${this.isCloudMode && !this.localClientConnected}
