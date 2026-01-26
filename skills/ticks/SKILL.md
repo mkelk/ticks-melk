@@ -180,11 +180,20 @@ Uses the Ticks agent runner with tickboard monitoring.
 # Run on specific epic
 tk run <epic-id>
 
-# Run with parallel workers (uses git worktrees for isolation)
-tk run <epic-id> --parallel 2
+# Pool mode - N concurrent workers within single epic
+tk run <epic-id> --pool 4
+
+# Pool with custom stale timeout
+tk run <epic-id> --pool 4 --stale-timeout 2h
 
 # Run in isolated worktree
 tk run <epic-id> --worktree
+
+# Parallel epics (each in own worktree)
+tk run <epic-id> --parallel 2
+
+# Combined: parallel epics with pool workers each
+tk run epic1 epic2 --parallel 2 --pool 4
 
 # With cost limit
 tk run <epic-id> --max-cost 5.00
@@ -214,7 +223,7 @@ See **`references/claude-runner.md`** for full documentation including:
 |--------|----------|-------------|
 | Monitoring | Tickboard | Claude Code UI |
 | HITL | Rich (approvals, checkpoints) | Basic (conversation) |
-| Parallelization | Git worktrees | Task subagents |
+| Parallelization | Pool workers (`--pool`) or worktrees (`--parallel`) | Task subagents |
 | File isolation | Worktrees (proven) | Shared workspace |
 | State persistence | Tick files (survives crashes) | Session-bound |
 | Cost tracking | Built-in (`--max-cost`) | Manual |
@@ -262,8 +271,11 @@ tk reject <id> "feedback"    # Reject with feedback
 ```bash
 tk run <epic-id>                      # Run on epic
 tk run --auto                         # Auto-select epic
+tk run <epic-id> --pool 4             # Pool mode (4 concurrent workers)
+tk run <epic-id> --pool 4 --stale-timeout 2h  # Custom stale timeout
 tk run <epic-id> --worktree           # Use git worktree
-tk run <epic-id> --parallel 3         # Parallel workers
+tk run <epic-id> --parallel 3         # 3 epics in parallel worktrees
+tk run a b --parallel 2 --pool 4      # 2 epics, 4 workers each
 tk run <epic-id> --max-iterations 10  # Limit iterations
 tk run <epic-id> --max-cost 5.00      # Cost limit
 tk run <epic-id> --watch              # Restart when tasks ready
@@ -300,11 +312,14 @@ tk graph <epic-id> --json # Machine-readable for planning
 
 The graph shows:
 - **Waves**: Groups of tasks that can run in parallel
-- **Max parallel**: How many subagents you could spawn at once
+- **Max parallel**: How many workers you could use at once
 - **Critical path**: Minimum sequential steps to complete the epic
 - **Dependencies**: What each task is blocked by
 
-Use this to decide how many `--parallel` workers to use with `tk run`.
+Use this to decide:
+- `--pool N` for N concurrent workers within one epic (recommended)
+- `--parallel N` for N epics in separate worktrees
+- Combine both: `--parallel 2 --pool 4` for 2 epics with 4 workers each
 
 See `references/tk-commands.md` for full reference.
 
