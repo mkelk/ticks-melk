@@ -867,13 +867,17 @@ func runEpicWithPool(ctx context.Context, root, epicID string, agentImpl agent.A
 		fmt.Printf("Starting pool run with %d workers for epic %s\n", poolSize, epicID)
 	}
 
+	// Generate/load epic context (shared by all workers)
+	epicContextContent := ensurePoolEpicContext(ctx, tickDir, epicID, agentImpl)
+
 	// Create pool config with a RunTask function that wraps the agent execution
 	cfg := pool.Config{
 		PoolSize:     poolSize,
 		StaleTimeout: staleTimeout,
 		EpicID:       epicID,
 		TickDir:      tickDir,
-		RunTask:      createPoolTaskRunner(ctx, root, agentImpl),
+		EpicContext:  epicContextContent,
+		RunTask:      createPoolTaskRunner(ctx, root, agentImpl, epicContextContent),
 	}
 
 	// Set up minimal status output (unless JSONL mode)
@@ -900,10 +904,10 @@ func runEpicWithPool(ctx context.Context, root, epicID string, agentImpl agent.A
 // createPoolTaskRunner creates a RunTask function for pool workers.
 // This wraps the agent execution logic to work with pool mode.
 // Output streaming is disabled - status updates come via OnStatus callback.
-func createPoolTaskRunner(ctx context.Context, root string, agentImpl agent.Agent) func(ctx context.Context, task *tick.Tick) (bool, float64, int) {
+func createPoolTaskRunner(ctx context.Context, root string, agentImpl agent.Agent, epicContext string) func(ctx context.Context, task *tick.Tick) (bool, float64, int) {
 	return func(ctx context.Context, task *tick.Tick) (success bool, cost float64, tokens int) {
-		// Build a simple prompt for the task
-		prompt := buildPoolTaskPrompt(task)
+		// Build prompt for the task (includes shared epic context)
+		prompt := buildPoolTaskPrompt(task, epicContext)
 
 		// Run the agent without streaming output (minimal mode)
 		opts := agent.RunOpts{
@@ -920,20 +924,33 @@ func createPoolTaskRunner(ctx context.Context, root string, agentImpl agent.Agen
 }
 
 // buildPoolTaskPrompt builds a prompt for a pool task.
-// This is a simplified version of the engine prompt builder for pool mode.
-func buildPoolTaskPrompt(task *tick.Tick) string {
-	prompt := fmt.Sprintf(`You are working on the following task:
+// Includes shared epic context if available.
+func buildPoolTaskPrompt(task *tick.Tick, epicContext string) string {
+	var prompt string
 
-Task ID: %s
-Title: %s
+	// Include epic context first (if available)
+	if epicContext != "" {
+		prompt = `## Epic Context
+
+The following context was generated for this epic. Use it to understand the codebase.
+
+` + epicContext + `
+
+`
+	}
+
+	prompt += fmt.Sprintf(`## Current Task
+
+**[%s] %s**
 `, task.ID, task.Title)
 
 	if task.Description != "" {
-		prompt += fmt.Sprintf("\nDescription:\n%s\n", task.Description)
+		prompt += fmt.Sprintf("\n%s\n", task.Description)
 	}
 
 	prompt += `
-Instructions:
+## Instructions
+
 1. Complete the task as described
 2. Make all necessary code changes
 3. When finished, use: ./tk close ` + task.ID + ` --reason "your completion message"
@@ -941,6 +958,88 @@ Instructions:
 Begin working on the task now.`
 
 	return prompt
+}
+
+// ensurePoolEpicContext generates or loads epic context for pool mode.
+// Uses the same context store as the engine for consistency.
+// Returns empty string if context generation fails (non-fatal).
+func ensurePoolEpicContext(ctx context.Context, tickDir, epicID string, agentImpl agent.Agent) string {
+	// Create context store
+	contextStore := epiccontext.NewStoreWithDir(filepath.Join(tickDir, "logs", "context"))
+
+	// Check if context already exists
+	if contextStore.Exists(epicID) {
+		content, err := contextStore.Load(epicID)
+		if err == nil && content != "" {
+			if !runJSONL {
+				tokenCount := len(content) / 4 // rough estimate
+				fmt.Printf("📖 Using existing context for %s (~%d tokens)\n", epicID, tokenCount)
+			}
+			return content
+		}
+	}
+
+	// Get epic and tasks to generate context
+	ticksClient := ticks.NewClient(tickDir)
+	epic, err := ticksClient.GetEpic(epicID)
+	if err != nil {
+		if !runJSONL {
+			fmt.Printf("⚠ Context generation skipped: %v\n", err)
+		}
+		return ""
+	}
+
+	tasks, err := ticksClient.ListTasks(epicID)
+	if err != nil {
+		if !runJSONL {
+			fmt.Printf("⚠ Context generation skipped: %v\n", err)
+		}
+		return ""
+	}
+
+	// Skip for single-task epics (no benefit)
+	if len(tasks) <= 1 {
+		if !runJSONL {
+			fmt.Printf("⏭ Context skipped: single-task epic\n")
+		}
+		return ""
+	}
+
+	// Generate context
+	if !runJSONL {
+		fmt.Printf("📚 Generating epic context for %s (%d tasks)...\n", epicID, len(tasks))
+	}
+
+	contextGenerator, err := epiccontext.NewGenerator(agentImpl)
+	if err != nil {
+		if !runJSONL {
+			fmt.Printf("⚠ Context generation failed: %v\n", err)
+		}
+		return ""
+	}
+
+	content, err := contextGenerator.Generate(ctx, epic, tasks)
+	if err != nil {
+		if !runJSONL {
+			fmt.Printf("⚠ Context generation failed: %v\n", err)
+		}
+		return ""
+	}
+
+	// Save for future runs
+	if err := contextStore.Save(epicID, content); err != nil {
+		if !runJSONL {
+			fmt.Printf("⚠ Context save failed: %v\n", err)
+		}
+		// Still return the content even if save failed
+	}
+
+	if !runJSONL {
+		tokenCount := len(content) / 4 // rough estimate
+		fmt.Printf("✓ Context generated (~%d tokens)\n", tokenCount)
+	}
+
+	return content
 }
 
 // outputPoolResult outputs the results of a pool run.

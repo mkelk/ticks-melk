@@ -35,6 +35,7 @@ type Config struct {
 	TickDir      string
 	RunTask      RunTaskFunc
 	OnStatus     StatusCallback // optional callback for task status updates
+	EpicContext  string         // pre-computed context shared by all workers
 }
 
 // Result contains the aggregated results from all workers in a pool run.
