@@ -808,9 +808,9 @@ export class RunOutputPane extends LitElement {
       .filter(line => line.length > 0)
       .map(line => ({
         timestamp,
-        content: line,
+        content: line.trimStart(), // Remove leading whitespace
         type: 'output' as const,
-      }));
+      }))
 
     if (newLines.length > 0) {
       this.lines = [...this.lines, ...newLines];

@@ -27,6 +27,7 @@ import (
 	"github.com/pengelbrecht/ticks/internal/pool"
 	"github.com/pengelbrecht/ticks/internal/runrecord"
 	"github.com/pengelbrecht/ticks/internal/swarm"
+	"github.com/pengelbrecht/ticks/internal/taskrunner"
 	"github.com/pengelbrecht/ticks/internal/tick"
 	"github.com/pengelbrecht/ticks/internal/tickboard/cloud"
 	"github.com/pengelbrecht/ticks/internal/tickboard/server"
@@ -940,19 +941,31 @@ func runEpicWithPool(ctx context.Context, root, epicID string, agentImpl agent.A
 
 // createPoolTaskRunner creates a RunTask function for pool workers.
 // This wraps the agent execution logic to work with pool mode.
-// Output streaming is disabled - status updates come via OnStatus callback.
+// Uses TaskRunner for consistent run record and live streaming support.
 func createPoolTaskRunner(ctx context.Context, root string, agentImpl agent.Agent, epicContext string) func(ctx context.Context, task *tick.Tick) (bool, float64, int) {
+	tickDir := filepath.Join(root, ".tick")
+
+	// Create shared stores (thread-safe for concurrent workers)
+	recordStore := runrecord.NewStore(root)
+	tickClient := ticks.NewClient(tickDir)
+
+	// Create a TaskRunner for each task invocation
+	// This gives us run records and live streaming like ralph mode
 	return func(ctx context.Context, task *tick.Tick) (success bool, cost float64, tokens int) {
 		// Build prompt for the task (includes shared epic context)
 		prompt := buildPoolTaskPrompt(task, epicContext)
 
-		// Run the agent without streaming output (minimal mode)
-		opts := agent.RunOpts{
-			Timeout: runTimeout,
-		}
+		// Create runner with run record support
+		runner := taskrunner.New(taskrunner.Config{
+			Agent:       agentImpl,
+			TickClient:  tickClient,
+			RecordStore: recordStore,
+			Timeout:     runTimeout,
+		})
 
-		result, err := agentImpl.Run(ctx, prompt, opts)
-		if err != nil {
+		// Run the task with full run record tracking
+		result := runner.Run(ctx, task.ID, prompt)
+		if result.Error != nil {
 			return false, 0, 0
 		}
 

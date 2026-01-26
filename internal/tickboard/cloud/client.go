@@ -968,10 +968,8 @@ func (c *Client) flushPendingMessages() error {
 
 	for _, data := range pending {
 		c.connMu.Lock()
-		conn := c.conn
-		c.connMu.Unlock()
-
-		if conn == nil {
+		if c.conn == nil {
+			c.connMu.Unlock()
 			// Re-queue and abort
 			c.pendingMessagesMu.Lock()
 			c.pendingMessages = append(pending, c.pendingMessages...)
@@ -979,7 +977,10 @@ func (c *Client) flushPendingMessages() error {
 			return fmt.Errorf("connection closed while flushing")
 		}
 
-		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+		err := c.conn.WriteMessage(websocket.TextMessage, data)
+		c.connMu.Unlock()
+
+		if err != nil {
 			// Re-queue remaining and abort
 			c.pendingMessagesMu.Lock()
 			c.pendingMessages = append(pending, c.pendingMessages...)
@@ -1185,16 +1186,15 @@ func (c *Client) SyncTick(t tick.Tick) error {
 	}
 
 	c.connMu.Lock()
-	conn := c.conn
-	c.connMu.Unlock()
+	defer c.connMu.Unlock()
 
-	if conn == nil {
+	if c.conn == nil {
 		// Queue for later when reconnected
 		c.queueMessage(data)
 		return nil
 	}
 
-	if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+	if err := c.conn.WriteMessage(websocket.TextMessage, data); err != nil {
 		// Connection failed, queue for later
 		c.queueMessage(data)
 		return nil
@@ -1236,16 +1236,15 @@ func (c *Client) SyncDelete(id string) error {
 	}
 
 	c.connMu.Lock()
-	conn := c.conn
-	c.connMu.Unlock()
+	defer c.connMu.Unlock()
 
-	if conn == nil {
+	if c.conn == nil {
 		// Queue for later when reconnected
 		c.queueMessage(data)
 		return nil
 	}
 
-	if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+	if err := c.conn.WriteMessage(websocket.TextMessage, data); err != nil {
 		// Connection failed, queue for later
 		c.queueMessage(data)
 		return nil
@@ -1509,16 +1508,15 @@ func (c *Client) sendSyncMessage(msg interface{}) error {
 	}
 
 	c.connMu.Lock()
-	conn := c.conn
-	c.connMu.Unlock()
+	defer c.connMu.Unlock()
 
-	if conn == nil {
+	if c.conn == nil {
 		// Queue for later when reconnected
 		c.queueMessage(data)
 		return nil
 	}
 
-	if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+	if err := c.conn.WriteMessage(websocket.TextMessage, data); err != nil {
 		// Connection failed, queue for later
 		c.queueMessage(data)
 		return nil
