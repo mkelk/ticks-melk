@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -44,17 +45,17 @@ or use --board to start the board UI without running an agent.
 Execution modes:
   --ralph (default)  Ralph iteration loop - orchestrates tasks via Go engine
   --swarm            Swarm mode - spawns Claude to orchestrate parallel subagents
-  --pool N           Pool mode - N concurrent workers processing tasks in parallel
+  --pool [N]         Pool mode - N concurrent workers (auto from wave analysis if omitted)
 
 Examples:
   tk run abc123                     # Run agent on epic abc123 (ralph mode)
   tk run abc123 --swarm             # Run using swarm orchestration
   tk run abc123 --swarm --max-agents 3  # Swarm with max 3 parallel agents
-  tk run abc123 --pool 4            # Run with 4 parallel workers
-  tk run abc123 --pool 4 --stale-timeout 2h  # Pool with custom stale timeout
+  tk run abc123 --pool              # Pool mode with auto workers (max wave width, cap 10)
+  tk run abc123 --pool 4            # Pool mode with explicit 4 workers
   tk run abc123 def456              # Run agent on multiple epics (sequential)
   tk run abc def --parallel 2       # Run 2 epics in parallel with worktrees
-  tk run abc def --parallel 2 --pool 4  # 2 epics, 4 workers each
+  tk run abc def --parallel 2 --pool  # 2 epics with auto pool workers each
   tk run --auto                     # Auto-select next ready epic
   tk run abc123 --max-iterations 10 # Limit to 10 iterations per task
   tk run abc123 --max-cost 5.00     # Stop if cost exceeds $5.00
@@ -95,7 +96,7 @@ var (
 	runSwarmMode         bool
 	runRalphMode         bool
 	runMaxAgents         int
-	runPoolSize          int
+	runPoolMode          string // "auto", number, or "" (disabled)
 	runStaleTimeout      time.Duration
 )
 
@@ -124,7 +125,8 @@ func init() {
 	runCmd.Flags().BoolVar(&runSwarmMode, "swarm", false, "use swarm mode (Claude orchestrates parallel subagents)")
 	runCmd.Flags().BoolVar(&runRalphMode, "ralph", false, "use ralph mode (Go engine iteration loop, default)")
 	runCmd.Flags().IntVar(&runMaxAgents, "max-agents", 5, "maximum parallel subagents per wave (swarm mode only)")
-	runCmd.Flags().IntVar(&runPoolSize, "pool", 0, "number of parallel workers (0=sequential, >0=pool mode)")
+	runCmd.Flags().StringVar(&runPoolMode, "pool", "", "pool mode: auto (from wave analysis) or N workers")
+	runCmd.Flags().Lookup("pool").NoOptDefVal = "auto" // --pool without value means auto
 	runCmd.Flags().DurationVar(&runStaleTimeout, "stale-timeout", time.Hour, "timeout for stale task recovery in pool mode")
 
 	rootCmd.AddCommand(runCmd)
@@ -152,7 +154,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 	if runRalphMode {
 		modeCount++
 	}
-	if runPoolSize > 0 {
+	if runPoolMode != "" {
 		modeCount++
 	}
 	if modeCount > 1 {
@@ -440,7 +442,7 @@ Get a token at https://ticks.sh/settings`)
 					break
 				}
 			}
-		} else if runPoolSize > 0 {
+		} else if runPoolMode != "" {
 			// Pool mode: parallel workers processing tasks within each epic
 			claudeAgent := agent.NewClaudeAgent()
 			if !claudeAgent.Available() {
@@ -451,7 +453,14 @@ Get a token at https://ticks.sh/settings`)
 
 			// Parallel execution with worktrees (combined with pool)
 			if runParallel > 1 && len(epicIDs) > 1 {
-				parallelResult, err := runParallelEpicsWithPool(ctx, root, epicIDs, claudeAgent, runPoolSize, runStaleTimeout)
+				// For parallel epics, compute pool size from first epic (or use explicit)
+				poolSize, err := resolvePoolSize(tickDir, epicIDs[0], runPoolMode)
+				if err != nil {
+					cancel()
+					wg.Wait()
+					return NewExitError(ExitGeneric, "failed to determine pool size: %v", err)
+				}
+				parallelResult, err := runParallelEpicsWithPool(ctx, root, epicIDs, claudeAgent, poolSize, runStaleTimeout)
 				if err != nil {
 					cancel()
 					wg.Wait()
@@ -461,7 +470,15 @@ Get a token at https://ticks.sh/settings`)
 			} else {
 				// Run each epic with pool
 				for _, epicID := range epicIDs {
-					result, err := runEpicWithPool(ctx, root, epicID, claudeAgent, runPoolSize, runStaleTimeout)
+					// Compute pool size for this epic (auto or explicit)
+					poolSize, err := resolvePoolSize(tickDir, epicID, runPoolMode)
+					if err != nil {
+						cancel()
+						wg.Wait()
+						return NewExitError(ExitGeneric, "failed to determine pool size for %s: %v", epicID, err)
+					}
+
+					result, err := runEpicWithPool(ctx, root, epicID, claudeAgent, poolSize, runStaleTimeout)
 					if err != nil {
 						if ctx.Err() != nil {
 							if result != nil {
@@ -958,6 +975,115 @@ The following context was generated for this epic. Use it to understand the code
 Begin working on the task now.`
 
 	return prompt
+}
+
+// resolvePoolSize determines the pool size from the mode string.
+// "auto" computes from wave analysis (capped at 10), otherwise parses as int.
+func resolvePoolSize(tickDir, epicID, mode string) (int, error) {
+	if mode == "auto" {
+		maxWave := computeMaxWaveWidth(tickDir, epicID)
+		if maxWave < 1 {
+			maxWave = 1
+		}
+		if maxWave > 10 {
+			maxWave = 10
+		}
+		if !runJSONL {
+			fmt.Printf("Pool: auto-detected %d workers from wave analysis\n", maxWave)
+		}
+		return maxWave, nil
+	}
+
+	// Parse as integer
+	size, err := strconv.Atoi(mode)
+	if err != nil {
+		return 0, fmt.Errorf("invalid pool size %q: must be 'auto' or a number", mode)
+	}
+	if size < 1 {
+		return 0, fmt.Errorf("pool size must be at least 1")
+	}
+	return size, nil
+}
+
+// computeMaxWaveWidth analyzes the epic's dependency graph and returns
+// the maximum number of tasks that can run in parallel (max wave width).
+func computeMaxWaveWidth(tickDir, epicID string) int {
+	store := tick.NewStore(tickDir)
+
+	// Get all ticks
+	allTicks, err := store.List()
+	if err != nil {
+		return 1 // fallback
+	}
+
+	// Filter to open tasks under this epic
+	var tasks []tick.Tick
+	taskSet := make(map[string]bool)
+	for _, t := range allTicks {
+		if t.Parent == epicID && t.Type != tick.TypeEpic && t.Status != tick.StatusClosed {
+			tasks = append(tasks, t)
+			taskSet[t.ID] = true
+		}
+	}
+
+	if len(tasks) == 0 {
+		return 1
+	}
+
+	// Build in-degree map (count of open blockers within epic)
+	inDegree := make(map[string]int)
+	blocks := make(map[string][]string)
+	for _, t := range tasks {
+		inDegree[t.ID] = 0
+	}
+	for _, t := range tasks {
+		for _, blockerID := range t.BlockedBy {
+			if taskSet[blockerID] {
+				inDegree[t.ID]++
+				blocks[blockerID] = append(blocks[blockerID], t.ID)
+			}
+		}
+	}
+
+	// Compute waves using Kahn's algorithm
+	remaining := make(map[string]bool)
+	for _, t := range tasks {
+		remaining[t.ID] = true
+	}
+
+	maxParallel := 0
+	for len(remaining) > 0 {
+		// Find all tasks with no remaining blockers
+		var ready []string
+		for _, t := range tasks {
+			if remaining[t.ID] && inDegree[t.ID] == 0 {
+				ready = append(ready, t.ID)
+			}
+		}
+
+		if len(ready) == 0 {
+			break // cycle detected
+		}
+
+		if len(ready) > maxParallel {
+			maxParallel = len(ready)
+		}
+
+		// Remove ready tasks and update inDegree
+		for _, id := range ready {
+			delete(remaining, id)
+			for _, dependentID := range blocks[id] {
+				if remaining[dependentID] {
+					inDegree[dependentID]--
+				}
+			}
+		}
+	}
+
+	if maxParallel < 1 {
+		return 1
+	}
+	return maxParallel
 }
 
 // ensurePoolEpicContext generates or loads epic context for pool mode.
