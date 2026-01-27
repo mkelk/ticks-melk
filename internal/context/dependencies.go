@@ -226,12 +226,18 @@ This helps prevent parallel tasks from making conflicting edits.
 For each task, predict which files it will likely CREATE or MODIFY.
 
 Guidelines:
-- Focus on files that will be WRITTEN TO (not just read)
-- Include test files if the task involves testing
+- Include BOTH existing files to modify AND new files to create
+- For new files, predict the likely path based on codebase conventions
+- Include test files if the task involves testing (e.g., foo.ts -> foo.test.ts)
 - Use glob patterns for multiple similar files (e.g., "src/components/*.ts")
-- Be specific - use actual file paths from the codebase
-- Look at the codebase structure to inform your predictions
-- If a task is vague, make reasonable assumptions based on the epic context
+- Be specific - use actual file paths based on the codebase structure
+- If a task creates a new component/module, predict both the main file and its test
+- Two tasks creating the same NEW file is also a conflict
+
+Common patterns to consider:
+- Component tasks: component file + test file + possibly styles
+- API tasks: handler + routes + tests
+- Feature tasks: multiple related files in the same directory
 
 ## Output Format
 
