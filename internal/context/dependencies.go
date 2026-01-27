@@ -61,9 +61,9 @@ type TaskFilePrediction struct {
 
 // AnalysisResult contains the results of dependency analysis.
 type AnalysisResult struct {
-	Predictions      []TaskFilePrediction  `json:"predictions"`
-	AddedDeps        map[string][]string   `json:"added_deps"` // task_id -> new blocked_by IDs
-	ConflictingPairs []ConflictPair        `json:"conflicting_pairs"`
+	Predictions      []TaskFilePrediction `json:"predictions"`
+	AddedDeps        map[string][]string  `json:"added_deps"` // task_id -> new blocked_by IDs
+	ConflictingPairs []ConflictPair       `json:"conflicting_pairs"`
 }
 
 // ConflictPair represents two tasks that would conflict on the same files.

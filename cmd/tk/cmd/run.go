@@ -131,6 +131,7 @@ func init() {
 	runCmd.Flags().StringVar(&runPoolMode, "pool", "", "pool mode: auto (from wave analysis) or N workers")
 	runCmd.Flags().Lookup("pool").NoOptDefVal = "auto" // --pool without value means auto
 	runCmd.Flags().DurationVar(&runStaleTimeout, "stale-timeout", time.Hour, "timeout for stale task recovery in pool mode")
+	runCmd.Flags().BoolVar(&runSkipDepAnalysis, "skip-dep-analysis", false, "skip dependency analysis for file conflicts (pool mode)")
 
 	rootCmd.AddCommand(runCmd)
 }
@@ -915,6 +916,15 @@ func runEpicWithPool(ctx context.Context, root, epicID string, agentImpl agent.A
 	// Generate/load epic context (shared by all workers)
 	epicContextContent := ensurePoolEpicContext(ctx, tickDir, epicID, agentImpl)
 
+	// Run dependency analysis to detect file conflicts and get predictions
+	filePredictions := make(map[string][]string)
+	if !runSkipDepAnalysis && poolSize > 1 {
+		predictions := runDependencyAnalysis(ctx, tickDir, epicID, agentImpl)
+		if predictions != nil {
+			filePredictions = predictions
+		}
+	}
+
 	// Create pool config with a RunTask function that wraps the agent execution
 	cfg := pool.Config{
 		PoolSize:     poolSize,
@@ -922,7 +932,7 @@ func runEpicWithPool(ctx context.Context, root, epicID string, agentImpl agent.A
 		EpicID:       epicID,
 		TickDir:      tickDir,
 		EpicContext:  epicContextContent,
-		RunTask:      createPoolTaskRunner(ctx, root, agentImpl, epicContextContent),
+		RunTask:      createPoolTaskRunner(ctx, root, agentImpl, epicContextContent, filePredictions),
 	}
 
 	// Set up minimal status output (unless JSONL mode)
@@ -949,7 +959,7 @@ func runEpicWithPool(ctx context.Context, root, epicID string, agentImpl agent.A
 // createPoolTaskRunner creates a RunTask function for pool workers.
 // This wraps the agent execution logic to work with pool mode.
 // Uses TaskRunner for consistent run record and live streaming support.
-func createPoolTaskRunner(ctx context.Context, root string, agentImpl agent.Agent, epicContext string) func(ctx context.Context, task *tick.Tick) (bool, float64, int) {
+func createPoolTaskRunner(ctx context.Context, root string, agentImpl agent.Agent, epicContext string, filePredictions map[string][]string) func(ctx context.Context, task *tick.Tick) (bool, float64, int) {
 	tickDir := filepath.Join(root, ".tick")
 
 	// Create shared stores (thread-safe for concurrent workers)
@@ -959,8 +969,9 @@ func createPoolTaskRunner(ctx context.Context, root string, agentImpl agent.Agen
 	// Create a TaskRunner for each task invocation
 	// This gives us run records and live streaming like ralph mode
 	return func(ctx context.Context, task *tick.Tick) (success bool, cost float64, tokens int) {
-		// Build prompt for the task (includes shared epic context)
-		prompt := buildPoolTaskPrompt(task, epicContext)
+		// Build prompt for the task (includes shared epic context and file predictions)
+		predictedFiles := filePredictions[task.ID]
+		prompt := buildPoolTaskPrompt(task, epicContext, predictedFiles)
 
 		// Create runner with run record support
 		runner := taskrunner.New(taskrunner.Config{
@@ -981,8 +992,8 @@ func createPoolTaskRunner(ctx context.Context, root string, agentImpl agent.Agen
 }
 
 // buildPoolTaskPrompt builds a prompt for a pool task.
-// Includes shared epic context if available.
-func buildPoolTaskPrompt(task *tick.Tick, epicContext string) string {
+// Includes shared epic context and predicted files if available.
+func buildPoolTaskPrompt(task *tick.Tick, epicContext string, predictedFiles []string) string {
 	var prompt string
 
 	// Include epic context first (if available)
@@ -1003,6 +1014,16 @@ The following context was generated for this epic. Use it to understand the code
 
 	if task.Description != "" {
 		prompt += fmt.Sprintf("\n%s\n", task.Description)
+	}
+
+	// Include predicted files if available
+	if len(predictedFiles) > 0 {
+		prompt += "\n## Predicted Files\n\n"
+		prompt += "Based on analysis, this task will likely need to modify:\n"
+		for _, f := range predictedFiles {
+			prompt += fmt.Sprintf("- %s\n", f)
+		}
+		prompt += "\nUse this as a starting point, but modify other files if needed.\n"
 	}
 
 	prompt += `
@@ -1206,6 +1227,73 @@ func ensurePoolEpicContext(ctx context.Context, tickDir, epicID string, agentImp
 	}
 
 	return content
+}
+
+// runDependencyAnalysis analyzes tasks for file conflicts and adds dependencies.
+// Returns a map of task ID -> predicted files for use in task prompts.
+// Returns nil if analysis fails (non-fatal, pool continues without it).
+func runDependencyAnalysis(ctx context.Context, tickDir, epicID string, agentImpl agent.Agent) map[string][]string {
+	ticksClient := ticks.NewClient(tickDir)
+
+	// Get epic and tasks
+	epic, err := ticksClient.GetEpic(epicID)
+	if err != nil {
+		if !runJSONL {
+			fmt.Printf("⚠ Dependency analysis skipped: %v\n", err)
+		}
+		return nil
+	}
+
+	tasks, err := ticksClient.ListTasks(epicID)
+	if err != nil {
+		if !runJSONL {
+			fmt.Printf("⚠ Dependency analysis skipped: %v\n", err)
+		}
+		return nil
+	}
+
+	// Skip for single-task epics (no conflicts possible)
+	if len(tasks) <= 1 {
+		return nil
+	}
+
+	if !runJSONL {
+		fmt.Printf("🔍 Analyzing dependencies for %d tasks...\n", len(tasks))
+	}
+
+	// Create analyzer and run
+	store := tick.NewStore(tickDir)
+	analyzer := epiccontext.NewDependencyAnalyzer(agentImpl, store)
+
+	result, err := analyzer.Analyze(ctx, epic, tasks)
+	if err != nil {
+		if !runJSONL {
+			fmt.Printf("⚠ Dependency analysis failed: %v\n", err)
+		}
+		return nil
+	}
+
+	// Report results
+	if !runJSONL {
+		if len(result.AddedDeps) > 0 {
+			fmt.Printf("✓ Added %d dependencies to prevent file conflicts\n", len(result.AddedDeps))
+			for taskID, blockers := range result.AddedDeps {
+				fmt.Printf("  %s now blocked by: %v\n", taskID, blockers)
+			}
+		} else if len(result.ConflictingPairs) > 0 {
+			fmt.Printf("✓ Found %d potential conflicts (already have dependencies)\n", len(result.ConflictingPairs))
+		} else {
+			fmt.Printf("✓ No file conflicts detected\n")
+		}
+	}
+
+	// Build predictions map for task prompts
+	predictions := make(map[string][]string)
+	for _, pred := range result.Predictions {
+		predictions[pred.TaskID] = pred.Files
+	}
+
+	return predictions
 }
 
 // outputPoolResult outputs the results of a pool run.
