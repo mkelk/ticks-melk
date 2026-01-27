@@ -71,6 +71,14 @@ func runInit(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Detected user: %s\n\n", owner)
 	fmt.Println("Initialized .tick/")
 
+	// Check if .tick/ is gitignored (it shouldn't be)
+	if IsTickDirGitignored(root) {
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "warning: .tick/ appears to be gitignored")
+		fmt.Fprintln(os.Stderr, "Ticks should be tracked by git to sync across machines and team members.")
+		fmt.Fprintln(os.Stderr, "Remove '.tick' or '.tick/' from your .gitignore file.")
+	}
+
 	// Import beads if requested
 	if importBeads {
 		beadsFile := beads.FindBeadsFile(root)

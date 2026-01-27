@@ -44,6 +44,19 @@ ls .tick/ 2>/dev/null || tk init
 which tk || echo "Install: curl -fsSL https://raw.githubusercontent.com/pengelbrecht/ticks/main/scripts/install.sh | sh"
 ```
 
+**4. Git tracking (important):**
+
+The `.tick/` directory should be tracked by git, not gitignored. Ticks are designed to be version-controlled so they sync across machines and team members via normal git workflows.
+
+If you see `.tick` or `.tick/` in the project's `.gitignore`, remove it. The only things that should be gitignored are internal/local files, which is handled by `.tick/.gitignore` (ignores `.index.json` and `logs/`).
+
+```bash
+# Check if .tick is gitignored (should return nothing)
+git check-ignore .tick/
+
+# If it returns ".tick/", remove the entry from .gitignore
+```
+
 ### Step 1: Check for SPEC.md
 
 Look for a SPEC.md (or similar spec file) in the repo root.
