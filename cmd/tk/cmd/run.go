@@ -100,6 +100,7 @@ var (
 	runMaxAgents         int
 	runPoolMode          string // "auto", number, or "" (disabled)
 	runStaleTimeout      time.Duration
+	runSkipDepAnalysis   bool
 )
 
 func init() {
