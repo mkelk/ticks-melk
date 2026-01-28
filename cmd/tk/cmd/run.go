@@ -268,10 +268,9 @@ func runRun(cmd *cobra.Command, args []string) error {
 			return NewExitError(ExitGeneric, "failed to create board server: %v", err)
 		}
 
-		// Check for cloud configuration
-		cloudCfg := cloud.LoadConfig(tickDir, actualPort)
+		// Check for cloud configuration (only if --cloud specified)
 		if runCloudEnabled {
-			// --cloud requires authentication
+			cloudCfg := cloud.LoadConfig(tickDir)
 			if cloudCfg == nil {
 				return NewExitError(ExitGeneric, `cloud sync requires authentication.
 Add token to ~/.ticksrc:
@@ -279,35 +278,23 @@ Add token to ~/.ticksrc:
 
 Get a token at https://ticks.sh/settings`)
 			}
-			// Enable sync mode for real-time DO sync
-			cloudCfg.Mode = cloud.ModeSync
-		}
-		if cloudCfg != nil {
 			cloudClient, err = cloud.NewClient(*cloudCfg)
 			if err != nil {
-				if runCloudEnabled {
-					// --cloud explicitly requested, fail hard
-					return NewExitError(ExitGeneric, "failed to create cloud client: %v", err)
-				}
-				fmt.Fprintf(os.Stderr, "Warning: failed to create cloud client: %v\n", err)
-			} else {
-				// Connect server to cloud for event broadcasting
-				boardServer.SetCloudClient(cloudClient)
-
-				// Start cloud client in background
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					if err := cloudClient.Run(ctx); err != nil && ctx.Err() == nil {
-						fmt.Fprintf(os.Stderr, "Cloud client error: %v\n", err)
-					}
-				}()
-				if runCloudEnabled {
-					fmt.Printf("Cloud: syncing to DO as %s\n", cloudCfg.BoardName)
-				} else {
-					fmt.Printf("Cloud: connecting to %s as %s\n", cloudCfg.CloudURL, cloudCfg.BoardName)
-				}
+				return NewExitError(ExitGeneric, "failed to create cloud client: %v", err)
 			}
+
+			// Connect server to cloud for event broadcasting
+			boardServer.SetCloudClient(cloudClient)
+
+			// Start cloud client in background
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if err := cloudClient.Run(ctx); err != nil && ctx.Err() == nil {
+					fmt.Fprintf(os.Stderr, "Cloud client error: %v\n", err)
+				}
+			}()
+			fmt.Printf("Cloud: syncing as %s\n", cloudCfg.BoardName)
 		}
 
 		// Start board server in background

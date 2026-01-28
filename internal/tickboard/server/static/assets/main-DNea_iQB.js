@@ -8349,7 +8349,7 @@ var Qo=Object.defineProperty;var Zo=(e,t,s)=>t in e?Qo(e,t,{enumerable:!0,config
 
     .line-content {
       flex: 1;
-      white-space: pre-wrap;
+      white-space: pre-line;
       word-break: break-word;
       color: var(--text, #cdd6f4);
       text-align: left;

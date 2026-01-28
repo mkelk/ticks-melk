@@ -44,10 +44,11 @@ custom_domain = true
 # id = "xxx"
 
 # Static assets (UI)
+# Serve directly from tickboard UI build output
 # html_handling: none - let worker handle HTML routing
 # not_found_handling: none - let worker handle 404s
 [assets]
-directory = "./public"
+directory = "../../internal/tickboard/server/static"
 binding = "ASSETS"
 html_handling = "none"
 not_found_handling = "none"

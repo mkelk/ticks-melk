@@ -15,11 +15,11 @@ func TestLoadConfig_NoToken(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err == nil {
 		if _, err := os.Stat(filepath.Join(home, ConfigFileName)); err == nil {
-			t.Skip("skipping: user has ~/.tickboardrc config file")
+			t.Skip("skipping: user has ~/.ticksrc config file")
 		}
 	}
 
-	cfg := LoadConfig("/tmp/test/.tick", 3000)
+	cfg := LoadConfig("/tmp/test/.tick")
 	if cfg != nil {
 		t.Error("expected nil config when no token is set")
 	}
@@ -29,7 +29,7 @@ func TestLoadConfig_FromEnv(t *testing.T) {
 	os.Setenv(EnvToken, "test-token-123")
 	defer os.Unsetenv(EnvToken)
 
-	cfg := LoadConfig("/tmp/myrepo/.tick", 3000)
+	cfg := LoadConfig("/tmp/myrepo/.tick")
 	if cfg == nil {
 		t.Fatal("expected config when token is set")
 	}
@@ -40,27 +40,24 @@ func TestLoadConfig_FromEnv(t *testing.T) {
 	if cfg.BoardName != "myrepo" {
 		t.Errorf("expected board name 'myrepo', got '%s'", cfg.BoardName)
 	}
-	if cfg.LocalAddr != "http://localhost:3000" {
-		t.Errorf("expected local addr 'http://localhost:3000', got '%s'", cfg.LocalAddr)
-	}
-	// LoadConfig doesn't apply defaults - NewClient does based on mode
+// CloudURL should be empty (NewClient will use default)
 	if cfg.CloudURL != "" {
-		t.Errorf("expected empty cloud URL (default applied by NewClient), got '%s'", cfg.CloudURL)
+		t.Errorf("expected empty cloud URL, got '%s'", cfg.CloudURL)
 	}
 }
 
 func TestLoadConfig_CustomCloudURL(t *testing.T) {
 	os.Setenv(EnvToken, "test-token")
-	os.Setenv(EnvCloudURL, "wss://custom.example.com/agent")
+	os.Setenv(EnvCloudURL, "wss://custom.example.com/api/projects")
 	defer os.Unsetenv(EnvToken)
 	defer os.Unsetenv(EnvCloudURL)
 
-	cfg := LoadConfig("/tmp/test/.tick", 8080)
+	cfg := LoadConfig("/tmp/test/.tick")
 	if cfg == nil {
 		t.Fatal("expected config")
 	}
 
-	if cfg.CloudURL != "wss://custom.example.com/agent" {
+	if cfg.CloudURL != "wss://custom.example.com/api/projects" {
 		t.Errorf("expected custom cloud URL, got '%s'", cfg.CloudURL)
 	}
 }
@@ -88,7 +85,7 @@ func TestLoadConfig_FromFile(t *testing.T) {
 
 		os.Unsetenv(EnvToken) // Ensure env var doesn't take precedence
 
-		cfg := LoadConfig("/tmp/test/.tick", 3000)
+		cfg := LoadConfig("/tmp/test/.tick")
 		if cfg == nil {
 			t.Fatal("expected config from file")
 		}
@@ -119,35 +116,20 @@ func TestDeriveBoardName(t *testing.T) {
 }
 
 func TestNewClient_RequiresToken(t *testing.T) {
-	_, err := NewClient(Config{})
+	_, err := NewClient(Config{TickDir: "/tmp/.tick"})
 	if err == nil {
 		t.Error("expected error when token is empty")
 	}
 }
 
-func TestNewClient_Success(t *testing.T) {
-	client, err := NewClient(Config{
-		Token:     "test-token",
-		BoardName: "myboard",
-		MachineID: "machine1",
-		LocalAddr: "http://localhost:3000",
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if client == nil {
-		t.Fatal("expected client to be created")
-	}
-	if client.cloudURL != DefaultCloudURL {
-		t.Errorf("expected default cloud URL, got '%s'", client.cloudURL)
+func TestNewClient_RequiresTickDir(t *testing.T) {
+	_, err := NewClient(Config{Token: "test-token"})
+	if err == nil {
+		t.Error("expected error when TickDir is empty")
 	}
 }
 
-// ============================================================================
-// Sync Mode Tests
-// ============================================================================
-
-func TestNewClient_SyncMode(t *testing.T) {
+func TestNewClient_Success(t *testing.T) {
 	// Create temp tick dir
 	tmpDir := t.TempDir()
 	tickDir := filepath.Join(tmpDir, ".tick")
@@ -160,28 +142,15 @@ func TestNewClient_SyncMode(t *testing.T) {
 		Token:     "test-token",
 		BoardName: "myboard",
 		TickDir:   tickDir,
-		Mode:      ModeSync,
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if client.mode != ModeSync {
-		t.Errorf("expected ModeSync, got %v", client.mode)
+	if client == nil {
+		t.Fatal("expected client to be created")
 	}
-	if client.tickDir != tickDir {
-		t.Errorf("expected tickDir %q, got %q", tickDir, client.tickDir)
-	}
-}
-
-func TestNewClient_SyncMode_RequiresTickDir(t *testing.T) {
-	_, err := NewClient(Config{
-		Token:     "test-token",
-		BoardName: "myboard",
-		Mode:      ModeSync,
-		// TickDir not set
-	})
-	if err == nil {
-		t.Error("expected error when TickDir is empty in sync mode")
+	if client.cloudURL != DefaultCloudURL {
+		t.Errorf("expected default cloud URL %q, got '%s'", DefaultCloudURL, client.cloudURL)
 	}
 }
 
@@ -206,9 +175,17 @@ func TestSyncState_String(t *testing.T) {
 }
 
 func TestClient_SyncStateTracking(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
 	client, err := NewClient(Config{
 		Token:     "test-token",
 		BoardName: "myboard",
+		TickDir:   tickDir,
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -247,9 +224,17 @@ func TestClient_SyncStateTracking(t *testing.T) {
 }
 
 func TestClient_OfflineQueue(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
 	client, err := NewClient(Config{
 		Token:     "test-token",
 		BoardName: "myboard",
+		TickDir:   tickDir,
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -271,9 +256,17 @@ func TestClient_OfflineQueue(t *testing.T) {
 }
 
 func TestClient_IsConnected(t *testing.T) {
+	tmpDir := t.TempDir()
+	tickDir := filepath.Join(tmpDir, ".tick")
+	issuesDir := filepath.Join(tickDir, "issues")
+	if err := os.MkdirAll(issuesDir, 0755); err != nil {
+		t.Fatalf("failed to create issues dir: %v", err)
+	}
+
 	client, err := NewClient(Config{
 		Token:     "test-token",
 		BoardName: "myboard",
+		TickDir:   tickDir,
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -282,37 +275,5 @@ func TestClient_IsConnected(t *testing.T) {
 	// Not connected initially
 	if client.IsConnected() {
 		t.Error("expected IsConnected() to be false initially")
-	}
-}
-
-func TestLoadConfig_SyncMode(t *testing.T) {
-	os.Setenv(EnvToken, "test-token")
-	defer os.Unsetenv(EnvToken)
-
-	tickDir := "/tmp/myrepo/.tick"
-	cfg := LoadConfig(tickDir, 3000)
-	if cfg == nil {
-		t.Fatal("expected config")
-	}
-
-	// Default mode should be relay
-	if cfg.Mode != ModeRelay {
-		t.Errorf("expected default mode ModeRelay, got %v", cfg.Mode)
-	}
-
-	// TickDir should be set
-	if cfg.TickDir != tickDir {
-		t.Errorf("expected TickDir %q, got %q", tickDir, cfg.TickDir)
-	}
-
-	// Can switch to sync mode
-	cfg.Mode = ModeSync
-	client, err := NewClient(*cfg)
-	if err != nil {
-		// Expected error since tickDir doesn't exist
-		return
-	}
-	if client.mode != ModeSync {
-		t.Errorf("expected ModeSync, got %v", client.mode)
 	}
 }

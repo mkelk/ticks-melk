@@ -5,9 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net"
-	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -24,11 +22,8 @@ import (
 )
 
 const (
-	// DefaultCloudURL is the default ticks.sh WebSocket endpoint (relay mode).
-	DefaultCloudURL = "wss://ticks.sh/agent"
-
-	// DefaultSyncURL is the default ticks.sh WebSocket endpoint (sync mode).
-	DefaultSyncURL = "wss://ticks.sh/api/projects"
+	// DefaultCloudURL is the default ticks.sh WebSocket endpoint.
+	DefaultCloudURL = "wss://ticks.sh/api/projects"
 
 	// EnvToken is the environment variable for the cloud token.
 	EnvToken = "TICKS_TOKEN"
@@ -38,17 +33,6 @@ const (
 
 	// ConfigFileName is the name of the config file in user's home directory.
 	ConfigFileName = ".ticksrc"
-)
-
-// ClientMode defines how the client communicates with the cloud.
-type ClientMode string
-
-const (
-	// ModeRelay uses the legacy relay protocol (proxy HTTP requests).
-	ModeRelay ClientMode = "relay"
-
-	// ModeSync uses the new DO sync protocol (real-time tick sync).
-	ModeSync ClientMode = "sync"
 )
 
 // SyncState represents the connection state for sync mode.
@@ -80,15 +64,13 @@ func (s SyncState) String() string {
 	}
 }
 
-// Client manages the connection to ticks.sh cloud.
+// Client manages the connection to ticks.sh cloud using sync mode.
+// Sync mode provides real-time tick synchronization via Durable Objects.
 type Client struct {
-	token      string
-	cloudURL   string
-	boardName  string
-	machineID  string
-	localAddr  string // e.g., "http://localhost:3000"
-	tickDir    string // path to .tick directory
-	mode       ClientMode
+	token     string
+	cloudURL  string
+	boardName string
+	tickDir   string // path to .tick directory
 
 	conn   *websocket.Conn
 	connMu sync.Mutex
@@ -102,20 +84,20 @@ type Client struct {
 	syncStateMu sync.RWMutex
 	lastSync    time.Time
 
-	// Offline queue for pending changes (sync mode)
+	// Offline queue for pending changes
 	pendingMessages   []json.RawMessage
 	pendingMessagesMu sync.Mutex
 
-	// Sync mode: file watcher
+	// File watcher for local changes
 	watcher *fsnotify.Watcher
 
-	// Sync mode: callback for remote changes (optional)
+	// Callback for remote changes (optional)
 	OnRemoteChange func(t tick.Tick)
 
-	// Sync mode: state change callback (optional)
+	// State change callback (optional)
 	OnStateChange func(state SyncState)
 
-	// Sync mode: track pending files to avoid echo
+	// Track pending files to avoid echo
 	pendingWrites   map[string]time.Time
 	pendingWritesMu sync.Mutex
 }
@@ -125,46 +107,7 @@ type Config struct {
 	Token     string
 	CloudURL  string
 	BoardName string
-	MachineID string
-	LocalAddr string
-	TickDir   string     // path to .tick directory (required for sync mode)
-	Mode      ClientMode // relay or sync (default: relay)
-}
-
-// Message types for WebSocket communication.
-type Message struct {
-	Type string          `json:"type"`
-	Data json.RawMessage `json:"data,omitempty"`
-}
-
-// RegisterMessage is sent to register the board with the cloud.
-type RegisterMessage struct {
-	Token     string `json:"token"`
-	BoardName string `json:"board_name"`
-	MachineID string `json:"machine_id"`
-}
-
-// RequestMessage is a relayed HTTP request from the cloud.
-type RequestMessage struct {
-	ID      string            `json:"id"`
-	Method  string            `json:"method"`
-	Path    string            `json:"path"`
-	Headers map[string]string `json:"headers,omitempty"`
-	Body    string            `json:"body,omitempty"`
-}
-
-// ResponseMessage is the response to send back to the cloud.
-type ResponseMessage struct {
-	ID         string            `json:"id"`
-	StatusCode int               `json:"status_code"`
-	Headers    map[string]string `json:"headers,omitempty"`
-	Body       string            `json:"body,omitempty"`
-}
-
-// EventMessage is an event pushed to the cloud for SSE broadcast.
-type EventMessage struct {
-	Type    string      `json:"type"`
-	Payload interface{} `json:"payload"`
+	TickDir   string // path to .tick directory (required)
 }
 
 // SyncFullMessage sends all ticks to the DO for initial sync.
@@ -270,33 +213,20 @@ func NewClient(cfg Config) (*Client, error) {
 		return nil, fmt.Errorf("token is required")
 	}
 
-	mode := cfg.Mode
-	if mode == "" {
-		mode = ModeRelay // default to relay for backward compatibility
+	if cfg.TickDir == "" {
+		return nil, fmt.Errorf("tickDir is required")
 	}
 
 	cloudURL := cfg.CloudURL
 	if cloudURL == "" {
-		if mode == ModeSync {
-			cloudURL = DefaultSyncURL
-		} else {
-			cloudURL = DefaultCloudURL
-		}
-	}
-
-	// Sync mode requires tickDir
-	if mode == ModeSync && cfg.TickDir == "" {
-		return nil, fmt.Errorf("tickDir is required for sync mode")
+		cloudURL = DefaultCloudURL
 	}
 
 	return &Client{
 		token:         cfg.Token,
 		cloudURL:      cloudURL,
 		boardName:     cfg.BoardName,
-		machineID:     cfg.MachineID,
-		localAddr:     cfg.LocalAddr,
 		tickDir:       cfg.TickDir,
-		mode:          mode,
 		stopChan:      make(chan struct{}),
 		pendingWrites: make(map[string]time.Time),
 	}, nil
@@ -304,7 +234,7 @@ func NewClient(cfg Config) (*Client, error) {
 
 // LoadConfig loads the cloud configuration from environment and config file.
 // Returns nil config if no token is configured (cloud is optional).
-func LoadConfig(tickDir string, localPort int) *Config {
+func LoadConfig(tickDir string) *Config {
 	// Read config file
 	fileCfg := readConfigFile()
 
@@ -319,30 +249,20 @@ func LoadConfig(tickDir string, localPort int) *Config {
 		return nil
 	}
 
-	// Get cloud URL: env var > config file > let NewClient choose default based on mode
+	// Get cloud URL: env var > config file > let NewClient choose default
 	cloudURL := os.Getenv(EnvCloudURL)
 	if cloudURL == "" {
 		cloudURL = fileCfg.URL
 	}
-	// Don't set default here - NewClient will choose based on mode
 
 	// Derive board name from .tick directory or parent directory name
 	boardName := deriveBoardName(tickDir)
-
-	// Generate a machine ID (use hostname for simplicity)
-	machineID, _ := os.Hostname()
-	if machineID == "" {
-		machineID = "unknown"
-	}
 
 	return &Config{
 		Token:     token,
 		CloudURL:  cloudURL,
 		BoardName: boardName,
-		MachineID: machineID,
-		LocalAddr: fmt.Sprintf("http://localhost:%d", localPort),
 		TickDir:   tickDir,
-		Mode:      ModeRelay, // default to relay; caller can change to ModeSync
 	}
 }
 
@@ -466,18 +386,9 @@ func (c *Client) Connect(ctx context.Context) error {
 	c.connMu.Lock()
 	defer c.connMu.Unlock()
 
-	// Build the connection URL based on mode
-	var wsURL string
-	// URL-encode board name for path (encodes / as %2F)
+	// Build the connection URL - connect to /api/projects/:project/sync with token in query
 	encodedBoardName := url.PathEscape(c.boardName)
-	if c.mode == ModeSync {
-		// Sync mode: connect to /api/projects/:project/sync with token in query
-		wsURL = fmt.Sprintf("%s/%s/sync?token=%s&type=local", c.cloudURL, encodedBoardName, c.token)
-	} else {
-		// Relay mode: connect to /agent endpoint with auth info in URL
-		// This allows the main worker to validate before passing to DO
-		wsURL = fmt.Sprintf("%s?token=%s&board=%s&machine=%s", c.cloudURL, url.QueryEscape(c.token), url.QueryEscape(c.boardName), url.QueryEscape(c.machineID))
-	}
+	wsURL := fmt.Sprintf("%s/%s/sync?token=%s&type=local", c.cloudURL, encodedBoardName, c.token)
 
 	// Extract hostname for TLS ServerName (needed if connecting via IP)
 	cloudHost := "ticks.sh"
@@ -521,7 +432,6 @@ func (c *Client) Connect(ctx context.Context) error {
 	if err != nil {
 		// Check for specific auth errors from response
 		if resp != nil {
-			// Debug: print full response info
 			fmt.Fprintf(os.Stderr, "cloud: WebSocket dial failed - status=%d url=%s\n", resp.StatusCode, wsURL)
 			switch resp.StatusCode {
 			case 401:
@@ -534,25 +444,6 @@ func (c *Client) Connect(ctx context.Context) error {
 	}
 
 	c.conn = conn
-
-	// Relay mode: send registration message
-	if c.mode == ModeRelay {
-		regMsg := RegisterMessage{
-			Token:     c.token,
-			BoardName: c.boardName,
-			MachineID: c.machineID,
-		}
-		regData, _ := json.Marshal(regMsg)
-		msg := Message{Type: "register", Data: regData}
-
-		if err := conn.WriteJSON(msg); err != nil {
-			conn.Close()
-			c.conn = nil
-			return fmt.Errorf("failed to register with cloud: %w", err)
-		}
-	}
-	// Sync mode: authentication is handled by token in URL query param
-
 	return nil
 }
 
@@ -600,26 +491,19 @@ func (c *Client) Run(ctx context.Context) error {
 		}
 
 		c.setSyncState(SyncConnected)
-
-		if c.mode == ModeSync {
-			fmt.Fprintf(os.Stderr, "cloud: connected (sync mode) to %s as %s\n", c.cloudURL, c.boardName)
-		} else {
-			fmt.Fprintf(os.Stderr, "cloud: connected (relay mode) to %s as %s/%s\n", c.cloudURL, c.boardName, c.machineID)
-		}
+		fmt.Fprintf(os.Stderr, "cloud: connected to %s as %s\n", c.cloudURL, c.boardName)
 		backoff = time.Second // Reset backoff on successful connection
 
-		// Sync mode: start file watcher and send initial state
-		if c.mode == ModeSync {
-			if err := c.startSyncMode(ctx); err != nil {
-				fmt.Fprintf(os.Stderr, "cloud: sync setup failed: %v (reconnecting...)\n", err)
-				c.setSyncState(SyncError)
-				continue
-			}
+		// Start file watcher and send initial state
+		if err := c.startSyncMode(ctx); err != nil {
+			fmt.Fprintf(os.Stderr, "cloud: sync setup failed: %v (reconnecting...)\n", err)
+			c.setSyncState(SyncError)
+			continue
+		}
 
-			// Flush any pending messages from offline queue
-			if err := c.flushPendingMessages(); err != nil {
-				fmt.Fprintf(os.Stderr, "cloud: flush failed: %v (will retry)\n", err)
-			}
+		// Flush any pending messages from offline queue
+		if err := c.flushPendingMessages(); err != nil {
+			fmt.Fprintf(os.Stderr, "cloud: flush failed: %v (will retry)\n", err)
 		}
 
 		// Handle messages until disconnection
@@ -704,46 +588,8 @@ func (c *Client) handleMessages(ctx context.Context) error {
 			return fmt.Errorf("read error: %w", err)
 		}
 
-		// Handle the message based on mode
-		if c.mode == ModeSync {
-			// Sync mode: messages are direct JSON (not wrapped in {type, data})
-			c.handleSyncMessageRaw(rawMsg)
-		} else {
-			// Relay mode: messages use {type, data} wrapper
-			var msg Message
-			if err := json.Unmarshal(rawMsg, &msg); err != nil {
-				fmt.Fprintf(os.Stderr, "cloud: invalid message: %v\n", err)
-				continue
-			}
-			c.handleRelayMessage(msg)
-		}
-	}
-}
-
-// handleRelayMessage handles messages in relay mode.
-func (c *Client) handleRelayMessage(msg Message) {
-	switch msg.Type {
-	case "ping":
-		// Respond with pong
-		c.sendMessage(Message{Type: "pong"})
-
-	case "registered":
-		// Registration confirmed by server - no action needed
-
-	case "request":
-		// Handle relayed HTTP request
-		var req RequestMessage
-		if err := json.Unmarshal(msg.Data, &req); err != nil {
-			fmt.Fprintf(os.Stderr, "cloud: invalid request message: %v\n", err)
-			return
-		}
-		go c.handleRequest(req)
-
-	case "error":
-		fmt.Fprintf(os.Stderr, "cloud: server error: %s\n", string(msg.Data))
-
-	default:
-		fmt.Fprintf(os.Stderr, "cloud: unknown message type: %s\n", msg.Type)
+		// Handle the message (direct JSON format)
+		c.handleSyncMessageRaw(rawMsg)
 	}
 }
 
@@ -806,81 +652,6 @@ func (c *Client) handleSyncMessageRaw(data []byte) {
 	default:
 		fmt.Fprintf(os.Stderr, "cloud: unknown sync message type: %s\n", typeOnly.Type)
 	}
-}
-
-// handleRequest processes a relayed HTTP request.
-func (c *Client) handleRequest(req RequestMessage) {
-	// Build the local URL
-	url := c.localAddr + req.Path
-
-	// Create the HTTP request
-	var body io.Reader
-	if req.Body != "" {
-		body = strings.NewReader(req.Body)
-	}
-
-	httpReq, err := http.NewRequest(req.Method, url, body)
-	if err != nil {
-		c.sendResponse(ResponseMessage{
-			ID:         req.ID,
-			StatusCode: 500,
-			Body:       fmt.Sprintf("failed to create request: %v", err),
-		})
-		return
-	}
-
-	// Copy headers
-	for k, v := range req.Headers {
-		httpReq.Header.Set(k, v)
-	}
-
-	// Execute the request
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		c.sendResponse(ResponseMessage{
-			ID:         req.ID,
-			StatusCode: 502,
-			Body:       fmt.Sprintf("local request failed: %v", err),
-		})
-		return
-	}
-	defer resp.Body.Close()
-
-	// Read response body
-	respBody, _ := io.ReadAll(resp.Body)
-
-	// Build response headers
-	headers := make(map[string]string)
-	for k := range resp.Header {
-		headers[k] = resp.Header.Get(k)
-	}
-
-	// Send response back to cloud
-	c.sendResponse(ResponseMessage{
-		ID:         req.ID,
-		StatusCode: resp.StatusCode,
-		Headers:    headers,
-		Body:       string(respBody),
-	})
-}
-
-// sendMessage sends a message to the cloud.
-func (c *Client) sendMessage(msg Message) error {
-	c.connMu.Lock()
-	defer c.connMu.Unlock()
-
-	if c.conn == nil {
-		return fmt.Errorf("not connected")
-	}
-
-	return c.conn.WriteJSON(msg)
-}
-
-// sendResponse sends a response message to the cloud.
-func (c *Client) sendResponse(resp ResponseMessage) error {
-	data, _ := json.Marshal(resp)
-	return c.sendMessage(Message{Type: "response", Data: data})
 }
 
 // Close closes the connection to the cloud with a proper WebSocket close handshake.
@@ -991,25 +762,6 @@ func (c *Client) flushPendingMessages() error {
 
 	return nil
 }
-
-// PushEvent sends an event to the cloud for SSE broadcast to connected clients.
-// eventType is the SSE event type (e.g., "tick_update", "tick_create").
-// payload is the event data to be JSON-serialized.
-func (c *Client) PushEvent(eventType string, payload interface{}) error {
-	event := EventMessage{
-		Type:    eventType,
-		Payload: payload,
-	}
-	data, err := json.Marshal(event)
-	if err != nil {
-		return fmt.Errorf("failed to marshal event: %w", err)
-	}
-	return c.sendMessage(Message{Type: "event", Data: data})
-}
-
-// ============================================================================
-// Sync Mode Methods
-// ============================================================================
 
 // startSyncMode initializes sync mode: starts file watcher and sends initial state.
 func (c *Client) startSyncMode(ctx context.Context) error {
@@ -1528,10 +1280,6 @@ func (c *Client) sendSyncMessage(msg interface{}) error {
 // SendRunEvent sends a run event to the DO for broadcast to cloud clients.
 // Run events are transient (not queued when offline) since live output is ephemeral.
 func (c *Client) SendRunEvent(event RunEventMessage) error {
-	if c.mode != ModeSync {
-		return nil // Only supported in sync mode
-	}
-
 	event.Type = "run_event"
 
 	data, err := json.Marshal(event)

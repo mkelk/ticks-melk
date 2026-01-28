@@ -2,8 +2,7 @@
  * Ticks Cloud Worker
  *
  * Routes:
- * - /agent - WebSocket endpoint for local ticks agents
- * - /b/:boardId/* - Proxy requests to connected agents
+ * - /api/projects/:project/sync - WebSocket sync endpoint for ProjectRooms
  * - /api/auth/* - Authentication endpoints
  * - /api/tokens/* - Token management
  * - /api/boards - List boards
@@ -79,41 +78,6 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     // Handle CORS preflight
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders() });
-    }
-
-    // WebSocket endpoint for agents (legacy relay)
-    if (url.pathname === "/agent") {
-      // Pre-validate token in main worker (not in DO) to avoid D1 calls inside DO
-      const token = url.searchParams.get("token");
-      const boardName = url.searchParams.get("board");
-      const machineId = url.searchParams.get("machine") || "unknown";
-      let userId = "";
-
-      if (token) {
-        const tokenInfo = await auth.validateToken(env, token);
-        if (tokenInfo) {
-          userId = tokenInfo.userId;
-          // Register/update board in D1 (done here, not in DO)
-          if (boardName) {
-            auth.registerBoard(env, userId, boardName, machineId).catch(() => {});
-          }
-        }
-      }
-
-      // Route to the global AgentHub instance, passing pre-validated userId
-      const id = env.AGENT_HUB.idFromName("global");
-      const hub = env.AGENT_HUB.get(id);
-
-      // Pass userId via header so DO doesn't need to call D1
-      const headers = new Headers(request.headers);
-      headers.set("X-Validated-User-Id", userId);
-      const modifiedRequest = new Request(request.url, {
-        method: request.method,
-        headers,
-        body: request.body,
-      });
-
-      return hub.fetch(modifiedRequest);
     }
 
     // ProjectRoom sync endpoint: /api/projects/:project/sync

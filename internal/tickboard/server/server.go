@@ -25,14 +25,9 @@ import (
 //go:embed static/*
 var staticFS embed.FS
 
-// EventPusher interface for cloud event broadcasting.
-type EventPusher interface {
-	PushEvent(eventType string, payload interface{}) error
-}
-
-// RunEventPusher interface for pushing run events to cloud (sync mode).
+// CloudClient interface for cloud sync.
 // Uses interface{} to avoid import cycles between server and cloud packages.
-type RunEventPusher interface {
+type CloudClient interface {
 	SendRunEventAny(event interface{}) error
 }
 
@@ -97,8 +92,8 @@ type Server struct {
 	// Separate watcher for records directory (run streaming)
 	recordsWatcher *fsnotify.Watcher
 
-	// Cloud client for event broadcasting
-	cloudClient EventPusher
+	// Cloud client for sync
+	cloudClient CloudClient
 }
 
 // RunStreamEvent represents an SSE event for run streaming.
@@ -146,19 +141,9 @@ func New(tickDir string, port int, opts ...ServerOption) (*Server, error) {
 	return s, nil
 }
 
-// SetCloudClient sets the cloud client for event broadcasting.
-func (s *Server) SetCloudClient(client EventPusher) {
+// SetCloudClient sets the cloud client for sync.
+func (s *Server) SetCloudClient(client CloudClient) {
 	s.cloudClient = client
-}
-
-// pushCloudEvent sends an event to the cloud if connected.
-func (s *Server) pushCloudEvent(eventType string, payload interface{}) {
-	if s.cloudClient == nil {
-		return
-	}
-	if err := s.cloudClient.PushEvent(eventType, payload); err != nil {
-		fmt.Fprintf(os.Stderr, "cloud: failed to push event: %v\n", err)
-	}
 }
 
 // uiDir returns the path to the UI dist directory for dev mode.
@@ -466,7 +451,6 @@ func (s *Server) watchFiles(ctx context.Context) {
 				}
 				activityTimer = time.AfterFunc(debounceDelay, func() {
 					s.broadcast(`{"type":"activity"}`)
-					s.pushCloudEvent("update", map[string]string{"type": "activity"})
 				})
 				continue
 			}
@@ -529,13 +513,10 @@ func (s *Server) watchFiles(ctx context.Context) {
 				// Extract tick ID from filename
 				tickID := strings.TrimSuffix(filepath.Base(lastTickEvent.Name), ".json")
 
-				// Broadcast the change locally
+				// Broadcast the change locally (cloud sync is handled by cloud client's file watcher)
 				msg := fmt.Sprintf(`{"type":"%s","tickId":"%s"}`, eventType, tickID)
 				fmt.Fprintf(os.Stderr, "[DEBUG] watchFiles: broadcasting tick change: %s\n", msg)
 				s.broadcast(msg)
-
-				// Push to cloud
-				s.pushCloudEvent("update", map[string]string{"type": eventType, "tickId": tickID})
 			})
 
 		case err, ok := <-s.watcher.Errors:
@@ -2236,13 +2217,6 @@ func (s *Server) pushRunEventToCloud(epicID string, eventType string, data inter
 		return
 	}
 
-	// Check if cloud client supports run events (sync mode)
-	pusher, ok := s.cloudClient.(RunEventPusher)
-	if !ok {
-		fmt.Fprintf(os.Stderr, "[DEBUG] pushRunEventToCloud: cloud client does not support RunEventPusher\n")
-		return
-	}
-	fmt.Fprintf(os.Stderr, "[DEBUG] pushRunEventToCloud: sending %s for epic %s\n", eventType, epicID)
 
 	// Extract taskId from data if present
 	var taskID string
@@ -2294,7 +2268,7 @@ func (s *Server) pushRunEventToCloud(epicID string, eventType string, data inter
 		}
 	}
 
-	if err := pusher.SendRunEventAny(event); err != nil {
+	if err := s.cloudClient.SendRunEventAny(event); err != nil {
 		fmt.Fprintf(os.Stderr, "cloud: failed to push run event: %v\n", err)
 	}
 }

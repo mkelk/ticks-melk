@@ -232,7 +232,7 @@ export class RunOutputPane extends LitElement {
 
     .line-content {
       flex: 1;
-      white-space: pre-wrap;
+      white-space: pre-line;
       word-break: break-word;
       color: var(--text, #cdd6f4);
       text-align: left;
