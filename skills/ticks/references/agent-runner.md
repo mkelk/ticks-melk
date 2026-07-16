@@ -35,8 +35,12 @@ Orchestration produces commits and merges. If you're on `main`/`master`, create 
    Export TK_ACTOR=<runner>:orchestrator so every tk write from this session
    stamps activity entries with a recognisable actor — distinguishing orchestrator actions from
    human actions in the feed. (See "Actor convention" below.)
-1. tk graph <epic> --json          → waves + max_parallel
-2. EPIC-SKELETON pre-flight (self-healing): if step 1's result carries a non-empty
+1. Establish the project execution profile: read .tick/profile.md; if missing or stale,
+   characterize the project now — before wave 1 — and write it (see "Project execution profile"
+   below). It supplies the worktree provisioning recipe and the per-tier verify venues this
+   loop depends on.
+2. tk graph <epic> --json          → waves + max_parallel
+3. EPIC-SKELETON pre-flight (self-healing): if step 2's result carries a non-empty
    missing_process_ticks (roles no child tick has — "review", "closeout"), create the
    missing process ticks now — before wave 1 — with `tk create --role <role>` per the
    templates in SKILL.md's Big picture section. This repairs epics planned by older
@@ -44,24 +48,34 @@ Orchestration produces commits and merges. If you're on `main`/`master`, create 
    `tk update -t epic`. Idempotent and cheap; never skip it.
    (Older tk without missing_process_ticks: fall back to checking tk list --parent <epic>
    for the two process ticks by hand.)
-3. For each wave:
-   a. Mark the wave's ticks in_progress
+4. For each wave:
+   a. Pick the dispatch mode with the economic gate — solo-tick, parallel-wave, or
+      warm-chain(s) — and note the choice (see "Dispatch modes and the economic gate").
+      A dispatch unit is one tick or one ordered chain of ticks.
+   b. Mark the dispatched ticks in_progress
       `tk update <id> --status in_progress` emits a 'start' activity entry and sets started_at
       on the tick — claiming is immediately visible on the board and in the activity feed.
-   b. Launch one implementer per tick using the active harness adapter, recording each
-      tick's branch/worktree in a durable note as soon as the name is known (before launch
-      when the adapter controls naming; at first report when the harness assigns it)
-   c. Wait using the harness's native completion primitive. Avoid busy polling.
-   d. Integrate each verified tick by merging its branch, but do not close tracker state or clean
-      branches/worktrees yet. If any sibling cannot integrate, keep every affected tick open and
-      retain all repair state, including siblings already merged.
-   e. When the whole wave is merged, persist the post-wave test evidence and run the project's
-      test suite on the integrated tree.
-   f. Only after that gate passes, close all wave ticks durably, then clean their worktrees/branches.
+   c. Launch one implementer per dispatch unit using the active harness adapter, recording
+      each unit's branch/worktree in a durable note as soon as the name is known (before launch
+      when the adapter controls naming; at first report when the harness assigns it).
+      Every worktree must be provisioned runnable per the profile before implementation starts —
+      by you before dispatch, or by the implementer as its first step when the harness creates
+      the worktree at launch (see "Provisioning: runnable worktrees").
+   d. Wait using the harness's native completion primitive. Avoid busy polling.
+   e. Integrate each verified unit by merging its branch, but do not close tracker state or clean
+      branches/worktrees yet. In-worktree test tiers were already verified by the implementer;
+      for any tier the profile routes post-merge, verify it here on the merge candidate
+      (git merge --no-commit → run that tier → green: keep it; red: abort and keep the unit open)
+      — see "Post-merge verification (serial venue)". If any sibling cannot integrate, keep every
+      affected tick open and retain all repair state, including siblings already merged.
+   f. When the whole wave is merged, persist the post-wave test evidence and run the project's
+      test suite on the integrated tree (tiers already verified per merge candidate need not re-run).
+   g. Only after that gate passes, close all wave ticks durably (for a chain, close each tick its
+      report marks DONE), then clean their worktrees/branches.
       Always pass --reason: `tk close <id> --reason "Completed: <one-line summary of what landed>"`.
       Never use a bare `tk close`.
-   g. Re-read `.tick/config.md` and run any steps in `At wave end` (no-op if absent), then go to the next wave.
-4. The final-review tick and close-out tick unblock in sequence — tk next returns each in turn.
+   h. Re-read `.tick/config.md` and run any steps in `At wave end` (no-op if absent), then go to the next wave.
+5. The final-review tick and close-out tick unblock in sequence — tk next returns each in turn.
    Execute them like any other tick (see "Meta-work ticks" below).
 ```
 
@@ -86,7 +100,7 @@ The `--role` flag is what makes the skeleton machine-detectable: `tk graph <epic
 
 **Why at planning time:** with these ticks in the tracker from the start, every `tk next` result maps to exactly one action — implement, review, or close out. A session that dies mid-run resumes by re-invoking the skill and calling `tk next`; no state reconstruction is needed (see *Resuming a run*).
 
-**Why also a run-start pre-flight (step 1 of the loop):** planning time is the primary creation point, but epics reach run time through other doors — planned by an older skill version, planned by another tool, or promoted with `tk update -t epic` (which bypasses the planning flow entirely). The pre-flight check repairs all of these before wave 1.
+**Why also a run-start pre-flight (step 3 of the loop):** planning time is the primary creation point, but epics reach run time through other doors — planned by an older skill version, planned by another tool, or promoted with `tk update -t epic` (which bypasses the planning flow entirely). The pre-flight check repairs all of these before wave 1.
 
 **Final-review tick** — run the configured frontier reviewer read-only in the controller checkout, never in an implementation worktree and never with edit/write/tracker authority. Review the full source diff from the epic's recorded base branch against its description, acceptance, and applicable spec. Require schema-validated findings (`severity`, `confidence`, `file`, `line`, `message`) and persist the full log, report, and findings; malformed output fails closed. Blockers create controller-owned repair ticks discovered from the review (or reopen work only when routing is unambiguous), and those repairs block the still-open review. Route should-fix findings according to explicit policy. A clean/routable review closes only after final configured tests have persisted passing evidence.
 
@@ -106,7 +120,7 @@ Before calling `tk graph`, read `.tick/config.md` (if present). Its sections are
 
 Consumed later in the loop, by the orchestrator only — never inlined into implementer prompts:
 
-- **`At wave end`** — extra steps after each wave's post-wave gate passes (loop step 3g).
+- **`At wave end`** — extra steps after each wave's post-wave gate passes (loop step 4h).
 - **`At epic close-out`** — extra retro steps and/or a durable destination for the retro report (see "Epic-close retro", step 7).
 - **`At project checkpoint`** — steps and/or a durable destination for the completion report written at a project boundary stop (see "Discipline rules").
 
@@ -118,12 +132,73 @@ An absent or empty hook section is a no-op; so is an unrecognized `##` heading, 
 
 **Run continuously.** Once the user has asked you to execute the epic, work wave to wave without stopping to ask "should I continue?". The only reasons to stop are: a blocker you can't resolve, genuine ambiguity that prevents progress, or the epic is done. Progress-summary check-ins between waves just cost the user time.
 
+### Project execution profile (`.tick/profile.md`)
+
+The profile is the run's **inferred** understanding of how this project builds, runs, and tests — generated and maintained by the orchestrator, never hand-authored. It exists because two facts govern how wide a wave can safely run, and neither lives in tick data:
+
+- **Runnability** — what a fresh worktree needs before it can build and test. Dependency directories (`node_modules`, a venv, `target/`) are gitignored, so a bare worktree is an isolated *source* tree, not a runnable one.
+- **Test-tier venues** — for each test tier (typecheck, lint, unit, integration, e2e), where it can safely run: **in-worktree** (parallel-safe, or isolable by provisioning a private resource) or **post-merge** (the tier touches a shared singleton — one test DB, a fixed port, a global service — that concurrent runs would corrupt).
+
+**Project-start characterization (idempotent, incremental).** At step 1 of the loop:
+
+1. Load what is known: the existing profile, `.tick/config.md` (overrides), `.tick/learnings.md`, CI config, the test-runner config, the package manager and ignore files.
+2. If the profile's recorded inputs (lockfile hash, test-harness config) are unchanged, keep it as-is — the normal, near-free case.
+3. Otherwise characterize (read-only exploration, cheap capability tier): derive the provisioning recipe, the test-tier→venue map, and the services the project needs; record evidence and a confidence per item. The profile also carries the **observed warm/cold task-time ratio** once the first epic supplies data (see "Dispatch modes and the economic gate") — it parameterizes the gate.
+4. Write the profile. Planning consumes it — it determines wave width, verify venues, and dispatch modes.
+
+**Safety bias (hard rule).** Route a test tier in-worktree only on **positive evidence of isolation** — per-test transactions, schema-per-worker, testcontainers, per-worker ports. Absence of evidence of sharing is NOT evidence of isolation; default to post-merge. Mis-parallelizing corrupts waves silently; mis-serializing only costs speed.
+
+**Runtime tripwire.** Static invalidation has false negatives — a new test hitting a fixed port changes testability without touching anything that looks like "setup." If parallel in-worktree verifies turn flaky or nondeterministic, downgrade that tier to post-merge immediately and record why in the profile; don't wait for the next characterization.
+
+**Isolable is a cost decision, not a free tier.** Provisioning a private resource per worktree (e.g. a test database each) buys parallel verify at a real cost in memory, ports, and startup time. Record the cost in the profile and choose isolate-vs-post-merge per run; sometimes serial verify is simply cheaper.
+
+**Maintenance and routing.** The retro re-characterizes when an epic's diff touched the build/test setup; the tripwire covers what static triggers miss. `.tick/config.md` overrides the profile only for facts the repo cannot reveal — an out-of-repo shared resource (a staging DB, a rate-limited external API) — or to correct a confirmed mis-inference; note overrides with their source. To prevent drift across knowledge files: execution characteristics live in the profile, ad-hoc Problem→Cause→Rule gotchas live in learnings, human-declared out-of-repo facts live in config.
+
+### Provisioning: runnable worktrees
+
+"Isolated" means isolated **and runnable**. Before implementation starts in a tick's worktree, the profile's provisioning recipe must be applied so the tree can build and run its in-worktree test tiers. Who applies it depends on the adapter: when the orchestrator creates worktrees, it provisions before dispatch; when the harness creates the worktree at agent launch, the implementer self-provisions as its FIRST step (the prompt template instructs this). The recipe is project-specific and lives in the profile — never hardcode an ecosystem's commands in skill text.
+
+**First run (no recipe yet): discover it — solo.** Make one worktree runnable by whatever means the project needs, confirm the tests actually run there, and record the recipe in the profile. Do this once, before the first parallel wave (a single-tick foundation wave is the natural slot), so N agents don't race the same discovery.
+
+**Shared-state caution.** Recipes that share mutable state with the main checkout (e.g. linking a dependency directory) are fast but add a boundary rule: implementers must NOT run dependency installs in a shared-deps worktree — an install mutates the shared directory under every sibling. Give dependency-adding ticks a privately provisioned worktree or run them solo; this extends the existing lockfile-serialization rule from the commits to the act itself.
+
+### Dispatch modes and the economic gate
+
+The graph's waves are **feasibility, not a dispatch order**: they say what *may* run concurrently, never what must. Planning makes waves as wide as safety allows; this gate decides, dispatch by dispatch, how much of that width actually pays. Running narrower than the graph permits is often right — doing it silently is not (see "Never silently degrade" in the discipline rules).
+
+Three ways to execute ready work; pick deliberately, and note the choice:
+
+1. **Solo-tick** — a single ready tick; one worktree, or the shared tree when nothing else runs concurrently (see "Why worktree isolation").
+2. **Parallel-wave** — one fresh implementer per tick in provisioned worktrees (the default for wide waves of substantial ticks).
+3. **Warm-chain** — one implementer executes an **ordered chain of related ticks** in one worktree, one branch, one warm context: committing per tick (`tick <id>: …` — the audit trail survives), reporting a status line per tick, still never touching `tk`. The chain integrates as one unit (one candidate merge, one post-merge gate); the orchestrator closes each chain tick at integration from the per-tick report lines. Chains compose with parallelism: **K disjoint chains run in K parallel worktrees.** A dead chain resumes from its last committed tick.
+
+**The gate prices BOTH provisioning and cold starts.** A fresh implementer pays a cold-start tax — reading learnings/config/instructions/code before productive work — that a warm worker pays once per chain, not once per tick. Empirically the warm/cold per-task ratio can reach ⅓–½ on small ticks. Compare per wave:
+
+- *parallel-wave wall* ≈ max(cold tick times) + width × serial-gate time + provisioning
+- *warm-chain(s) wall* ≈ per chain: first task cold + remaining tasks warm; disjoint chains in parallel
+
+Heuristics over false precision: **chain** small (≲20-min), same-subsystem ticks; **go wide with fresh implementers** when ticks are hour-scale (the cold start amortizes inside the tick) or genuinely unrelated; **parallel warm-chains** when the wave partitions into 2–3 cohesive, file-disjoint groups. When any gate fails, sequential is the correct, *noted* choice — "never silently degrade" forbids drift, not judgment. Record the observed warm/cold ratio in the profile after the first epic and use measured numbers thereafter.
+
+**Chain protocol details:** a chain must be **dependency-closed** — every blocker of a chain tick is either an earlier tick in the same chain or already-integrated work — which is also what lets a chain legitimately collapse several graph waves into one dispatch; no two concurrent dispatch units share files (same rule as wave safety); mark the whole chain's ticks `in_progress` at dispatch; the chain prompt lists the ticks in order with each description + acceptance inline (same self-contained rule as single-tick prompts); the implementer runs the in-worktree test tiers after each tick and commits before starting the next; `DONE` per tick in the final report, one line each. Note the venue map still shrinks the bill: worktrees need only the in-worktree test tiers; shared test tiers run post-merge per *chain*, not per tick.
+
+**Amortize: pool worktrees.** Instead of create → provision → destroy per tick, keep provisioned worktrees and reuse them for successive ticks or chains: reset to the current integration commit between assignments (`git checkout <integration-commit>` + `git clean -fd`), start each on a fresh branch. One provisioning then pays for many ticks. Cleanup moves from per-tick to pool retirement (epic end).
+
+### Post-merge verification (serial venue)
+
+When the profile routes a test tier post-merge, verification for that tier moves from the implementers to you:
+
+- Implementers run only their in-worktree test tiers before reporting. **`DONE` then means "implemented, committed, in-worktree test tiers pass" — not "acceptance fully verified."**
+- Integrate serially on a merge candidate: `git merge --no-commit <branch>` → run the post-merge tier(s) on the candidate → **green: keep the merge** (the wave's durable close still waits for the post-wave gate in loop step 4g) / **red: abort the merge** (`git merge --abort`) and keep the unit open — continue or redispatch the implementer with the failure. Never leave the integration branch red, and never start the next candidate on a red tree.
+- **Attribution is a heuristic.** Green-before/red-after points at the tick being merged, but the root cause can be an earlier tick's latent bug that this one merely exposed (a semantic conflict). Start with the just-merged tick; be prepared to land the fix in either.
+- Implementation still parallelizes — only candidate-merge-plus-verify is serial, and that serialization is inherent to the shared resource, not to the model.
+
 ## Discipline rules
 
 These rules complement the "run continuously" guidance above. Name them internally so you can act on them rather than drift past them.
 
 - **Scope never shrinks.** You may split, merge, or reorder ticks, and scope may grow (bugs, discovered gaps) — but only the human removes scope. If the Epic-close retro's outside-in verification finds an undelivered scope item, fix it now; never relabel it "follow-up."
 - **No known-failure closes.** A tick cannot close with failing acceptance criteria. There is no "close with known issues" state — it passes, or it stays open/blocked/awaiting.
+- **Never silently degrade.** Running below the graph's feasible width — sequential instead of parallel, shared tree instead of worktrees, a skipped venue — is sometimes the right call (a failed gate, provisioning too costly for a narrow wave), but only as a stated decision with the reason noted; the retro's dispatch-mode ledger is the natural record. Degrading without a note is drift, and drift is a bug in the run.
 - **Name the stall instinct.** Completing a large body of work triggers the instinct to summarize and hand control back. Epic boundaries with a close-out tick are waypoints, not stopping points. The "run continuously" rule above is the explicit counter to this instinct.
 - **Recursive continuation frontier.** The continuation engine ascends the project tree. Within a project, epic→epic boundaries auto-continue: when one epic closes, the next feasible epic in soft order begins immediately (skipping hard-blocked or gated epics). When every epic inside a project is done, the engine reaches the **project boundary**.
 - **Project checkpoint (default: stop).** A project boundary stops for a human checkpoint by default. The project's close-out tick carries `--awaiting checkpoint`, so `tk next` surfaces it as `action: await` and the run pauses for a human to look before the next project begins. Before yielding, re-read `.tick/config.md` → `At project checkpoint` and execute its steps; if it names a report destination, write the completion report there as a durable file (no-op if the section is absent). Epic→epic boundaries within a project are unaffected — they still auto-continue. The planning fallback also surfaces completed projects via `CompletedProjectsNeedingCloseout` when all leaf descendants are closed but the project tick is still open.
@@ -538,13 +613,14 @@ Epic: <epic-title> (<epic-id>)
 <1-2 sentences: where this sits in the epic, and what earlier ticks already built that you can rely on>
 
 ## Instructions
-1. Read `.tick/learnings.md` (if present) — accumulated gotchas from earlier epics.
-2. Read `.tick/config.md` (if present) — the `Testing` and `Rules` sections apply to you; the orchestrator-only `At …`, `Closeout Evidence Commands`, and `Acceptance Evidence` sections do not.
-3. Read the repository instruction file used by your harness (`AGENTS.md`, `CLAUDE.md`, or equivalent) and any nested instruction files that apply.
-4. Read the relevant existing code before changing anything.
-5. Implement the task test-first: write the failing test, then make it pass.
-6. Run the tests named in the acceptance criteria and confirm they pass.
-7. Commit your changes in this worktree: `git add -A && git commit -m "tick <tick-id>: <short summary>"`.
+1. If this worktree was created for you at launch and is not yet runnable, provision it **first** per the project profile's recipe (e.g. install dependencies) so the in-worktree test tiers can run; skip if the orchestrator already provisioned it.
+2. Read `.tick/learnings.md` (if present) — accumulated gotchas from earlier epics.
+3. Read `.tick/config.md` (if present) — the `Testing` and `Rules` sections apply to you; the orchestrator-only `At …`, `Closeout Evidence Commands`, and `Acceptance Evidence` sections do not.
+4. Read the repository instruction file used by your harness (`AGENTS.md`, `CLAUDE.md`, or equivalent) and any nested instruction files that apply.
+5. Read the relevant existing code before changing anything.
+6. Implement the task test-first: write the failing test, then make it pass.
+7. Run the in-worktree test tiers named in the acceptance criteria and confirm they pass (tiers the profile routes post-merge are the orchestrator's to run — do not attempt them here).
+8. Commit your changes in this worktree: `git add -A && git commit -m "tick <tick-id>: <short summary>"`.
 
 ## Boundaries (important)
 - Do NOT run any `tk` command and do NOT touch the `.tick/` directory — the orchestrator owns all tick state.
@@ -561,6 +637,10 @@ Epic: <epic-title> (<epic-id>)
   STATUS: NEEDS_CONTEXT — <what you need>
   STATUS: BLOCKED — <why>
 ```
+
+### Warm-chain prompt variant
+
+For a chain assignment, adapt the template: under `## Task`, list the chain's ticks **in order**, each with its full description and acceptance inline (a chain implementer sees only its prompt — same self-contained rule). Replace the implement/verify/commit instructions with: *implement the ticks strictly in order; after each, run the in-worktree test tiers and commit `tick <tick-id>: <summary>` before starting the next; if a tick blocks, report and stop the chain there (completed ticks stay committed).* The report ends with **one status line per tick** (`<tick-id>: DONE | BLOCKED — reason`), so the orchestrator can close exactly the completed prefix at integration.
 
 ## Current limitations
 

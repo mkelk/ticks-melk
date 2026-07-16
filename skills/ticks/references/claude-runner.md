@@ -44,6 +44,17 @@ Agent(
 )
 ```
 
+## Worktree provisioning under `isolation: "worktree"`
+
+The harness creates the worktree **at agent launch**, so the orchestrator cannot provision it beforehand. Two resolutions of the shared protocol's provisioning step (`agent-runner.md` → "Provisioning: runnable worktrees"):
+
+- **Default: implementer self-provisions.** The shared prompt template's provisioning step handles it — the agent applies the profile's recipe as its first action, before touching code. This requires the recipe to already exist in `.tick/profile.md` (discovered solo at run start, loop step 1), or the wave's agents will each rediscover it.
+- **Alternative: orchestrator-created worktrees.** When provisioning must precede the agent (heavy setup, private resources, or you want to verify runnability before paying for a dispatch), create the worktree yourself, provision it, then dispatch a normal `Agent` **without** `isolation: "worktree"` and point its prompt at that directory and branch.
+
+Watch the concurrency cost: N simultaneous full dependency installs can thrash disk/network — prefer profile recipes that share immutable state safely from the main checkout, and remember the shared-deps **no-install** boundary. Apply the shared **economic gate** before provisioning wide — when a wave is too narrow/short to repay provisioning, deliberate-and-noted sequential is the correct call. Do NOT let a provisioning failure silently degrade the run to shared-tree sequential execution; if provisioning fails, fix the recipe (or fall back deliberately and note it), don't drift. If worktrees are **pooled** across ticks, the manual-worktree path fits best (harness-created `isolation: "worktree"` trees are single-shot); run cleanup at pool retirement (epic end), not per tick.
+
+**Warm-chain mapping.** A chain is **one `Agent` call** with the chain prompt variant (shared protocol → "Warm-chain prompt variant") — the warm context lives inside that single agent, so never split a chain across Agent calls. Mid-chain course corrections use `SendMessage` to the live agent; after a crash, redispatch a fresh Agent into the same worktree/branch pointed at the first un-committed tick (the completed prefix stays merged). Tier note: a chain aggregates several ticks' worth of judgment — resolve the chain's capability tier from its *hardest* link, not its average.
+
 ## Successful-integration cleanup
 
 This is the adapter's resolution of the shared protocol's "run the active adapter's successful-integration cleanup" step (`agent-runner.md`). **Claude isolation worktrees are not self-cleaning once they hold commits.** The harness auto-removes an `isolation: "worktree"` directory only while it is *unchanged*; every tick implementer commits code, so its worktree and `worktree-agent-*` branch persist after the run and accumulate under `.claude/worktrees/` (multi-GB leaks across a few epics). The orchestrator must remove them explicitly — do not assume the harness will.

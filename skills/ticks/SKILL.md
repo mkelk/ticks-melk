@@ -84,6 +84,8 @@ The three **`At …`** sections are **hooks**, not authorization: a project runs
 
 **Why not `AGENTS.md` or `CLAUDE.md`?** Those files guide interactive agents in their respective harnesses. `.tick/config.md` is the runner-neutral contract for dispatched implementers and is consumed programmatically. Projects may cross-reference them, but runner config must not depend on one vendor's instruction file.
 
+**Inferred profile (`.tick/profile.md`).** Alongside the *declared* config above, the orchestrator maintains an *inferred* `.tick/profile.md` at run start: how a fresh worktree is made runnable (dependency install recipe) and which test tiers are parallel-safe in-worktree vs. must run post-merge. It's generated and maintained by the runner, never hand-authored — see `references/agent-runner.md` → "Project execution profile".
+
 **6. Pi executable extension (when running an epic in Pi):**
 
 Check whether Pi registered `/ticks-plan`, `/ticks-run`, `/ticks-status`, and `/ticks-dashboard` (RPC clients can inspect `get_commands`). If they are absent, explain that the skill supplies instructions but cannot activate extension code, and recommend the package:
@@ -355,6 +357,8 @@ Ticks in the same wave (no blocking relationship between them) run concurrently,
 - **Lockfiles and generated files are seams too:** two same-wave ticks that each add a dependency both rewrite `pnpm-lock.yaml`/`go.sum` — put all dependency additions in one early tick, or serialize them.
 
 **Slice vertically within each constraint group.** Carve ticks by user-visible capability (one feature front-to-back), not by layer (all schema, then all API, then all UI), so every tick leaves the system working and demoable. When vertical slicing and a constraint surface disagree, the surface wins. See `references/tick-patterns.md` for the full reasoning.
+
+**Group small cohesive ticks into warm-chains.** A run of small, same-subsystem ticks needn't each pay a fresh implementer's cold-start — the orchestrator can dispatch them as an ordered *warm-chain* (one worker, one worktree, committing per tick). Partitioning and dispatch mode are one joint decision against the project profile; see `references/agent-runner.md` → "Dispatch modes and the economic gate".
 
 **Define shared contracts first.** When several ticks consume the same interface (an API shape, a DB schema, a shared type), make one tick that defines it and have the others `--blocked-by` it. A stable contract up front lets the dependents run in parallel against a known shape instead of guessing — and keeps their descriptions naming things the same way.
 
