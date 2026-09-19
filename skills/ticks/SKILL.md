@@ -159,7 +159,7 @@ Run the **Definition of Ready** checklist in `references/tick-patterns.md` again
 
 ### Step 3: Create Ticks from Requirements
 
-**Dispatch planning at frontier tier.** Decomposition is the highest-leverage decision in the epic. Always synthesize at frontier tier, even when implementation will use a cheaper model or lower reasoning effort. Use parallel read-only exploration when the harness supports it. See `references/agent-runner.md` → "Planning tier" and the active harness adapter.
+**Dispatch planning at frontier tier.** Decomposition is the highest-leverage decision in the epic. Always synthesize at frontier tier, even when implementation will use a cheaper model or lower reasoning effort. Use parallel read-only exploration when the harness supports it — the scouts belong at the cheapest tier, since they read and summarize rather than judge. The plan is also where each tick's tier is *decided*: carry the tier out of planning with the tick, so dispatch is reading a decision rather than making one under time pressure (`references/agent-runner.md` → "Choosing a capability tier per tick", DEFAULT-DOWN RULE, and "What a run actually costs"). See also the active harness adapter.
 
 In Pi with the package extension installed, prefer safe automated planning:
 

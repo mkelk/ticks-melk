@@ -183,6 +183,39 @@ Heuristics over false precision: **chain** small (≲20-min), same-subsystem tic
 
 **Amortize: pool worktrees.** Instead of create → provision → destroy per tick, keep provisioned worktrees and reuse them for successive ticks or chains: reset to the current integration commit between assignments (`git checkout <integration-commit>` + `git clean -fd`), start each on a fresh branch. One provisioning then pays for many ticks. Cleanup moves from per-tick to pool retirement (epic end).
 
+### What a run actually costs
+
+The economic gate above prices *wall time* — provisioning and cold starts. This prices
+**tokens**, which the gate does not see and which a subscription notices first. The
+ordering below is from measured runs, largest first; spend attention in that order rather
+than on whichever knob is nearest.
+
+1. **The orchestrator's own context.** It is the longest-lived context in the system: it
+   runs for the whole epic, re-reads files, and carries every merge, gate and report. At a
+   large context window every turn re-sends that accumulation, so its cost grows with the
+   square of how long the session has run, not linearly. Start a fresh session at epic
+   boundaries — the records (`.tick/`, the retro, the increment's overview) exist exactly
+   so the next session can resume from files rather than from a transcript. A run that
+   never clears is one long turn paying for all of it, every turn.
+2. **Review fan-out.** Each axis is another full read of the epic diff at the highest tier
+   in the run. Three axes on one epic is three of them. See "What earns an axis".
+3. **Implementation tier.** Ordinary ticks dispatched above their shape (see the
+   DEFAULT-DOWN RULE). This is the block that grows with tick count, so it dominates in
+   long epics even though each individual overspend looks small.
+4. **Planning.** Frontier synthesis once per epic is cheap and is the highest-leverage
+   spend in the run — keep it. Its scouts belong at the cheapest tier; they read and
+   summarize, they do not judge.
+5. **Ceremony.** Every process document is written by a model and then re-read by the
+   orchestrator, so the same events get paid for once per retelling. Narrate once: the
+   epic retro is the record, and anything else that must mention the epic gets a pointer
+   to it rather than its own paragraph. A project that wants a narrative history should
+   say which single file carries it.
+
+Two corollaries worth stating, because both look like thrift and are not: a cheaper model
+that needs three attempts and a review to land a tick costs more than the right tier once,
+and re-running a whole test tier to verify a one-line fix costs more than the targeted run
+that actually answers the question.
+
 ### Post-merge verification (serial venue)
 
 When the profile routes a test tier post-merge, verification for that tier moves from the implementers to you:
@@ -264,7 +297,25 @@ Pick the tier for each tick, not once for the run. The adapter decides whether t
 
 The tier names are the contract. Claude may map them to model classes; Codex normally keeps a strong model and varies reasoning effort. See the active adapter.
 
-**REVIEWER-TIER RULE:** review with a model at least as capable as the one that wrote the code. Epic final reviews default to the frontier tier.
+**DEFAULT-DOWN RULE.** The table gives each shape its tier; that tier is where the tick
+starts, not a floor to round up from. Dispatching above a tick's shape is a spend decision
+and needs a reason in the run's dispatch ledger — one clause is enough ("touches the
+delivery receipt", "deletion needing reference triage"). No reason recorded, the shape's
+tier stands. This is not the cost-optimization the paragraph above warns against: that
+warns against putting an under-powered configuration on work that fails subtly, and a
+named reason is exactly how you say a tick is that work. Absent this rule the drift runs
+the other way — a run of ordinary ticks all dispatched at the orchestrator's own tier
+because that was the tier in front of you. It is measurable after the fact: a ledger
+showing most implementation above **balanced** with few reasons recorded was not tiering
+at all.
+
+**Frontier unavailable is a degrade, not a promotion.** When the frontier class refuses
+(usage limit, outage), record the degrade and choose the fallback *for that role* — the
+planner and the epic review are what the tier was for. It is not a licence to raise the
+rest of the run to the fallback tier: implementation ticks keep the tiers their shapes
+earned.
+
+**REVIEWER-TIER RULE:** review with a model at least as capable as the one that wrote the code. Epic final reviews default to the frontier tier — and when every implementer ran below it, at least the highest tier any of them used.
 
 ### Why worktree isolation
 
@@ -352,6 +403,16 @@ Skipping per-tick review for routine, well-specified ticks is fine — that's th
 Tag each finding with a **confidence** as well as a severity. Severity sets the gate (a blocker stops the close); confidence sets how much to trust the finding before acting. A wide fan-out generates noise — verify low-confidence findings against the code first, and drop the ones that don't survive.
 
 **Optional: fan out a substantial review.** Review is read-only, so a harness with parallel workflow support can assign one agent per axis, then verify findings. A single reviewer remains the portable default. Pick the axes the diff earns rather than running the whole menu by reflex:
+
+**What earns an axis.** Every axis is another full read of the epic's diff at review tier,
+so name what earned it before dispatching, in the run's review-depth ledger. An axis is
+earned when the diff actually contains its subject: **security** by auth, input handling,
+secrets or a new outward-facing surface; **correctness** by concurrency, money, delivery
+or anything idempotent; **performance** by a hot path or a new query; **test quality** by
+new behaviour whose tests are the only proof; **contract design** by a shared type or API
+shape others will build on. An epic of copy, styling or documentation earns one reviewer,
+not three — and the reviewer that finds nothing on an axis the diff never touched is the
+tell that the menu was run by reflex.
 
 - **Spec compliance** — diff matches the tick/epic scope and acceptance; nothing missing, nothing extra.
 - **Correctness** — logic, edge cases, concurrency.
