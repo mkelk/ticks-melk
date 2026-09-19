@@ -25,9 +25,13 @@ Resolve the shared capability tiers to Claude model classes. The tier names are 
 | strong implementation | large non-frontier model (opus-class, dated example) |
 | frontier | most capable model available (fable-class, dated example) |
 
-The shared tier table is guidance, not enforcement: the orchestrator is assumed to run on a frontier-class model and is trusted to weigh each tick's actual complexity — round up when a "mechanical" tick hides judgment (load-bearing docs, deletions needing reference triage).
+The shared tier table is guidance, not enforcement: the orchestrator is assumed to run on a frontier-class model and is trusted to weigh each tick's actual complexity — round up when a "mechanical" tick hides judgment (load-bearing docs, deletions needing reference triage), and say in the ledger what the judgment was (shared protocol → DEFAULT-DOWN RULE).
 
 **`model=` is REQUIRED on every `Agent` call.** Omitting it is not "defaulting to balanced" — the subagent silently inherits the orchestrator's model, which is normally frontier. Pick a tier first, then resolve it; never omit.
+
+**When the frontier class is at its usage limit.** Claude subscriptions meter the top class separately, so `model: "fable"` can return HTTP 429 with no output while every other class still answers. Record the degrade, redispatch *that role* one class down (the reviewer-tier rule still holds: a reviewer one class down is fine when it is still at or above what wrote the code), and leave the rest of the wave on the tiers their shapes earned. The failure mode this exists to stop, observed across two increments: after the first 429 the run quietly settles at strong-class for planning, review *and* implementation — the ledger then reads "opus" on nearly every line, and the tier table has stopped doing anything. If the frontier class is refusing every attempt for a whole session, that is worth saying to the human once, not re-discovering per dispatch.
+
+**The orchestrating session is itself a cost.** On Claude the orchestrator commonly runs frontier-class with a large context window, and it lives longer than any agent it dispatches (shared protocol → "What a run actually costs", item 1). Prefer one session per epic over one per increment: the records are designed to be resumed from. `/clear` at an epic boundary, then re-enter with `/dmtix go`, costs one cheap re-read of `.tick/` and the overview, and stops every later turn from paying for the whole epic's transcript.
 
 ## Dispatch
 
