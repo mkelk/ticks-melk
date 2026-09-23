@@ -1,8 +1,8 @@
 # Learnings
 
 Repo-specific operational gotchas for implementer agents and the orchestrator.
-Format: Problem → Cause → Rule under category headers. Hard cap 150 lines — compact at every
-epic retro. Process-level (cross-repo) learnings belong in the ticks skill, not here — see
+Format: Problem → Cause → Rule under category headers. Size budget 16384 bytes, ≤800 bytes
+per entry — compact at every epic retro. Process-level (cross-repo) learnings belong in the ticks skill, not here — see
 `skills/ticks/references/claude-runner.md` (Epic-close retro, promotion table).
 
 ## Tick authoring
