@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`.tick/learnings.md` cap is a size budget, not a line count** — the file is read in full by every implementer, so its size is a per-agent context tax, and a 150-line cap was met by merging entries into longer lines that kept every byte (one repo sat at 150 lines while growing from 15 KB to 47 KB). `tk status` and `tk close` (on epics) now warn when the file exceeds 16384 bytes, and name each entry over 800 bytes — an entry is one `Problem → Cause → Rule` block under a `##` header — by line, first ~60 characters and size. The 150-line check and its warning are gone. `tick.CheckLearningsCap`/`LearningsCap` are replaced by `tick.CheckLearnings`/`MeasureLearnings` and `LearningsBudgetBytes`/`LearningsEntryBytes`; the limits are constants (there was no config knob before, and none is added). The skill's retro step 3 measures bytes and says that merging entries into longer lines is not compaction.
 - **Deterministic implementation capability routing** — public graph tasks now include description, acceptance criteria, type, and labels. The Pi runner selects configured economy/balanced/strong tiers from tracker metadata and conservative task shape, records its reason in plans/dashboards/reports, and keeps review/closeout execution reserved.
 - **Recovery status semantics** — tracker active aliases are normalized while awaiting, failed/partial, completed cleanup debt, terminal lane history, and manifest history remain distinct.
 

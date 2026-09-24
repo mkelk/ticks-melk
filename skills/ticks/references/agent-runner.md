@@ -485,7 +485,7 @@ Operational learnings for future implementer agents live in `.tick/learnings.md`
 **Rule:** Run `pnpm install --frozen-lockfile` from the package directory, not the repo root, in every implementer.
 ```
 
-**Hard cap: 150 lines.** Enforce this at every retro (step 3 below).
+**Size budget: ~16 KB (16384 bytes) in total, ≤800 bytes per entry.** An entry is one `Problem → Cause → Rule` block. The budget is in bytes, not lines, because bytes are what every reader pays for; `tk` warns when the file or an entry is over. Enforce it at every retro (step 3 below).
 
 **Read fresh at point of use — never inline from the orchestrator's context.** The orchestrator session spans epic boundaries; any copy inlined before a retro is stale after one. Implementers already have the current version in their worktree. Instruct them to read the file directly (the implementer prompt template does this), and re-read it yourself at each planning and partitioning pass rather than relying on an earlier in-context copy.
 
@@ -523,9 +523,9 @@ Re-read the file immediately after adding new entries:
 
 1. Merge duplicates (same problem stated twice, or a new rule that supersedes an old one).
 2. Delete entries the codebase has outgrown (the trap they described no longer exists).
-3. Count lines. If over 150, cut the lowest-signal entries until you are at or under the cap.
+3. Measure bytes (`wc -c .tick/learnings.md`). If over 16384, cut the lowest-signal entries until you are at or under the budget; tighten any entry over 800 bytes. Merging entries into longer lines is not compaction — it keeps every byte.
 
-The 150-line cap is hard. Compaction is the mechanism that keeps it honest — without this step the file grows indefinitely and stops being read.
+The size budget is hard. Compaction is the mechanism that keeps it honest — without this step the file grows indefinitely and stops being read.
 
 #### 4. Outside-in verification
 
