@@ -26,7 +26,7 @@ After this increment, a run on the ticks engine:
 ## Outstanding human items
 - Review the increment and smoke-test, then close project tick `s07`. Decide whether and when to merge PR #5 (shipping is the human's decision).
 - skills-fe reinstalls the user-level ticks skill after the merge (the six fh streams are pinned on the installed copy).
-- For skills-fe (dmtix side, mkelk/skills#4): the deferred two-tier `## Testing` skeleton, which the sunset tally now depends on. Also the `planted fault` outcome semantics: a planted fault should go red, so a "catch" there needs its own definition.
+- skills-fe acked the checkpoint and ratified the sunset scope (demote only `## Testing` tick-gate commands; `by-path run`/`planted fault` tallied for the record). It owns both follow-ups: the two-gate `## Testing` skeleton (mkelk/skills#4, dmtix bootstrap), and the engine-text gap on `planted fault` outcomes (its catch is "went red"; "stayed green" means the test changed).
 - Unrelated older epics 7ab, qr4 and weo still show as active in `tk roadmap`.
 
 ## Postmortems
