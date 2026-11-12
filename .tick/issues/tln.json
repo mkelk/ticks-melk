@@ -3,7 +3,7 @@
   "title": "Planted-fault rule in tick-patterns.md TDD section",
   "description": "Write the planted-fault rule into skills/ticks/references/tick-patterns.md, in the \"Test-Driven Development\" section only. Do not touch \"Partitioning\" or \"Definition of Ready\".\n\n- Watching a new test fail (a planted fault) is required only where the logic can be wrong in a way the test should catch. It is not required on data tables, word lists or class maps.\n- The example acceptances that say \"no regressions\" or \"existing tests pass\" must not read as \"run the full suite per tick\". Point them at the tests the change reaches, and leave regressions to the wave gate.\n- extensions/ticks-runner/planning.ts reads this file by path (128 KB cap), so run the Pi suite whole: this is the by-path rule applying to itself.\n\nSpec (source of truth): docs/thoughts/2026-11-12-lean-epics.md. Edit only files under skills/ticks/ (never an installed copy). Settled names, use exactly: the \"tick gate\" (per tick, in the worktree, run by the implementer: typecheck, the tests the change reaches, the build) and the \"wave gate\" (per wave, or per chain integration, run by the integrator: the full suite, slow suites, specs, shared generated outputs regenerated once). The existing in-worktree/post-merge \"venues\" stay: a venue says where a test tier is safe to run; the gates say who runs what, when. Add no new config syntax: `## Testing` may group commands under the two gate names in prose; the project maps commands to gates. Keep the engine voice: terse, no step lists where a criterion will do.",
   "notes": "2026-11-12 12:31 - runner-state: runner=claude branch=tick/pjz/chain1 worktree=/home/morten/git/.ticks-worktrees/pjz-chain1 chain=ada,tln,lhr,23c,1dw tier=strong(opus) reason: edits the engine's own rules; consistency across references",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "type": "task",
   "owner": "morten@elk.dk",
@@ -14,6 +14,7 @@
   "acceptance_criteria": "- The TDD section states the conditional planted-fault rule; no sentence in tick-patterns.md mandates a planted fault on every new test\n- tick-patterns.md stays under 128 KB\n- `node --test --no-warnings extensions/ticks-runner/*.test.ts` passes",
   "created_by": "morten@elk.dk",
   "created_at": "2026-11-12T11:30:32.700400131Z",
-  "updated_at": "2026-11-12T11:31:08.313966036Z",
-  "started_at": "2026-11-12T11:31:07.278095758Z"
+  "updated_at": "2026-11-12T11:58:55.421807338Z",
+  "closed_at": "2026-11-12T11:58:55.421807338Z",
+  "closed_reason": "Completed: tick-patterns TDD section — planted fault only where logic can be wrong; 'existing tests pass' = reached tests, regressions to the wave gate. Wave gate at af06c92a: Pi/Go failures are host-load flakes, A/B-matched at baseline 403d086a (logs: ../.ticks-worktrees/logs/pjz/ab.log); CI on PR authoritative"
 }

@@ -3,7 +3,7 @@
   "title": "Adapters agree with the new template; sweep skills/ticks/",
   "description": "Make the adapters agree with the new template, then sweep skills/ticks/ for leftovers.\n\n- Check every reference to the template or its steps: skills/ticks/references/claude-runner.md (the Dispatch section, \"Worktree provisioning\" on the provisioning step, \"Warm-chain mapping\") and skills/ticks/references/codex-runner.md (the template and read-inputs references). Fix any that names a step or shape that no longer exists.\n- Adapters point to the shared template for the gates and the planted-fault rule; they do not restate them.\n- Leave field notes as history.\n- skills/ticks/references/pi-runner.md describes Testing commands running in every accepted child and again on the merged controller. That is true of the Pi extension code, which is out of scope. Keep it, and add one sentence that the Pi package does not yet split the tick gate from the wave gate.\n- Finally, grep all of skills/ticks/ for leftovers and fix any outside field notes.\n\nSpec (source of truth): docs/thoughts/2026-11-12-lean-epics.md. Edit only files under skills/ticks/ (never an installed copy). Settled names, use exactly: the \"tick gate\" (per tick, in the worktree, run by the implementer: typecheck, the tests the change reaches, the build) and the \"wave gate\" (per wave, or per chain integration, run by the integrator: the full suite, slow suites, specs, shared generated outputs regenerated once). The existing in-worktree/post-merge \"venues\" stay: a venue says where a test tier is safe to run; the gates say who runs what, when. Add no new config syntax: `## Testing` may group commands under the two gate names in prose; the project maps commands to gates. Keep the engine voice: terse, no step lists where a criterion will do.",
   "notes": "2026-11-12 12:31 - runner-state: runner=claude branch=tick/pjz/chain1 worktree=/home/morten/git/.ticks-worktrees/pjz-chain1 chain=ada,tln,lhr,23c,1dw tier=strong(opus) reason: edits the engine's own rules; consistency across references",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "type": "task",
   "owner": "morten@elk.dk",
@@ -15,6 +15,7 @@
   "acceptance_criteria": "- `grep -rniE 'full suite|slow (tier|suite)|planted|watch it fail|test-first' skills/ticks/` hits only integrator/wave-gate or conditional contexts (field notes excepted)\n- Neither claude-runner.md nor codex-runner.md lists a per-tick gate set or references a removed template step\n- pi-runner.md states the Pi package does not yet split the two gates",
   "created_by": "morten@elk.dk",
   "created_at": "2026-11-12T11:30:38.771641993Z",
-  "updated_at": "2026-11-12T11:31:18.030336457Z",
-  "started_at": "2026-11-12T11:31:16.887790841Z"
+  "updated_at": "2026-11-12T11:58:58.535554175Z",
+  "closed_at": "2026-11-12T11:58:58.535554175Z",
+  "closed_reason": "Completed: claude/codex adapters point to the shared template; pi-runner states Pi does not yet split the gates; sweep clean; plus review fixes 7ee8b156 (loop line, tick-gate commands for ungrouped Testing, gate renames, K-chain clause). Wave gate at af06c92a: Pi/Go failures are host-load flakes, A/B-matched at baseline 403d086a (logs: ../.ticks-worktrees/logs/pjz/ab.log); CI on PR authoritative"
 }
