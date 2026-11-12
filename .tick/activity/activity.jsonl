@@ -867,3 +867,10 @@
 {"ts":"2026-11-12T11:23:24.251076206Z","tick":"s07","action":"create","actor":"morten@elk.dk","data":{"priority":2,"title":"Lean engine","type":"task"}}
 {"ts":"2026-11-12T11:23:25.375541766Z","tick":"pjz","action":"create","actor":"morten@elk.dk","epic":"s07","data":{"priority":2,"title":"Lean brief and two-tier verification","type":"epic"}}
 {"ts":"2026-11-12T11:23:26.99315597Z","tick":"z5t","action":"create","actor":"morten@elk.dk","epic":"s07","data":{"priority":2,"title":"Lean dispatch and context","type":"epic"}}
+{"ts":"2026-11-12T11:30:31.587245511Z","tick":"ada","action":"create","actor":"claude:orchestrator","epic":"pjz","data":{"priority":2,"title":"Name the tick gate and wave gate in agent-runner.md","type":"task"}}
+{"ts":"2026-11-12T11:30:32.700887061Z","tick":"tln","action":"create","actor":"claude:orchestrator","epic":"pjz","data":{"priority":2,"title":"Planted-fault rule in tick-patterns.md TDD section","type":"task"}}
+{"ts":"2026-11-12T11:30:33.936869746Z","tick":"lhr","action":"create","actor":"claude:orchestrator","epic":"pjz","data":{"priority":2,"title":"Reshape the implementer prompt template and warm-chain variant","type":"task"}}
+{"ts":"2026-11-12T11:30:35.158763229Z","tick":"23c","action":"create","actor":"claude:orchestrator","epic":"pjz","data":{"priority":2,"title":"SKILL.md: the Testing row and shape use the two gates","type":"task"}}
+{"ts":"2026-11-12T11:30:38.772124495Z","tick":"1dw","action":"create","actor":"claude:orchestrator","epic":"pjz","data":{"priority":2,"title":"Adapters agree with the new template; sweep skills/ticks/","type":"task"}}
+{"ts":"2026-11-12T11:30:46.563285094Z","tick":"tsi","action":"create","actor":"claude:orchestrator","epic":"pjz","data":{"priority":2,"title":"Final review of Lean brief and two-tier verification diff","type":"task"}}
+{"ts":"2026-11-12T11:30:47.710724943Z","tick":"czb","action":"create","actor":"claude:orchestrator","epic":"pjz","data":{"priority":2,"title":"Close out Lean brief and two-tier verification: run epic retro, then flesh out the next feasible epic into ticks","type":"task"}}

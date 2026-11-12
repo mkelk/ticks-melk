@@ -1,0 +1,17 @@
+{
+  "id": "czb",
+  "title": "Close out Lean brief and two-tier verification: run epic retro, then flesh out the next feasible epic into ticks",
+  "description": "Epic-close retro per agent-runner.md, then .tick/config.md At epic close-out steps; then plan z5t.",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "morten@elk.dk",
+  "blocked_by": [
+    "tsi"
+  ],
+  "parent": "pjz",
+  "role": "closeout",
+  "created_by": "morten@elk.dk",
+  "created_at": "2026-11-12T11:30:47.710237999Z",
+  "updated_at": "2026-11-12T11:30:47.710237999Z"
+}
