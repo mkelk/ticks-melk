@@ -1,6 +1,6 @@
 # Running Epics with AI Agents
 
-Run a Ticks epic by orchestrating implementer agents from the current harness. Read the dependency graph, launch one implementer per ready tick in an isolated git worktree, and integrate their work wave by wave.
+Run a Ticks epic by orchestrating implementer agents from the current harness. Read the dependency graph, launch implementers in isolated git worktrees — one per ordered chain of ready ticks by default, or one per tick — and integrate their work wave by wave.
 
 This is the runner-neutral execution contract. **Before reading further, identify your harness and load its adapter — do not skip this step or default to Claude Code:**
 
@@ -17,7 +17,7 @@ The harness plays the orchestrator; git and `.tick/` are the durable coordinatio
 ## Mental model
 
 - **You are the orchestrator.** You own all tick state: you spawn implementers, wait for them, integrate their branches, and update ticks. You don't write feature code yourself during a run — you coordinate.
-- **One tick = one implementer = one worktree = one mergeable branch.** This maps directly onto the "atomic, committable piece of work" principle behind a well-formed tick.
+- **One dispatch unit = one implementer = one worktree = one mergeable branch.** A unit is one tick or an ordered chain of ticks committed per tick, so each tick stays the "atomic, committable piece of work" behind a well-formed tick.
 - **Waves are your unit of parallelism.** `tk graph` groups ticks into waves; everything in a wave can run at once because nothing in it depends on anything else in it.
 
 ## Orchestration-evolution principle
@@ -49,8 +49,9 @@ Orchestration produces commits and merges. If you're on `main`/`master`, create 
    (Older tk without missing_process_ticks: fall back to checking tk list --parent <epic>
    for the two process ticks by hand.)
 4. For each wave:
-   a. Pick the dispatch mode with the economic gate — solo-tick, parallel-wave, or
-      warm-chain(s) — and note the choice (see "Dispatch modes and the economic gate").
+   a. Pick the dispatch mode with the economic gate — parallel warm-chains by default;
+      solo-tick or parallel-wave as a noted choice — with the width capped by the rate window,
+      and note the choice in the dispatch ledger (see "Dispatch modes and the economic gate").
       A dispatch unit is one tick or one ordered chain of ticks.
    b. Mark the dispatched ticks in_progress
       `tk update <id> --status in_progress` emits a 'start' activity entry and sets started_at
@@ -167,20 +168,24 @@ The profile is the run's **inferred** understanding of how this project builds, 
 
 ### Dispatch modes and the economic gate
 
-The graph's waves are **feasibility, not a dispatch order**: they say what *may* run concurrently, never what must. Planning makes waves as wide as safety allows; this gate decides, dispatch by dispatch, how much of that width actually pays. Running narrower than the graph permits is often right — doing it silently is not (see "Never silently degrade" in the discipline rules).
+The graph's waves are **feasibility, not a dispatch order**: they say what *may* run concurrently, never what must. Planning makes waves as wide as safety allows; this gate decides, dispatch by dispatch, how much of that width actually pays. The default runs narrower than the graph permits, as parallel warm-chains; every other choice is a noted one, never a silent one (see "Never silently degrade" in the discipline rules).
 
-Three ways to execute ready work; pick deliberately, and note the choice:
+Three ways to execute ready work; parallel warm-chains are the default, and any other choice is noted in the dispatch ledger:
 
-1. **Solo-tick** — a single ready tick; one worktree, or the shared tree when nothing else runs concurrently (see "Why worktree isolation").
-2. **Parallel-wave** — one fresh implementer per tick in provisioned worktrees (the default for wide waves of substantial ticks).
-3. **Warm-chain** — one implementer executes an **ordered chain of related ticks** in one worktree, one branch, one warm context: committing per tick (`tick <id>: …` — the audit trail survives), running the tick gate per tick, reporting a status line per tick, still never touching `tk`. The chain integrates as one unit (one candidate merge, one wave gate); the orchestrator closes each chain tick at integration from the per-tick report lines. Chains compose with parallelism: **K disjoint chains run in K parallel worktrees.** A dead chain resumes from its last committed tick.
+1. **Solo-tick** — a single ready tick; one worktree, or the shared tree when nothing else runs concurrently (see "Why worktree isolation"). A tick that is itself the wave's longest runs solo beside the chains.
+2. **Parallel-wave** — one fresh implementer per tick in provisioned worktrees. A noted choice, for hour-scale ticks (the cold start amortizes inside the tick) or genuinely unrelated ones.
+3. **Warm-chain** — one implementer executes an **ordered chain of related ticks** in one worktree, one branch, one warm context: committing per tick (`tick <id>: …` — the audit trail survives), running the tick gate per tick, reporting a status line per tick, still never touching `tk`. The chain integrates as one unit (one candidate merge, one wave gate); the orchestrator closes each chain tick at integration from the per-tick report lines. Chains compose with parallelism: **K disjoint chains run in K parallel worktrees** — *parallel warm-chains*, the default. A dead chain resumes from its last committed tick.
 
 **The gate prices BOTH provisioning and cold starts.** A fresh implementer pays a cold-start tax — reading learnings/config/instructions/code before productive work — that a warm worker pays once per chain, not once per tick. Empirically the warm/cold per-task ratio can reach ⅓–½ on small ticks. Compare per wave:
 
 - *parallel-wave wall* ≈ max(cold tick times) + width × serial-gate time + provisioning
 - *warm-chain(s) wall* ≈ per chain: first task cold + remaining tasks warm; disjoint chains in parallel
 
-Heuristics over false precision: **chain** small (≲20-min), same-subsystem ticks; **go wide with fresh implementers** when ticks are hour-scale (the cold start amortizes inside the tick) or genuinely unrelated; **parallel warm-chains** when the wave partitions into 2–3 cohesive, file-disjoint groups. When any gate fails, sequential is the correct, *noted* choice — "never silently degrade" forbids drift, not judgment. Record the observed warm/cold ratio in the profile after the first epic and use measured numbers thereafter.
+**Parallel warm-chains are the default.** K chains in K worktrees, grouped by subsystem and tier (one chain is one tier), file-disjoint. Balance them against the critical path: chain the short ticks so the longest chain is about the longest single tick; a tick that is itself the longest runs solo. Wall time stays at the wave's; cold starts drop to K. Target: **2-3 implementers per epic** unless the work is large. Any other choice — one fresh implementer per tick, more or fewer chains, sequential — is a noted one, in the dispatch ledger. The cold start is paid per implementer, not per tick, so ticks stay small for resume granularity: a chain of small ticks resumes from the last one that landed, a fat tick from zero. Heuristics over false precision: **chain** small (≲20-min), same-subsystem, same-tier ticks; **go wide with fresh implementers** only when ticks are hour-scale or genuinely unrelated. When any gate fails, sequential is the correct, *noted* choice — "never silently degrade" forbids drift, not judgment. Record the observed warm/cold ratio in the profile after the first epic and use measured numbers thereafter.
+
+**The rate window caps width.** A subscription's usage window is a gate input, not a surprise: a burst of implementers launched together can hit it and stall all of them, so more width can mean longer wall time. Size the dispatch width to the window's headroom, and note in the dispatch ledger when the window is what capped it.
+
+**Static prefix.** Implementers launched together get an identical static prefix, in this order: system prompt, repo instruction file, learnings head, rules; per-tick data comes after it. The generic part of the cold start can then cache across agents. That cache-accounting benefit is unverified (how a subscription's rate accounting treats cache reads); check it before counting on it. The template's base check carries a per-tick commit, so the prefix is not byte-identical; the engine asks for the ordering only.
 
 **Chain protocol details:** a chain must be **dependency-closed** — every blocker of a chain tick is either an earlier tick in the same chain or already-integrated work — which is also what lets a chain legitimately collapse several graph waves into one dispatch; no two concurrent dispatch units share files (same rule as wave safety); mark the whole chain's ticks `in_progress` at dispatch; the chain prompt lists the ticks in order with each description + acceptance inline (same self-contained rule as single-tick prompts); the implementer runs the tick gate after each tick and commits before starting the next; `DONE` per tick in the final report, one line each. Note the gates still shrink the bill: worktrees need only the tick gate's tiers; the wave gate runs per *chain*, not per tick (K chains in one wave: loop step 4f).
 
@@ -243,7 +248,7 @@ These rules complement the "run continuously" guidance above. Name them internal
 
 - **Scope never shrinks.** You may split, merge, or reorder ticks, and scope may grow (bugs, discovered gaps) — but only the human removes scope. If the Epic-close retro's outside-in verification finds an undelivered scope item, fix it now; never relabel it "follow-up."
 - **No known-failure closes.** A tick cannot close with failing acceptance criteria. There is no "close with known issues" state — it passes, or it stays open/blocked/awaiting.
-- **Never silently degrade.** Running below the graph's feasible width — sequential instead of parallel, shared tree instead of worktrees, a skipped venue — is sometimes the right call (a failed gate, provisioning too costly for a narrow wave), but only as a stated decision with the reason noted; the retro's dispatch-mode ledger is the natural record. Degrading without a note is drift, and drift is a bug in the run.
+- **Never silently degrade.** Parallel warm-chains are the default, not a degrade, though they run fewer implementers than the graph's width. Departing from them — sequential instead of parallel chains, one fresh implementer per tick, a width the rate window capped, shared tree instead of worktrees, a skipped venue — is sometimes the right call (a failed gate, hour-scale ticks, provisioning too costly for a narrow wave), but only as a stated decision with the reason noted in the dispatch ledger, which the retro carries as its dispatch-mode ledger. Departing without a note is drift, and drift is a bug in the run.
 - **Name the stall instinct.** Completing a large body of work triggers the instinct to summarize and hand control back. Epic boundaries with a close-out tick are waypoints, not stopping points. The "run continuously" rule above is the explicit counter to this instinct.
 - **Recursive continuation frontier.** The continuation engine ascends the project tree. Within a project, epic→epic boundaries auto-continue: when one epic closes, the next feasible epic in soft order begins immediately (skipping hard-blocked or gated epics). When every epic inside a project is done, the engine reaches the **project boundary**.
 - **Project checkpoint (default: stop).** A project boundary stops for a human checkpoint by default. The project's close-out tick carries `--awaiting checkpoint`, so `tk next` surfaces it as `action: await` and the run pauses for a human to look before the next project begins. Before yielding, re-read `.tick/config.md` → `At project checkpoint` and execute its steps; if it names a report destination, write the completion report there as a durable file (no-op if the section is absent). Epic→epic boundaries within a project are unaffected — they still auto-continue. The planning fallback also surfaces completed projects via `CompletedProjectsNeedingCloseout` when all leaf descendants are closed but the project tick is still open.
