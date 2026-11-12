@@ -2,7 +2,7 @@
   "id": "kff",
   "title": "Final review of Lean dispatch and context diff",
   "description": "Frontier review (fable) of the z5t diff against its DoD, pjz retro inputs a-d, and the spec. Earned axes: spec compliance + cross-reference consistency (prose, three parallel chains), correctness + test quality (Go budget tick G1). Should-fix routes back by file owner to the warm chain implementers.",
-  "status": "open",
+  "status": "in_progress",
   "priority": 2,
   "type": "task",
   "owner": "morten@elk.dk",
@@ -15,5 +15,6 @@
   "role": "review",
   "created_by": "morten@elk.dk",
   "created_at": "2026-11-12T12:06:33.087042592Z",
-  "updated_at": "2026-11-12T12:06:33.087042592Z"
+  "updated_at": "2026-11-12T13:04:46.940296857Z",
+  "started_at": "2026-11-12T13:04:46.940295987Z"
 }
