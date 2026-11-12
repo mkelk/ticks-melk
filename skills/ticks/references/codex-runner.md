@@ -70,7 +70,7 @@ At the time this adapter was updated, the recommended strongest model is `gpt-5.
 
 `codex exec resume <session-id>` is useful within one live orchestration session, but session IDs are not durable runner state. It is the warm turn: an implementer is retired after the epic's final review, not after its tick, and the review's findings on its code go back to it by resuming its session. After a crash or cross-runner handoff, or when the warm worker is gone, run a fresh `codex exec -C <existing-worktree>` with the tick, prior report, review feedback, and current branch state — the fallback for a warm turn too, noted in the dispatch ledger. Never create a second branch for the tick.
 
-Codex loads `AGENTS.md` automatically. The implementer prompt must also tell it to read `.tick/config.md` and `.tick/learnings.md`; those files are execution inputs even though the implementer must not modify `.tick/`.
+Codex loads `AGENTS.md` automatically. The rest of the read order comes from the shared implementer template (instruction file, learnings head `.tick/learnings.md` with `.tick/learnings-ref.md` looked up by category when the head points there, then `.tick/config.md`); keep it in the prompt. Those files are execution inputs even though the implementer must not modify `.tick/`.
 
 ## Boundary hardening
 

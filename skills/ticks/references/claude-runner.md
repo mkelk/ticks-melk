@@ -9,7 +9,7 @@ Read [`agent-runner.md`](agent-runner.md) first. This file maps its capability c
 | Isolation | `Agent(..., isolation: "worktree")` |
 | Parallel dispatch | Put all `Agent` calls for a wave (one per chain or solo tick) in one message with `run_in_background: true` |
 | Completion | Agent completion notifications and the value returned by `Agent` |
-| Continuation | `SendMessage` to the named agent or returned agent ID: mid-task corrections and the warm turn after review (live agents in this session only — see "Continuation after a crash") |
+| Continuation | `SendMessage` to the named agent or returned agent ID: mid-task corrections and the warm turn after review (agents spawned in this session, running or finished — see "Continuation after a crash") |
 | Review | A read-only reviewer `Agent` (see "Review" below for axis mapping; "Workflow" before reaching for fan-out) |
 
 Set `TK_ACTOR=claude:orchestrator` before tracker writes. For orchestrator self-isolation (the "don't run on main" rule), `EnterWorktree` gives the orchestrating session its own worktree as an alternative to creating a feature branch.
@@ -85,7 +85,7 @@ That leaves a window: a session that dies mid-wave has live branches with no not
 
 ## Continuation after a crash
 
-`SendMessage` only reaches agents alive in the current session. To continue incomplete work in an existing worktree after a crash or handoff — or to deliver a warm turn whose warm worker is gone — dispatch a fresh `Agent` **without** `isolation: "worktree"` and instruct it in the prompt to work in the existing worktree directory on the existing branch (give it the absolute path and branch name, plus the prior report and what remains). Never let it create a second branch for the tick. A fresh dispatch in place of a warm turn is noted in the dispatch ledger.
+`SendMessage` only reaches agents spawned in this session, running or finished. To continue incomplete work in an existing worktree after a crash or handoff — or to deliver a warm turn whose warm worker is gone — dispatch a fresh `Agent` **without** `isolation: "worktree"` and instruct it in the prompt to work in the existing worktree directory on the existing branch (give it the absolute path and branch name, plus the prior report and what remains). Never let it create a second branch for the tick. A fresh dispatch in place of a warm turn is noted in the dispatch ledger.
 
 ## Workflow
 
