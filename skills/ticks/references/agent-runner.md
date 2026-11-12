@@ -602,10 +602,10 @@ For very large epics, this step can be fanned out with the harness's parallel re
 
 Harness checks stay constant; the model re-verifying itself shrinks on evidence.
 
-- **Scope.** The tally covers only checks that claim to catch something and carry a report line: the `## Testing` tick-gate commands, `by-path run`, and `planted fault`. Harness checks — the wave gate, the final review, the DoD, the checkpoint — are never candidates. Checks a project mandates through `.tick/config.md` `## Rules` are human intent held constant: the human changes them, the retro never demotes them.
+- **Scope.** The tally covers only checks that claim to catch something and carry a report line: the `## Testing` tick-gate commands, `by-path run`, and `planted fault`. Demotion candidates are the `## Testing` tick-gate commands. `by-path run` and `planted fault` are template rules that already sit at "where the logic warrants"; they are tallied for the record, and a restore for either writes "every tick" for that check into `## Testing`. Harness checks — the wave gate, the final review, the DoD, the checkpoint — are never candidates. Checks a project mandates through `.tick/config.md` `## Rules` are human intent held constant: the human changes them, the retro never demotes them.
 - **Tally.** Per check label, from the implementer reports' per-check lines. *Caught* means `went red and changed the code`. `went red, not from this change` is recorded but is not a catch. An epic where a check was only `not applicable` counts neither way. The prior epic's tally is read from the previous retro report.
 - **Demote.** A check with no catch for two consecutive epics is demoted in `.tick/config.md` `## Testing` from every tick to "where the logic warrants". The retro applies the demotion; the retro report records it with its evidence.
-- **Restore.** Rework found at the wave gate or the final review in a demoted check's domain restores the check to every tick — the sunset runs in reverse. The report records the restore and the rework behind it.
+- **Restore.** Rework found at the wave gate or the final review in a demoted check's domain restores the check to every tick in `## Testing` — the sunset runs in reverse. The report records the restore and the rework behind it.
 
 #### 7. Retro report
 
