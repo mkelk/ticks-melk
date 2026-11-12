@@ -63,25 +63,26 @@ Orchestration produces commits and merges. If you're on `main`/`master`, create 
       the worktree at launch (see "Provisioning: runnable worktrees").
    d. Wait using the harness's native completion primitive. Avoid busy polling.
    e. Integrate each verified unit by merging its branch, but do not close tracker state or clean
-      branches/worktrees yet. In-worktree test tiers were already verified by the implementer;
-      for any tier the profile routes post-merge, verify it here on the merge candidate
+      branches/worktrees yet. The implementer already passed the tick gate; for any wave-gate
+      tier the profile routes post-merge, verify it here on the merge candidate
       (git merge --no-commit → run that tier → green: keep it; red: abort and keep the unit open)
       — see "Post-merge verification (serial venue)". If any sibling cannot integrate, keep every
       affected tick open and retain all repair state, including siblings already merged.
-   f. When the whole wave is merged, persist the post-wave test evidence and run the project's
-      test suite on the integrated tree (tiers already verified per merge candidate need not re-run).
-   g. Only after that gate passes, close all wave ticks durably (for a chain, close each tick its
+   f. When the whole wave is merged, run the wave gate on the integrated tree and persist its
+      evidence (tiers already verified per merge candidate need not re-run). Shared generated
+      outputs (screenshots, baselines, built assets) are regenerated here, once, by you after the
+      merge — once per chain for a chain — never by the ticks.
+   g. Only after the wave gate passes, close all wave ticks durably (for a chain, close each tick its
       report marks DONE), then clean their worktrees/branches.
       Always pass --reason: `tk close <id> --reason "Completed: <one-line summary of what landed>"`.
       Never use a bare `tk close`.
-   h. Re-read `.tick/config.md` and run any steps in `At wave end` (no-op if absent), then go to the next wave.
-5. The final-review tick and close-out tick unblock in sequence — tk next returns each in turn.
+   h. Re-read `.tick/config.md` and run any steps in `At wave end` (no-op if absent), then go to the next wave.5. The final-review tick and close-out tick unblock in sequence — tk next returns each in turn.
    Execute them like any other tick (see "Meta-work ticks" below).
 ```
 
 Order matters: integrate a wave's work *before* launching the next, so wave N+1 agents branch from a tree that already contains wave N's changes.
 
-**Verify the wave after merging, not just the ticks.** Each implementer ran its tests in its own worktree — against a tree that didn't contain its siblings' changes. Two branches can merge cleanly and still break each other. A merge is provisional until the integrated gate passes: defer every close and cleanup. If the gate fails, reopen/keep open every affected tick, note the failed evidence, retain every branch/worktree, and block dependents. For repair, advance each already-merged retained branch to the integrated failure commit before adding a follow-up commit; this avoids replaying the original change or creating a duplicate branch. Only a passed gate authorizes durable closes and cleanup.
+**Verify the wave after merging, not just the ticks.** Each implementer ran its tick gate in its own worktree — against a tree that didn't contain its siblings' changes. Two branches can merge cleanly and still break each other; the wave gate is where that shows. Shared generated outputs are regenerated once, by the integrator, after the merge (once per chain for a chain) — ticks that regenerate them duplicate work and collide. A merge is provisional until the wave gate passes: defer every close and cleanup. If the wave gate fails, reopen/keep open every affected tick, note the failed evidence, retain every branch/worktree, and block dependents. For repair, advance each already-merged retained branch to the integrated failure commit before adding a follow-up commit; this avoids replaying the original change or creating a duplicate branch. Only a passed gate authorizes durable closes and cleanup.
 
 **Optional: dependency-driven launching.** Waves are a barrier: nothing in wave N+1 starts until all of wave N is integrated. But a tick is actually ready the moment *its specific blockers* are merged and verified. Since you're woken per-agent anyway, you can launch a tick as soon as its last blocker integrates instead of waiting for the whole wave — a throughput win on epics with uneven waves. Wave barriers remain the simpler default and easier to audit; if you go dependency-driven, the per-tick rules below (merge, verify, then launch dependents) still apply unchanged.
 
@@ -112,7 +113,7 @@ Both meta-ticks are owned by the orchestrator, not by implementer subagents. The
 
 Before calling `tk graph`, read `.tick/config.md` (if present). Its sections are lifecycle-addressed — each recognized name is wired to exactly one consumption point (full table in SKILL.md → *Per-project runner config*). Consumed now, at run start:
 
-- **Testing** — the exact test commands to pass on to implementers and to run at wave-end verification.
+- **Testing** — the exact test commands: the tick gate's go to implementers, the wave gate's run at wave end (see "The tick gate and the wave gate"). The project groups them under the two gate names in prose.
 - **Closeout Evidence Commands** — strict controller-owned commands executable only by closeout, never by implementers, per-tick verifiers, post-wave gates, or final-review tests.
 - **Acceptance Evidence** — optional controller-owned closeout authorization, exactly one bounded `- A<n>: \`exact command\`` mapping per acceptance item. The command must exist verbatim and uniquely in Testing or Closeout Evidence Commands. Tracker/model prose remains non-authoritative; duplicate, ambiguous, unknown/stale, injected, missing, generic-for-an-unmapped-item, or cross-item evidence fails closed.
 - **Environment** — a set of pre-flight checks to run *right now*, once, before wave 1. Each check should be a command that verifies the condition (e.g. `which docker`, `pg_isready -h localhost`). If a check fails, surface it to the user and stop; don't start a wave on a broken environment.
@@ -120,7 +121,7 @@ Before calling `tk graph`, read `.tick/config.md` (if present). Its sections are
 
 Consumed later in the loop, by the orchestrator only — never inlined into implementer prompts:
 
-- **`At wave end`** — extra steps after each wave's post-wave gate passes (loop step 4h).
+- **`At wave end`** — extra steps after each wave gate passes (loop step 4h).
 - **`At epic close-out`** — extra retro steps and/or a durable destination for the retro report (see "Epic-close retro", step 7).
 - **`At project checkpoint`** — steps and/or a durable destination for the completion report written at a project boundary stop (see "Discipline rules").
 
@@ -170,7 +171,7 @@ Three ways to execute ready work; pick deliberately, and note the choice:
 
 1. **Solo-tick** — a single ready tick; one worktree, or the shared tree when nothing else runs concurrently (see "Why worktree isolation").
 2. **Parallel-wave** — one fresh implementer per tick in provisioned worktrees (the default for wide waves of substantial ticks).
-3. **Warm-chain** — one implementer executes an **ordered chain of related ticks** in one worktree, one branch, one warm context: committing per tick (`tick <id>: …` — the audit trail survives), reporting a status line per tick, still never touching `tk`. The chain integrates as one unit (one candidate merge, one post-merge gate); the orchestrator closes each chain tick at integration from the per-tick report lines. Chains compose with parallelism: **K disjoint chains run in K parallel worktrees.** A dead chain resumes from its last committed tick.
+3. **Warm-chain** — one implementer executes an **ordered chain of related ticks** in one worktree, one branch, one warm context: committing per tick (`tick <id>: …` — the audit trail survives), running the tick gate per tick, reporting a status line per tick, still never touching `tk`. The chain integrates as one unit (one candidate merge, one wave gate); the orchestrator closes each chain tick at integration from the per-tick report lines. Chains compose with parallelism: **K disjoint chains run in K parallel worktrees.** A dead chain resumes from its last committed tick.
 
 **The gate prices BOTH provisioning and cold starts.** A fresh implementer pays a cold-start tax — reading learnings/config/instructions/code before productive work — that a warm worker pays once per chain, not once per tick. Empirically the warm/cold per-task ratio can reach ⅓–½ on small ticks. Compare per wave:
 
@@ -179,7 +180,7 @@ Three ways to execute ready work; pick deliberately, and note the choice:
 
 Heuristics over false precision: **chain** small (≲20-min), same-subsystem ticks; **go wide with fresh implementers** when ticks are hour-scale (the cold start amortizes inside the tick) or genuinely unrelated; **parallel warm-chains** when the wave partitions into 2–3 cohesive, file-disjoint groups. When any gate fails, sequential is the correct, *noted* choice — "never silently degrade" forbids drift, not judgment. Record the observed warm/cold ratio in the profile after the first epic and use measured numbers thereafter.
 
-**Chain protocol details:** a chain must be **dependency-closed** — every blocker of a chain tick is either an earlier tick in the same chain or already-integrated work — which is also what lets a chain legitimately collapse several graph waves into one dispatch; no two concurrent dispatch units share files (same rule as wave safety); mark the whole chain's ticks `in_progress` at dispatch; the chain prompt lists the ticks in order with each description + acceptance inline (same self-contained rule as single-tick prompts); the implementer runs the in-worktree test tiers after each tick and commits before starting the next; `DONE` per tick in the final report, one line each. Note the venue map still shrinks the bill: worktrees need only the in-worktree test tiers; shared test tiers run post-merge per *chain*, not per tick.
+**Chain protocol details:** a chain must be **dependency-closed** — every blocker of a chain tick is either an earlier tick in the same chain or already-integrated work — which is also what lets a chain legitimately collapse several graph waves into one dispatch; no two concurrent dispatch units share files (same rule as wave safety); mark the whole chain's ticks `in_progress` at dispatch; the chain prompt lists the ticks in order with each description + acceptance inline (same self-contained rule as single-tick prompts); the implementer runs the tick gate after each tick and commits before starting the next; `DONE` per tick in the final report, one line each. Note the gates still shrink the bill: worktrees need only the tick gate's tiers; the wave gate runs per *chain*, not per tick.
 
 **Amortize: pool worktrees.** Instead of create → provision → destroy per tick, keep provisioned worktrees and reuse them for successive ticks or chains: reset to the current integration commit between assignments (`git checkout <integration-commit>` + `git clean -fd`), start each on a fresh branch. One provisioning then pays for many ticks. Cleanup moves from per-tick to pool retirement (epic end).
 
@@ -216,12 +217,21 @@ that needs three attempts and a review to land a tick costs more than the right 
 and re-running a whole test tier to verify a one-line fix costs more than the targeted run
 that actually answers the question.
 
+### The tick gate and the wave gate
+
+Verification runs at two gates. A venue says where a test tier is safe to run; a gate says who runs what, and when.
+
+- **The tick gate** — per tick, in the tick's worktree, run by the implementer before it reports: typecheck, the tests the change reaches, the build. In-worktree tiers only. **By-path rule:** a test that reads a source file by path, not by import, escapes changed-file test selection; after editing a file that tests read by path, run that package's tests whole.
+- **The wave gate** — per wave, or per chain at its integration, run by the integrator on the merged tree: the full suite, slow suites, specs, and shared generated outputs (screenshots, baselines, built assets) regenerated once, after the merge. Every tier a venue routes post-merge belongs to the wave gate, even when it runs per merge candidate (below).
+
+The wave gate is where cross-tick breaks show, so nothing slow or shared repeats per tick. `.tick/config.md` `## Testing` may group its commands under the two gate names in prose; the project maps commands to gates, the engine adds no syntax for it.
+
 ### Post-merge verification (serial venue)
 
-When the profile routes a test tier post-merge, verification for that tier moves from the implementers to you:
+When the profile routes a test tier post-merge, that tier is part of the wave gate and moves from the implementers to you:
 
-- Implementers run only their in-worktree test tiers before reporting. **`DONE` then means "implemented, committed, in-worktree test tiers pass" — not "acceptance fully verified."**
-- Integrate serially on a merge candidate: `git merge --no-commit <branch>` → run the post-merge tier(s) on the candidate → **green: keep the merge** (the wave's durable close still waits for the post-wave gate in loop step 4g) / **red: abort the merge** (`git merge --abort`) and keep the unit open — continue or redispatch the implementer with the failure. Never leave the integration branch red, and never start the next candidate on a red tree.
+- Implementers run only the tick gate before reporting. **`DONE` then means "implemented, committed, tick gate passes" — not "acceptance fully verified."**
+- Integrate serially on a merge candidate: `git merge --no-commit <branch>` → run the post-merge tier(s) on the candidate → **green: keep the merge** (the wave's durable close still waits for the wave gate in loop step 4f–4g) / **red: abort the merge** (`git merge --abort`) and keep the unit open — continue or redispatch the implementer with the failure. Never leave the integration branch red, and never start the next candidate on a red tree.
 - **Attribution is a heuristic.** Green-before/red-after points at the tick being merged, but the root cause can be an earlier tick's latent bug that this one merely exposed (a semantic conflict). Start with the just-merged tick; be prepared to land the fix in either.
 - Implementation still parallelizes — only candidate-merge-plus-verify is serial, and that serialization is inherent to the shared resource, not to the model.
 
@@ -333,7 +343,7 @@ Ask each implementer to end with one of four statuses. Structured statuses let y
 
 | Status | Meaning | Your move |
 |---|---|---|
-| `DONE` | Implemented, tests pass, committed | Integrate (see below) |
+| `DONE` | Implemented, tick gate passes, committed | Integrate (see below); the wave gate is yours |
 | `DONE_WITH_CONCERNS` | Done, but flagged doubts | Read the concerns. Correctness/scope doubts → resolve before integrating. Observations → note and proceed. |
 | `NEEDS_CONTEXT` | Missing info it couldn't get | Continue the same agent with the missing context, or record it and redispatch |
 | `BLOCKED` | Can't complete | See "When an agent is blocked" below |
@@ -351,7 +361,7 @@ git diff --name-only HEAD...<agent-branch> -- .tick/
 # 2. Merge provisionally; keep the branch/worktree
 git merge <agent-branch>     # branch name comes from the agent's report
 
-# 3. After every wave branch is merged, run and persist the integrated test gate.
+# 3. After every wave branch is merged, run and persist the wave gate on the integrated tree.
 # 4. Only when that gate passes:
 tk close <tick-id> --reason "Completed: <one-line summary of what landed>"
 ```
@@ -374,7 +384,7 @@ tk note <tick-id> "Agent modified .tick/ — changes stripped at merge"
 Planning keeps same-wave ticks on disjoint files, but "files likely touched" is a prediction — agents drift, and shared files (lockfiles, generated code, a common router) slip through. When `git merge` reports a conflict:
 
 1. `git merge --abort` — don't hand-resolve conflicts in code you didn't write while other agents are running.
-2. Continue or redispatch the implementer that owns the branch: tell it to rebase onto the current integration HEAD (give it the commit hash), resolve conflicts in its worktree, re-run tests, and re-commit.
+2. Continue or redispatch the implementer that owns the branch: tell it to rebase onto the current integration HEAD (give it the commit hash), resolve conflicts in its worktree, re-run its tick gate, and re-commit.
 3. Merge the rebased branch. It should now fast-forward or merge clean.
 4. If the conflict reveals a real plan problem (two ticks genuinely needed the same edit), note it on the tick and fix the partitioning — add the missing `--blocked-by` for the rest of the epic rather than fighting the same collision every wave.
 
