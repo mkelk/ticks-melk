@@ -1,0 +1,17 @@
+{
+  "id": "30z",
+  "title": "Orchestrator context in the retro report",
+  "description": "In skills/ticks/references/agent-runner.md: the retro report step's bullet list, and one sentence in \"What a run actually costs\" item 1 if needed.\n\nThe text must say:\n- A fresh orchestrator session per epic stays the rule.\n- The retro report carries the dispatch-mode ledger and the review-depth ledger and, beside them, the orchestrator's context at close: its size, or the best available proxy (e.g. turns, or the transcript size), with the proxy named.\n\nShared vocabulary (verbatim across all three parallel chains, which do not see each other):\n- Files: `.tick/learnings.md` is the always-read head (at most 4096 bytes: hard rules plus an index of the body's categories). `.tick/learnings-ref.md` is the looked-up body (Problem/Cause/Rule entries, at most 16384 bytes, at most 800 bytes per entry). The 800-byte entry limit applies to the body only. The engine owns the format; the project owns the content.\n- Check labels in implementer reports: the tick-gate command verbatim, `by-path run`, `planted fault`.\n- Check outcomes: `ran clean`, `went red and changed the code`, `went red, not from this change`, `not applicable`.\n- Terms: \"parallel warm-chains\", \"warm turn\", \"retire\" (an implementer is retired after the final review).\n- Existing section titles in agent-runner.md stay as they are. The gate names are \"tick gate\" and \"wave gate\", already defined.\nSpec (source of truth): docs/thoughts/2026-11-12-lean-epics.md. Edit only skills/ticks/ (never an installed copy) unless your task names other files. Keep the engine's terse voice; criteria, not step lists.",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "morten@elk.dk",
+  "blocked_by": [
+    "344"
+  ],
+  "parent": "z5t",
+  "acceptance_criteria": "- The retro report's bullet list names the dispatch-mode ledger, the review-depth ledger and the orchestrator context, and \"proxy\" is present\n- \"fresh session\" at epic boundaries is still stated in \"What a run actually costs\"",
+  "created_by": "morten@elk.dk",
+  "created_at": "2026-11-12T12:06:26.768150421Z",
+  "updated_at": "2026-11-12T12:06:26.768150421Z"
+}

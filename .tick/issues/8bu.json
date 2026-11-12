@@ -1,0 +1,17 @@
+{
+  "id": "8bu",
+  "title": "Adapters: warm turn after review, and the fallback",
+  "description": "In skills/ticks/references/claude-runner.md (\"Warm-chain mapping\", \"Continuation after a crash\", \"Review\", \"Successful-integration cleanup\") and skills/ticks/references/codex-runner.md (the cleanup text and \"Continuation and handoff\").\n\nThe shared protocol (written by another chain in parallel) now says: implementers are retired after the epic's final review, not after their tick; should-fix items go back to the writer as a warm turn; if the warm worker is gone, the fallback is a fresh dispatch, noted. Each adapter names its mechanism:\n- Claude: `SendMessage` to the finished implementer's agent ID or name. That resumes it with its context, within this session. The fallback is a fresh `Agent` without `isolation`, into the existing worktree and branch, noted in the ledger.\n- Codex: its continuation of the live session, per the adapter's existing text. The fallback is a fresh dispatch into the worktree, noted.\n- Both: worktree and branch cleanup waits until after the final review. Ticks still close at the wave gate.\n\nDo not restate the shared template.\n\nShared vocabulary (verbatim across all three parallel chains, which do not see each other):\n- Files: `.tick/learnings.md` is the always-read head (at most 4096 bytes: hard rules plus an index of the body's categories). `.tick/learnings-ref.md` is the looked-up body (Problem/Cause/Rule entries, at most 16384 bytes, at most 800 bytes per entry). The 800-byte entry limit applies to the body only. The engine owns the format; the project owns the content.\n- Check labels in implementer reports: the tick-gate command verbatim, `by-path run`, `planted fault`.\n- Check outcomes: `ran clean`, `went red and changed the code`, `went red, not from this change`, `not applicable`.\n- Terms: \"parallel warm-chains\", \"warm turn\", \"retire\" (an implementer is retired after the final review).\n- Existing section titles in agent-runner.md stay as they are. The gate names are \"tick gate\" and \"wave gate\", already defined.\nSpec (source of truth): docs/thoughts/2026-11-12-lean-epics.md. Edit only skills/ticks/ (never an installed copy) unless your task names other files. Keep the engine's terse voice; criteria, not step lists.",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "morten@elk.dk",
+  "blocked_by": [
+    "eh5"
+  ],
+  "parent": "z5t",
+  "acceptance_criteria": "- Each adapter names its warm-turn mechanism and the fresh-dispatch fallback, with the word \"noted\"\n- Neither adapter removes a worktree before the final review\n- Neither restates the template's gates or report lines",
+  "created_by": "morten@elk.dk",
+  "created_at": "2026-11-12T12:06:29.995601837Z",
+  "updated_at": "2026-11-12T12:06:29.995601837Z"
+}
