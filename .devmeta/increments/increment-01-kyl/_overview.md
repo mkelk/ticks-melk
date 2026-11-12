@@ -55,6 +55,7 @@ Project `s07` — the checkpoint boundary; the run stops there for human review.
    - `.tick/learnings.md` is the always-read head: hard rules plus an index of the body's categories, at most 4096 bytes.
    - `.tick/learnings-ref.md` is the looked-up body: Problem/Cause/Rule entries, at most 16384 bytes, at most 800 bytes per entry.
    - The prompt template reads the head and looks the body up by category.
+   - The engine text names who reads the body and when. The planner reads it at partition time (tick-patterns.md partitioning Step 0). The retro reads it at compaction. Implementers read a body entry only when a head entry points them at it.
    - Retro step 3 compacts both files and migrates an over-budget single file.
    - `tk status` and `tk close` warn per file. Go tests cover the head budget, the body budget, the entry limit, and an absent body file (no warning).
 6. A steering-sunset retro step:
