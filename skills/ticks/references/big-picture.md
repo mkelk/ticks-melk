@@ -158,9 +158,10 @@ Epics auto-continue across epic boundaries by default. **Project boundaries stop
 checkpoint** — the project's final child carries `--awaiting checkpoint` by default, so the run
 pauses for a human review before the next project begins.
 
-To run fully hands-off through all project checkpoints, pass `--autonomous` to `tk next`, or set
-`policy.autonomous_mode: true` in `.tick/config.json`. Other awaiting types (work, approval,
-input, …) still gate in autonomous mode — only checkpoint boundaries flow through.
+To let a project boundary flow through hands-off, create that project's close-out tick without
+`--awaiting checkpoint`. There is no global override: `tk` 0.32 removed `tk next --autonomous`
+and `policy.autonomous_mode`, and a checkpoint that is set is passed only by a human. Other
+awaiting types (work, approval, input, …) always gate.
 
 ---
 

@@ -279,13 +279,13 @@ tk create "Team workspaces" -t epic -d "<rough scope>" --blocked-by <A>
 tk create "Billing" -t epic -d "<rough scope>" --after <B> --awaiting checkpoint
 ```
 
-To run fully hands-off through all project checkpoints, pass `--autonomous` to `tk next`, or set `policy.autonomous_mode: true` in `.tick/config.json`. Other awaiting types (work, approval, input, …) still gate in autonomous mode — only checkpoint boundaries flow through.
+To let a project boundary flow through hands-off, create that project's close-out tick without `--awaiting checkpoint` (`references/agent-runner.md` → "Per-project auto-continue"). There is no global override: `tk` 0.32 removed `tk next --autonomous` and `policy.autonomous_mode`, and a checkpoint that is set is passed only by a human. Other awaiting types (work, approval, input, …) always gate.
 
 #### Goal-ready handoff
 
 When the front epic has a goal-compatible definition of done (above), the plan is ready to hand off: the run can flesh it out, implement, review, close it, and continue down the roadmap without checking in. After planning, make this an explicit decision *with the user* rather than sliding into the run:
 
-- **Done is goal-compatible** → recommend the walk-away path and give the one command: run the epic from the harness (Step 5), adding `--autonomous` to `tk next` (or `policy.autonomous_mode: true`) to flow through project checkpoints as well.
+- **Done is goal-compatible** → recommend the walk-away path and give the one command: run the epic from the harness (Step 5); to flow through project checkpoints as well, those projects' close-out ticks go without `--awaiting checkpoint`.
 - **Done is missing or not goal-compatible** → say what is unclear, offer to tighten it first, or run with the default human checkpoint at each project boundary.
 
 This is where you decide *how far* the run goes before it stops for you — one epic, one project, or the whole roadmap — instead of discovering it mid-run.
