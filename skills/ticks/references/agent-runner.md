@@ -180,7 +180,7 @@ Three ways to execute ready work; parallel warm-chains are the default, and any 
 
 1. **Solo-tick** — a single ready tick; one worktree, or the shared tree when nothing else runs concurrently (see "Why worktree isolation"). A tick that is itself the wave's longest runs solo beside the chains.
 2. **Parallel-wave** — one fresh implementer per tick in provisioned worktrees. A noted choice, for hour-scale ticks (the cold start amortizes inside the tick) or genuinely unrelated ones.
-3. **Warm-chain** — one implementer executes an **ordered chain of related ticks** in one worktree, one branch, one warm context: committing per tick (`tick <id>: …` — the audit trail survives), running the tick gate per tick, reporting a status line per tick, still never touching `tk`. The chain integrates as one unit (one candidate merge, one wave gate); the orchestrator closes each chain tick at integration from the per-tick report lines. Chains compose with parallelism: **K disjoint chains run in K parallel worktrees** — *parallel warm-chains*, the default. A dead chain resumes from its last committed tick.
+3. **Warm-chain** — one implementer executes an **ordered chain of related ticks** in one worktree, one branch, one warm context: committing per tick (`tick <id>: …` — the audit trail survives), running the tick gate per tick, reporting a status line per tick, still never touching `tk`. The chain integrates as one unit: one candidate merge, with the post-merge tiers run on that candidate; the wave gate itself runs once, when the whole wave is merged; the orchestrator closes each chain tick at integration from the per-tick report lines. Chains compose with parallelism: **K disjoint chains run in K parallel worktrees** — *parallel warm-chains*, the default. A dead chain resumes from its last committed tick.
 
 **The gate prices BOTH provisioning and cold starts.** A fresh implementer pays a cold-start tax — reading learnings/config/instructions/code before productive work — that a warm worker pays once per chain, not once per tick. Empirically the warm/cold per-task ratio can reach ⅓–½ on small ticks. Compare per wave:
 
@@ -191,9 +191,9 @@ Three ways to execute ready work; parallel warm-chains are the default, and any 
 
 **The rate window caps width.** A subscription's usage window is a gate input, not a surprise: a burst of implementers launched together can hit it and stall all of them, so more width can mean longer wall time. Size the dispatch width to the window's headroom, and note in the dispatch ledger when the window is what capped it.
 
-**Static prefix.** Implementers launched together get an identical static prefix, in this order: system prompt, repo instruction file, learnings head, rules; per-tick data comes after it. The generic part of the cold start can then cache across agents. That cache-accounting benefit is unverified (how a subscription's rate accounting treats cache reads); check it before counting on it. The template's base check carries a per-tick commit, so the prefix is not byte-identical; the engine asks for the ordering only.
+**Static prefix.** Implementers launched together get the same static prefix order: system prompt, repo instruction file, learnings head, rules; per-tick data comes after it. The generic part of the cold start can then cache across agents. That cache-accounting benefit is unverified (how a subscription's rate accounting treats cache reads); check it before counting on it. The template's base check carries a per-tick commit, so the prefix is not byte-identical; the engine asks for the ordering only.
 
-**Chain protocol details:** a chain must be **dependency-closed** — every blocker of a chain tick is either an earlier tick in the same chain or already-integrated work — which is also what lets a chain legitimately collapse several graph waves into one dispatch; no two concurrent dispatch units share files (same rule as wave safety); mark the whole chain's ticks `in_progress` at dispatch; the chain prompt lists the ticks in order with each description + acceptance inline (same self-contained rule as single-tick prompts); the implementer runs the tick gate after each tick and commits before starting the next; one status line per tick in the final report (`DONE`, `DONE_WITH_CONCERNS`, `NEEDS_CONTEXT` or `BLOCKED`; see "Warm-chain prompt variant"). Note the gates still shrink the bill: worktrees need only the tick gate's tiers; the wave gate runs per *chain*, not per tick (K chains in one wave: loop step 4f).
+**Chain protocol details:** a chain must be **dependency-closed** — every blocker of a chain tick is either an earlier tick in the same chain or already-integrated work — which is also what lets a chain legitimately collapse several graph waves into one dispatch; no two concurrent dispatch units share files (same rule as wave safety); mark the whole chain's ticks `in_progress` at dispatch; the chain prompt lists the ticks in order with each description + acceptance inline (same self-contained rule as single-tick prompts); the implementer runs the tick gate after each tick and commits before starting the next; one status line per tick in the final report (`DONE`, `DONE_WITH_CONCERNS`, `NEEDS_CONTEXT` or `BLOCKED`; see "Warm-chain prompt variant"). Note the gates still shrink the bill: worktrees need only the tick gate's tiers; post-merge tiers run per *chain* candidate, not per tick, and the wave gate runs once per wave, when every chain is merged (loop steps 4e-4f).
 
 **Amortize: pool worktrees.** Instead of create → provision → destroy per tick, keep provisioned worktrees and reuse them for successive ticks or chains: reset to the current integration commit between assignments (`git checkout <integration-commit>` + `git clean -fd`), start each on a fresh branch. One provisioning then pays for many ticks. A worktree whose implementer is kept warm for the final review's findings is not reassigned. Cleanup moves from per-tick to pool retirement, after the epic's final review.
 
@@ -237,7 +237,7 @@ that actually answers the question.
 Verification runs at two gates. A venue says where a test tier is safe to run; a gate says who runs what, and when.
 
 - **The tick gate** — per tick, in the tick's worktree, run by the implementer before it reports: typecheck, the tests the change reaches, the build. In-worktree tiers only. **By-path rule:** a test that reads a source file by path, not by import, escapes changed-file test selection; after editing a file that tests read by path, run that package's tests whole.
-- **The wave gate** — per wave, or per chain at its integration, run by the integrator on the merged tree: the full suite, slow suites, specs, and shared generated outputs (screenshots, baselines, built assets) regenerated once, after the merge. Every tier a venue routes post-merge belongs to the wave gate, even when it runs per merge candidate (below).
+- **The wave gate** — once per wave, run by the integrator on the merged tree when every unit of the wave (tick or chain) is merged: the full suite, slow suites, specs, and shared generated outputs (screenshots, baselines, built assets) regenerated once, after the merge. Every tier a venue routes post-merge belongs to the wave gate, even when it runs per merge candidate — per chain candidate, not per tick (below).
 
 The wave gate is where cross-tick breaks show, so nothing slow or shared repeats per tick. `.tick/config.md` `## Testing` may group its commands under the two gate names in prose; the project maps commands to gates, the engine adds no syntax for it.
 
@@ -269,18 +269,18 @@ Read the adapter for the active harness before dispatch. Every adapter must prov
 
 | Capability | Required behavior |
 |---|---|
-| Isolation | One worktree and branch per tick |
-| Parallel dispatch | Start all independent ticks without sharing a working tree |
+| Isolation | One worktree and branch per dispatch unit (tick or chain) |
+| Parallel dispatch | Start all independent units without sharing a working tree |
 | Completion | Return a structured final status and preserve logs long enough to diagnose failure |
-| Continuation | Continue the same implementer when practical, otherwise redispatch from durable state |
+| Continuation | Continue the same implementer when practical — mid-task corrections, and the warm turn after the final review; otherwise a fresh dispatch from durable state, noted in the dispatch ledger |
 | Review | Run a read-only review at least as capable as the implementer |
 
 Use deterministic names that survive harness changes:
 
 ```text
-branch:   tick/<epic-id>/<tick-id>
-worktree: ../.ticks-worktrees/<tick-id>
-report:   ../.ticks-worktrees/<tick-id>.report
+branch:   tick/<epic-id>/<tick-id>             chain: tick/<epic-id>/chain-<name>
+worktree: ../.ticks-worktrees/<tick-id>        chain: ../.ticks-worktrees/<epic-id>-<name>
+report:   ../.ticks-worktrees/<tick-id>.report chain: ../.ticks-worktrees/<epic-id>-<name>.report
 ```
 
 Add a note such as `runner-state: branch=tick/e1/t1 worktree=../.ticks-worktrees/t1 runner=codex` as soon as the branch name is known — before launch when the adapter creates the worktree itself; at first report when the harness assigns the name (the adapter documents which, and how to find branches that died before a note was written). The note is a recovery hint; git and tick status remain authoritative. Never store a harness session ID as the only way to find work.
