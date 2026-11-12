@@ -141,6 +141,10 @@ A right-sized tick reads like one clear deliverable an implementer can finish, t
 - Regression protection
 - Clear completion signal
 
+**Planted fault where the logic can be wrong.** Watch a new test fail (a planted fault) only where the logic can be wrong in a way the test should catch; data tables, word lists and class maps need none.
+
+**Acceptance names the tests the change reaches.** "Existing tests pass" or "no regressions" in a tick's acceptance means the tests its change reaches — the tick gate (`agent-runner.md` → "The tick gate and the wave gate") — never the full suite per tick. Regressions elsewhere are the wave gate's to catch.
+
 ### TDD Tick Pattern
 
 ```bash
@@ -152,7 +156,7 @@ tk create "Add [feature]" \
 - Error case: [bad input] -> Expected: [error]
 
 Run: [test command]" \
-  --acceptance "All tests pass, no regressions"
+  --acceptance "[feature] tests and the tests the change reaches pass"
 ```
 
 ### TDD Feature Example
@@ -186,14 +190,14 @@ Current: Returns \"invalid email format\"
 Expected: All plus addresses validate
 
 Run: npm test -- --grep \"email\"" \
-  --acceptance "New plus-address tests pass, existing tests pass"
+  --acceptance "New plus-address tests pass, existing email tests pass"
 ```
 
 ### Why TDD Matters
 
 1. **Clear completion signal** - "Tests pass" vs "looks right"
 2. **Prevents scope creep** - Agent knows exactly what to implement
-3. **Catches regressions** - Agent verifies it didn't break other code
+3. **Catches regressions** - The tick gate runs the tests the change reaches; the wave gate catches the rest
 4. **Self-documenting** - Tests show intended behavior
 
 ## Pattern: Bug Fix

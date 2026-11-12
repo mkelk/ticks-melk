@@ -25,7 +25,7 @@ A generic skill installer may install `skills/ticks/` without the extension. Do 
 | Parallel dispatch | The extension supervises multiple Pi JSON-mode subprocesses concurrently; `max_parallel`/`--max-parallel` caps fan-out. |
 | Completion | Incremental JSONL parser, live snapshots, TERM/KILL cancellation, lease-loss abort-and-settle, full event log, and compact Markdown report. |
 | Continuation | Recovery reattaches/reuses the unique existing branch/worktree/artifacts; Pi session IDs are never durable authority. |
-| Verification | Configured Testing commands run in each accepted child and again on the merged controller after each wave. |
+| Verification | Configured Testing commands run in each accepted child and again on the merged controller after each wave. The Pi package does not yet split the tick gate from the wave gate: every Testing command runs at both. |
 | Integration | Boundary check and provisional merge; persist/run the full-wave gate; only then close durably and clean worktrees/branches. |
 | UX | Compact footer/widget, RPC text, `/ticks-status`, and a shared-model dashboard overlay/dump. |
 | Planning | Bounded parallel read-only scouts plus strict frontier synthesis; model-running dry-run by default, with an explicit idempotent controller apply. |
