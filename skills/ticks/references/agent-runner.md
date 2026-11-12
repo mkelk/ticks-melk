@@ -151,7 +151,7 @@ The profile is the run's **inferred** understanding of how this project builds, 
 
 **Project-start characterization (idempotent, incremental).** At step 1 of the loop:
 
-1. Load what is known: the existing profile, `.tick/config.md` (overrides), `.tick/learnings.md`, CI config, the test-runner config, the package manager and ignore files.
+1. Load what is known: the existing profile, `.tick/config.md` (overrides), the learnings head and body, CI config, the test-runner config, the package manager and ignore files.
 2. If the profile's recorded inputs (lockfile hash, test-harness config) are unchanged, keep it as-is — the normal, near-free case.
 3. Otherwise characterize (read-only exploration, cheap capability tier): derive the provisioning recipe, the test-tier→venue map, and the services the project needs; record evidence and a confidence per item. The profile also carries the **observed warm/cold task-time ratio** once the first epic supplies data (see "Dispatch modes and the economic gate") — it parameterizes the gate.
 4. Write the profile. Planning consumes it — it determines wave width, verify venues, and dispatch modes.
@@ -498,9 +498,24 @@ The retro runs inside every epic close-out task, **before** the `tk close` call.
 
 ### `.tick/learnings.md` — format and conventions
 
-Operational learnings for future implementer agents live in `.tick/learnings.md`. This file travels with the tracker (`.tick/` is version-controlled by design) and is read in full by every implementer and at every planning pass, so its size is a direct per-agent context tax.
+Operational learnings for future implementer agents live in two files, split by who must read them. Both travel with the tracker (`.tick/` is version-controlled by design). The engine owns the format; the project owns the content.
 
-**Format:** short `Problem → Cause → Rule` entries, grouped under category headers. Example:
+- `.tick/learnings.md` is the always-read head (at most 4096 bytes: hard rules plus an index of the body's categories). Every cold start pays for it, so it stays short as the body grows.
+- `.tick/learnings-ref.md` is the looked-up body (Problem/Cause/Rule entries, at most 16384 bytes, at most 800 bytes per entry). The 800-byte entry limit applies to the body only.
+
+**Readers.** The planner reads the head and the body in full at partition time; the retro reads both at compaction (step 3 below); implementers read the head always, and a body entry only when a head entry points them at its category.
+
+**Head format:** the hard rules, one line each, then the index: one line per body category saying when to look it up. Example:
+
+```markdown
+## Hard rules
+- Never run a dependency install in a shared-deps worktree.
+
+## Index (`.tick/learnings-ref.md`)
+- Build — worktree installs, codegen: before touching build config or lockfiles.
+```
+
+**Body format:** short `Problem → Cause → Rule` entries, grouped under the category headers the head indexes. Example:
 
 ```markdown
 ## Build
@@ -510,9 +525,9 @@ Operational learnings for future implementer agents live in `.tick/learnings.md`
 **Rule:** Run `pnpm install --frozen-lockfile` from the package directory, not the repo root, in every implementer.
 ```
 
-**Size budget: ~16 KB (16384 bytes) in total, ≤800 bytes per entry.** An entry is one `Problem → Cause → Rule` block. The budget is in bytes, not lines, because bytes are what every reader pays for; `tk` warns when the file or an entry is over. Enforce it at every retro (step 3 below).
+**Size budgets: head ≤4096 bytes; body ≤16384 bytes, ≤800 bytes per entry.** A body entry is one `Problem → Cause → Rule` block. The budgets are in bytes, not lines, because bytes are what every reader pays for; `tk status` and `tk close` warn per file when the head, the body, or a body entry is over. Enforce them at every retro (step 3 below).
 
-**Read fresh at point of use — never inline from the orchestrator's context.** The orchestrator session spans epic boundaries; any copy inlined before a retro is stale after one. Implementers already have the current version in their worktree. Instruct them to read the file directly (the implementer prompt template does this), and re-read it yourself at each planning and partitioning pass rather than relying on an earlier in-context copy.
+**Read fresh at point of use — never inline from the orchestrator's context.** The orchestrator session spans epic boundaries; any copy inlined before a retro is stale after one. Implementers already have the current version in their worktree. Instruct them to read the head directly and look the body up by category (the implementer prompt template does this), and re-read both files yourself at each planning and partitioning pass rather than relying on an earlier in-context copy.
 
 ### Retro steps
 
@@ -532,25 +547,26 @@ Each learning goes to **exactly one** destination:
 |---|---|
 | Rule that would have prevented a mistake, applies to any future work | the repo's shared agent instructions — keep it terse, and prefer one canonical file (with the other of `AGENTS.md`/`CLAUDE.md` pointing to it) over two drifting copies |
 | Permanent architectural / how-the-codebase-works knowledge | `docs/` |
-| Operational gotcha for future implementer agents (test quirks, env traps, recurring build issues) | `.tick/learnings.md` |
+| Operational gotcha for future implementer agents (test quirks, env traps, recurring build issues) | `.tick/learnings-ref.md`, an entry under its category (a new category also gets a head index line); a rule no implementer may miss goes to the head's hard rules in `.tick/learnings.md` |
 | One-off detail, only matters to this epic | stays in tick notes (already persisted — do nothing) |
 | A doc proven wrong by this epic | fix or delete the doc |
 | Runner-neutral orchestration learning | `skills/ticks/references/agent-runner.md` or `tick-patterns.md` |
 | Harness-specific orchestration learning | the matching runner adapter (`claude-runner.md`, `codex-runner.md`, etc.) |
 
-Per-repo `.tick/learnings.md` stays for repo-specific operational gotchas; process knowledge must live in the skill to transfer across repos.
+Per-repo learnings (head and body) stay for repo-specific operational gotchas; process knowledge must live in the skill to transfer across repos.
 
 Write the promotions to their destinations now, before moving on.
 
 #### 3. Compact `.tick/learnings.md`
 
-Re-read the file immediately after adding new entries:
+Compact both files — the head `.tick/learnings.md` and the body `.tick/learnings-ref.md`. Re-read both immediately after adding new entries:
 
 1. Merge duplicates (same problem stated twice, or a new rule that supersedes an old one).
 2. Delete entries the codebase has outgrown (the trap they described no longer exists).
-3. Measure bytes (`wc -c .tick/learnings.md`). If over 16384, cut the lowest-signal entries until you are at or under the budget; tighten any entry over 800 bytes. Merging entries into longer lines is not compaction — it keeps every byte.
+3. Measure bytes, each file (`wc -c .tick/learnings.md .tick/learnings-ref.md`). Head over 4096: move what is neither a hard rule nor an index line into the body. Body over 16384: cut the lowest-signal entries until you are at or under the budget; tighten any entry over 800 bytes. Merging entries into longer lines is not compaction — it keeps every byte.
+4. Migrate an over-budget single file. A project still on one `.tick/learnings.md` holding its entries, over the head's 4096 bytes, is split: the entries move to the body `.tick/learnings-ref.md` under their categories; the hard rules and the category index stay in the head.
 
-The size budget is hard. Compaction is the mechanism that keeps it honest — without this step the file grows indefinitely and stops being read.
+The size budgets are hard. Compaction is the mechanism that keeps it honest — without this step the file grows indefinitely and stops being read.
 
 #### 4. Outside-in verification
 
@@ -613,7 +629,7 @@ Claude may create ticks that Codex executes, Codex may create ticks that Claude 
 | Durable fact | Source of truth |
 |---|---|
 | Scope, acceptance, dependencies, status | tick files and `tk show` / `tk graph` |
-| Project rules and tests | `.tick/config.md`, `.tick/learnings.md`, and the active harness's instruction files |
+| Project rules and tests | `.tick/config.md`, `.tick/learnings.md` (head) and `.tick/learnings-ref.md` (body), and the active harness's instruction files |
 | Integrated work | integration branch history |
 | In-flight work | deterministic `tick/<epic>/<tick>` branch and worktree |
 | Runner provenance | activity actor such as `claude:orchestrator`, `codex:orchestrator`, or `pi:orchestrator` |
@@ -684,7 +700,7 @@ You are implementing one task from the Ticks issue tracker, working in an isolat
 
 IMPORTANT FIRST STEP: verify this worktree contains integration commit `<integration-commit>` and `<artifact>`. If it does not, merge `<integration-branch>` before editing; report STATUS: BLOCKED if the expected base cannot be established. If the worktree was created for you at launch and is not yet runnable, provision it next, before touching code, per the project profile's recipe (e.g. install dependencies) so the tick gate can run; skip this if the orchestrator already provisioned it.
 
-Read before changing anything: `.tick/learnings.md` (if present) — accumulated gotchas from earlier epics; `.tick/config.md` (if present) — its `Rules` section and the commands `Testing` lists under the tick gate apply to you (if `Testing` is not grouped by gate, only its typecheck, reached-test and build commands), the orchestrator-only `At …`, `Closeout Evidence Commands`, and `Acceptance Evidence` sections do not; the repository instruction file used by your harness (`AGENTS.md`, `CLAUDE.md`, or equivalent) and any nested instruction files that apply; the existing code you will change.
+Read before changing anything: `.tick/learnings.md` (if present) — the learnings head: hard rules and an index of categories; look an entry up in `.tick/learnings-ref.md` only when a head entry points you at its category; `.tick/config.md` (if present) — its `Rules` section and the commands `Testing` lists under the tick gate apply to you (if `Testing` is not grouped by gate, only its typecheck, reached-test and build commands), the orchestrator-only `At …`, `Closeout Evidence Commands`, and `Acceptance Evidence` sections do not; the repository instruction file used by your harness (`AGENTS.md`, `CLAUDE.md`, or equivalent) and any nested instruction files that apply; the existing code you will change.
 
 ## Task
 Title: <tick-title>
