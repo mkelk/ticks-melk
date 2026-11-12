@@ -67,10 +67,10 @@ Project `s07` — the checkpoint boundary; the run stops there for human review.
 8. The `.tick/config.md` Testing commands pass: Pi runner `node --test` and Go `go test -short`.
 
 ## Exit criteria (verification gates)
-- [ ] Pi runner: `node --test --no-warnings extensions/ticks-runner/*.test.ts`
-- [ ] Go: `go test -short -count=1 ./...` (internal/worktree git-identity flake is a known local baseline)
-- [ ] Cross-reference consistency: final frontier review finds no file under `skills/ticks/` contradicting the new tiers, brief, chain default, learnings layout or sunset step
-- [ ] Spec coverage: every "Engine, …" row of the spec's Synthesis table is implemented or listed above under Not included
+- [x] Pi runner: `node --test --no-warnings extensions/ticks-runner/*.test.ts`
+- [x] Go: `go test -short -count=1 ./...` (internal/worktree git-identity flake is a known local baseline)
+- [x] Cross-reference consistency: final frontier review finds no file under `skills/ticks/` contradicting the new tiers, brief, chain default, learnings layout or sunset step
+- [x] Spec coverage: every "Engine, …" row of the spec's Synthesis table is implemented or listed above under Not included
 
 ## Human items
 - None blocking. Note: unrelated older epics 7ab, qr4, weo show as active in `tk roadmap`; the run scopes to project s07.
