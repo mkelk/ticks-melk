@@ -210,7 +210,9 @@ than on whichever knob is nearest.
    square of how long the session has run, not linearly. Start a fresh session at epic
    boundaries — the records (`.tick/`, the retro, the increment's overview) exist exactly
    so the next session can resume from files rather than from a transcript. A run that
-   never clears is one long turn paying for all of it, every turn.
+   never clears is one long turn paying for all of it, every turn. A fresh orchestrator
+   session per epic stays the rule, and the retro report records the context each one
+   reached at close (see "Epic-close retro", step 7), so the line is measured, not guessed.
 2. **Review fan-out.** Each axis is another full read of the epic diff at the highest tier
    in the run. Three axes on one epic is three of them. See "What earns an axis".
 3. **Implementation tier.** Ordinary ticks dispatched above their shape (see the
@@ -608,6 +610,8 @@ Write a short summary. If `.tick/config.md` → `At epic close-out` names a repo
 - Learnings promoted, by destination (a few bullet points per tier that received anything).
 - Verification table: one row per scope item — scope item, verified yes/no, gap action if no.
 - Drift found and cleanup ticks created (or "none").
+- The dispatch-mode ledger (each dispatch's mode and tier, and every noted choice with its reason) and the review-depth ledger (each review axis and what earned it).
+- Beside the ledgers, the orchestrator's context at close: its size, or the best available proxy (e.g. turns, or the transcript size), with the proxy named.
 - Steering-sunset tally (step 6): per check label, catches this epic and the prior one, and any demotion or restore with its evidence.
 - Proposed roadmap adjustments, if any, for the human to accept or reject (you may propose, not execute, roadmap changes).
 
