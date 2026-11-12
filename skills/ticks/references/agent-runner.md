@@ -74,10 +74,10 @@ Orchestration produces commits and merges. If you're on `main`/`master`, create 
       outputs (screenshots, baselines, built assets) are regenerated here, once, by you after the
       merge — never by the ticks. With K chains in one wave, post-merge tiers run per chain
       candidate (4e); the full suite and the regeneration run once, when the whole wave is merged.
-   g. Only after the wave gate passes, close all wave ticks durably (for a chain, close each tick its
-      report marks DONE). Closing a tick does not retire its implementer: keep it warm, with the
-      worktree or branch a warm turn needs, until the epic's final review is done (step 5); clean
-      up only what no warm turn will need.
+   g. Only after the wave gate passes, close all wave ticks durably (for a chain, each tick its report
+      marks DONE, and each DONE_WITH_CONCERNS one once its concerns are resolved). Closing a tick
+      does not retire its implementer: keep it warm, with the worktree or branch a warm turn needs,
+      until the epic's final review is done (step 5); clean up only what no warm turn will need.
       Always pass --reason: `tk close <id> --reason "Completed: <one-line summary of what landed>"`.
       Never use a bare `tk close`.
    h. Re-read `.tick/config.md` and run any steps in `At wave end` (no-op if absent), then go to the next wave.
@@ -193,7 +193,7 @@ Three ways to execute ready work; parallel warm-chains are the default, and any 
 
 **Static prefix.** Implementers launched together get an identical static prefix, in this order: system prompt, repo instruction file, learnings head, rules; per-tick data comes after it. The generic part of the cold start can then cache across agents. That cache-accounting benefit is unverified (how a subscription's rate accounting treats cache reads); check it before counting on it. The template's base check carries a per-tick commit, so the prefix is not byte-identical; the engine asks for the ordering only.
 
-**Chain protocol details:** a chain must be **dependency-closed** — every blocker of a chain tick is either an earlier tick in the same chain or already-integrated work — which is also what lets a chain legitimately collapse several graph waves into one dispatch; no two concurrent dispatch units share files (same rule as wave safety); mark the whole chain's ticks `in_progress` at dispatch; the chain prompt lists the ticks in order with each description + acceptance inline (same self-contained rule as single-tick prompts); the implementer runs the tick gate after each tick and commits before starting the next; `DONE` per tick in the final report, one line each. Note the gates still shrink the bill: worktrees need only the tick gate's tiers; the wave gate runs per *chain*, not per tick (K chains in one wave: loop step 4f).
+**Chain protocol details:** a chain must be **dependency-closed** — every blocker of a chain tick is either an earlier tick in the same chain or already-integrated work — which is also what lets a chain legitimately collapse several graph waves into one dispatch; no two concurrent dispatch units share files (same rule as wave safety); mark the whole chain's ticks `in_progress` at dispatch; the chain prompt lists the ticks in order with each description + acceptance inline (same self-contained rule as single-tick prompts); the implementer runs the tick gate after each tick and commits before starting the next; one status line per tick in the final report (`DONE`, `DONE_WITH_CONCERNS`, `NEEDS_CONTEXT` or `BLOCKED`; see "Warm-chain prompt variant"). Note the gates still shrink the bill: worktrees need only the tick gate's tiers; the wave gate runs per *chain*, not per tick (K chains in one wave: loop step 4f).
 
 **Amortize: pool worktrees.** Instead of create → provision → destroy per tick, keep provisioned worktrees and reuse them for successive ticks or chains: reset to the current integration commit between assignments (`git checkout <integration-commit>` + `git clean -fd`), start each on a fresh branch. One provisioning then pays for many ticks. A worktree whose implementer is kept warm for the final review's findings is not reassigned. Cleanup moves from per-tick to pool retirement, after the epic's final review.
 
@@ -700,7 +700,7 @@ You are implementing one task from the Ticks issue tracker, working in an isolat
 
 IMPORTANT FIRST STEP: verify this worktree contains integration commit `<integration-commit>` and `<artifact>`. If it does not, merge `<integration-branch>` before editing; report STATUS: BLOCKED if the expected base cannot be established. If the worktree was created for you at launch and is not yet runnable, provision it next, before touching code, per the project profile's recipe (e.g. install dependencies) so the tick gate can run; skip this if the orchestrator already provisioned it.
 
-Read before changing anything: `.tick/learnings.md` (if present) — the learnings head: hard rules and an index of categories; look an entry up in `.tick/learnings-ref.md` only when a head entry points you at its category; `.tick/config.md` (if present) — its `Rules` section and the commands `Testing` lists under the tick gate apply to you (if `Testing` is not grouped by gate, only its typecheck, reached-test and build commands), the orchestrator-only `At …`, `Closeout Evidence Commands`, and `Acceptance Evidence` sections do not; the repository instruction file used by your harness (`AGENTS.md`, `CLAUDE.md`, or equivalent) and any nested instruction files that apply; the existing code you will change.
+Read before changing anything, in this order: the repository instruction file used by your harness (`AGENTS.md`, `CLAUDE.md`, or equivalent) and any nested instruction files that apply; `.tick/learnings.md` (if present) — the learnings head: hard rules and an index of categories; look an entry up in `.tick/learnings-ref.md` only when a head entry points you at its category; `.tick/config.md` (if present) — its `Rules` section and the commands `Testing` lists under the tick gate apply to you (if `Testing` is not grouped by gate, only its typecheck, reached-test and build commands), the orchestrator-only `At …`, `Closeout Evidence Commands`, and `Acceptance Evidence` sections do not; the existing code you will change.
 
 ## Task
 Title: <tick-title>
@@ -729,10 +729,12 @@ The tick gate is yours: typecheck, the tests the change reaches, the build, usin
 ## Report back, ending with one status line
 - Branch name (`git rev-parse --abbrev-ref HEAD`)
 - Files changed and tests added
-- One line per mandated check (each tick-gate command, the by-path run, a planted fault), each exactly one of:
+- One line per mandated check, with fixed labels: each tick-gate command verbatim, `by-path run`, `planted fault`. Each line is exactly one of:
   <check>: ran clean
   <check>: went red and changed the code
+  <check>: went red, not from this change
   <check>: not applicable
+  (`went red, not from this change` means flaky or pre-existing: the check is red on the baseline too.)
 - Anything the next tick should know
 - Final line, exactly one of:
   STATUS: DONE
@@ -743,7 +745,7 @@ The tick gate is yours: typecheck, the tests the change reaches, the build, usin
 
 ### Warm-chain prompt variant
 
-For a chain assignment, keep the template's shape — base check, read-inputs, criteria, gates, boundaries, report — and adapt it. Under `## Task`, list the chain's ticks **in order**, each with its full description and acceptance inline as its criteria (a chain implementer sees only its prompt — same self-contained rule). Done becomes per tick: *implement the ticks strictly in order; each one is done when its criteria hold, its tick gate passes, and it is committed `tick <tick-id>: <summary>` before the next starts; if a tick blocks, report and stop the chain there (completed ticks stay committed).* The report carries the mandated-check lines per tick, and ends with **one status line per tick** (`<tick-id>: DONE | BLOCKED — reason`), so the orchestrator can close exactly the completed prefix at integration.
+For a chain assignment, keep the template's shape — base check, read-inputs, criteria, gates, boundaries, report — and adapt it. Under `## Task`, list the chain's ticks **in order**, each with its full description and acceptance inline as its criteria (a chain implementer sees only its prompt — same self-contained rule). Done becomes per tick: *implement the ticks strictly in order; each one is done when its criteria hold, its tick gate passes, and it is committed `tick <tick-id>: <summary>` before the next starts; if a tick blocks, report and stop the chain there (completed ticks stay committed).* The report carries the mandated-check lines per tick — the same fixed labels (each tick-gate command verbatim, `by-path run`, `planted fault`) and the same four outcomes (`ran clean`, `went red and changed the code`, `went red, not from this change`, `not applicable`) — and ends with **one status line per tick**: `<tick-id>: DONE | DONE_WITH_CONCERNS — … | NEEDS_CONTEXT — … | BLOCKED — …`. The orchestrator closes ticks marked DONE at integration, and DONE_WITH_CONCERNS ones once their concerns are resolved. A chain stops at NEEDS_CONTEXT or BLOCKED; its completed prefix stays committed.
 
 ## Current limitations
 
