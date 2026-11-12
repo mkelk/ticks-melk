@@ -2,7 +2,7 @@
   "id": "tsi",
   "title": "Final review of Lean brief and two-tier verification diff",
   "description": "Frontier review (fable) of the epic diff from 2026-11-12-lean-engine base against pjz's DoD and docs/thoughts/2026-11-12-lean-epics.md. Axis earned: spec compliance + cross-reference consistency across skills/ticks/ (docs-only epic; one reviewer).",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "type": "task",
   "owner": "morten@elk.dk",
@@ -13,5 +13,7 @@
   "role": "review",
   "created_by": "morten@elk.dk",
   "created_at": "2026-11-12T11:30:46.562869976Z",
-  "updated_at": "2026-11-12T11:30:46.562869976Z"
+  "updated_at": "2026-11-12T12:00:44.947332731Z",
+  "closed_at": "2026-11-12T12:00:44.947332731Z",
+  "closed_reason": "Completed: frontier review (fable) of 403d086a..42f0f301 — 0 blockers, 2 should-fix, 4 nits, all fixed in 7ee8b156 via a warm turn to the chain implementer; CI green on PR #5"
 }
