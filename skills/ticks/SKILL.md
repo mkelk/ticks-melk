@@ -67,14 +67,14 @@ Projects can place a `.tick/config.md` file in the tracked `.tick/` directory to
 | `## Environment` | orchestrator | once, before wave 1 — executable pre-flight checks (CLI tools present, services up). Write commands that *verify* the condition, never instructions to ask the human. *Test, don't ask.* | once per run |
 | `## Rules` | every implementer | inlined verbatim in each implementer prompt (naming conventions, forbidden patterns, required review steps) | **N× per run — keep lean** |
 | `## At wave end` | orchestrator only | after each wave gate passes | once per wave |
-| `## Closeout Evidence Commands` | orchestrator only | closeout — never implementers, per-tick verification, post-wave gates, or final-review | closeout only |
+| `## Closeout Evidence Commands` | orchestrator only | closeout — never implementers, per-tick verification, wave gates, or final-review | closeout only |
 | `## Acceptance Evidence` | orchestrator only | closeout — authorizes acceptance verification | closeout only |
 | `## At epic close-out` | orchestrator only | during the epic-close retro | once per epic |
 | `## At project checkpoint` | orchestrator only | at a project-boundary stop | once per project |
 
 **Recommended `## Testing` shape:** two prose lines, each followed by its command bullets — "Tick gate (per tick, in the worktree, run by the implementer): typecheck, the tests the change reaches, the build." and "Wave gate (per wave or chain integration, run by the integrator): the full suite, slow suites, specs, shared generated outputs regenerated once." No new syntax: commands stay ordinary bullets, and the project decides which gate each belongs to (`references/agent-runner.md` → "The tick gate and the wave gate").
 
-**`Closeout Evidence Commands`** and **`Acceptance Evidence`** are controller-owned authorization, and they **fail closed**. Closeout Evidence Commands may execute *only* during closeout — never in implementation children, per-tick verification, post-wave gates, or final-review tests. Acceptance Evidence is optional; when present it maps each stable acceptance item exactly once with `- A<n>: \`exact command\``, and the command must exist verbatim and uniquely in Testing or Closeout Evidence Commands — tracker/model prose never authorizes shell, and duplicate, ambiguous, unknown, injected, missing, or cross-item evidence fails closed.
+**`Closeout Evidence Commands`** and **`Acceptance Evidence`** are controller-owned authorization, and they **fail closed**. Closeout Evidence Commands may execute *only* during closeout — never in implementation children, per-tick verification, wave gates, or final-review tests. Acceptance Evidence is optional; when present it maps each stable acceptance item exactly once with `- A<n>: \`exact command\``, and the command must exist verbatim and uniquely in Testing or Closeout Evidence Commands — tracker/model prose never authorizes shell, and duplicate, ambiguous, unknown, injected, missing, or cross-item evidence fails closed.
 
 The three **`At …`** sections are **hooks**, not authorization: a project runs its own steps (a release tag, a history file, a durable report) at a boundary the runner already reaches, instead of forking the skill. They are orchestrator-only — never inlined into implementer prompts, so they carry zero per-agent context tax. `references/agent-runner.md` wires each into the loop.
 
@@ -469,11 +469,12 @@ tk graph <epic-id> --json
 #
 # 3. Wait using the adapter's native primitive, then integrate each tick:
 git diff --name-only HEAD...<agent-branch> -- .tick/   # boundary check: must be empty
-git merge <agent-branch>   # if it conflicts: abort, have the agent rebase + resolve in its worktree
-tk close <tick-id> --reason "Completed: <one-line summary of what landed>"
+git merge <agent-branch>   # provisional; if it conflicts: abort, have the agent rebase + resolve in its worktree
 
 # 4. After the wave's merges land, run the wave gate (full suite, slow suites, shared
 #    outputs regenerated once) before launching the next wave; ticks ran only the tick gate
+# only when the wave gate passes:
+tk close <tick-id> --reason "Completed: <one-line summary of what landed>"
 ```
 
 ### Planning Parallel Execution
