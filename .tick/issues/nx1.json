@@ -3,7 +3,7 @@
   "title": "Learnings split: head and body in the engine text",
   "description": "In skills/ticks/references/agent-runner.md: \"`.tick/learnings.md` — format and conventions\", the learnings row in retro step 2's table, retro step 3 (\"Compact\"), and the implementer template's read-inputs sentence.\n\nThe text must say:\n- The head and body files and budgets, exactly as in the shared vocabulary. The engine owns the format; the project owns the content.\n- Readers: the planner reads the head and the body in full at partition time; the retro reads both at compaction; implementers read the head always, and a body entry only when a head entry points them at its category.\n- Step 3 compacts both files (`wc -c` each) and migrates an over-budget single file: entries move to the body; hard rules and the category index stay in the head.\n- The template reads the head and looks the body up by category.\n- `tk status` and `tk close` warn per file (the Go side is another chain's tick; just state the behaviour).\n\nShared vocabulary (verbatim across all three parallel chains, which do not see each other):\n- Files: `.tick/learnings.md` is the always-read head (at most 4096 bytes: hard rules plus an index of the body's categories). `.tick/learnings-ref.md` is the looked-up body (Problem/Cause/Rule entries, at most 16384 bytes, at most 800 bytes per entry). The 800-byte entry limit applies to the body only. The engine owns the format; the project owns the content.\n- Check labels in implementer reports: the tick-gate command verbatim, `by-path run`, `planted fault`.\n- Check outcomes: `ran clean`, `went red and changed the code`, `went red, not from this change`, `not applicable`.\n- Terms: \"parallel warm-chains\", \"warm turn\", \"retire\" (an implementer is retired after the final review).\n- Existing section titles in agent-runner.md stay as they are. The gate names are \"tick gate\" and \"wave gate\", already defined.\nSpec (source of truth): docs/thoughts/2026-11-12-lean-epics.md. Edit only skills/ticks/ (never an installed copy) unless your task names other files. Keep the engine's terse voice; criteria, not step lists.",
   "notes": "2026-11-12 13:48 - runner-state: runner=claude chain=P branch=tick/z5t/chain-P worktree=/home/morten/git/.ticks-worktrees/z5t-P base=441b6020 model=opus brief=/home/morten/git/.ticks-worktrees/logs/z5t/brief-P.md",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "type": "task",
   "owner": "morten@elk.dk",
@@ -14,6 +14,7 @@
   "acceptance_criteria": "- `grep -c 'learnings-ref.md' skills/ticks/references/agent-runner.md` is at least 4, and `4096` appears in the format section\n- No sentence still says the whole learnings file is read in full by every implementer\n- Step 3 names the migration of an over-budget single file",
   "created_by": "morten@elk.dk",
   "created_at": "2026-11-12T12:06:23.426259839Z",
-  "updated_at": "2026-11-12T12:48:54.26943276Z",
-  "started_at": "2026-11-12T12:48:53.066070609Z"
+  "updated_at": "2026-11-12T13:04:04.084840028Z",
+  "closed_at": "2026-11-12T13:04:04.084840028Z",
+  "closed_reason": "Completed: learnings split in agent-runner.md: head .tick/learnings.md (4096) + body .tick/learnings-ref.md (16384, 800/entry); readers named; retro compacts both and migrates (wave gate green by A/B at 7a77f486)"
 }
