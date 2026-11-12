@@ -1,6 +1,6 @@
 # Increment 01-kyl — Lean engine
 
-**Status:** IN PROGRESS — E1 pjz DONE, E2 z5t next · **Target:** —
+**Status:** CHECKPOINT — E1 pjz DONE, E2 z5t DONE; awaiting human review · **Target:** —
 **Engine:** synthesized ticks skill, user level (`~/.claude/skills/ticks/`). This increment edits the repo source `skills/ticks/`; the installed copy stays untouched during the run (skills-fe owns reinstall after merge).
 **Spec:** `docs/thoughts/2026-11-12-lean-epics.md` (mkelk/skills#3)
 
@@ -30,7 +30,7 @@ Project `s07` — the checkpoint boundary; the run stops there for human review.
 | Epic | tk id | Scope | Dep |
 |---|---|---|---|
 | ✅ DONE — Lean brief and two-tier verification | pjz | Prompt template + report shape, gate tiers, regenerate-once, planted faults on logic only, by-path rule | — |
-| Lean dispatch and context | z5t | Warm-chain default + keep-warm-through-review + rate window + static prefix + orchestrator ledger; learnings split (docs + Go); steering-sunset retro step — one wave of three groups | blocked-by pjz (same prompt template) |
+| ✅ DONE — Lean dispatch and context | z5t | Warm-chain default + keep-warm-through-review + rate window + static prefix + orchestrator ledger; learnings split (docs + Go); steering-sunset retro step — one wave of three groups | blocked-by pjz (same prompt template) |
 
 **Dispatch policy (both epics):** implementers at the **strong** tier, dispatch-ledger reason: "edits the engine's own rules; consistency across references". Final review at **frontier**.
 
@@ -75,7 +75,7 @@ Project `s07` — the checkpoint boundary; the run stops there for human review.
 ## Human items
 - None blocking. Note: unrelated older epics 7ab, qr4, weo show as active in `tk roadmap`; the run scopes to project s07.
 
-**PR:** mkelk/ticks-melk#5 (draft, increment-wide; CI green after E1)
+**PR:** mkelk/ticks-melk#5 (draft, increment-wide; CI green after E1; E2 pushed at close-out)
 
 ## How to run
 `/dmtix go` on branch `2026-11-12-lean-engine` (no services needed). Resume: `/dmtix go` again.
