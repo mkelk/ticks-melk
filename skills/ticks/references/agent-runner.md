@@ -559,7 +559,7 @@ Per-repo learnings (head and body) stay for repo-specific operational gotchas; p
 
 Write the promotions to their destinations now, before moving on.
 
-#### 3. Compact `.tick/learnings.md`
+#### 3. Compact the learnings (head and body)
 
 Compact both files — the head `.tick/learnings.md` and the body `.tick/learnings-ref.md`. Re-read both immediately after adding new entries:
 
@@ -568,7 +568,7 @@ Compact both files — the head `.tick/learnings.md` and the body `.tick/learnin
 3. Measure bytes, each file (`wc -c .tick/learnings.md .tick/learnings-ref.md`). Head over 4096: move what is neither a hard rule nor an index line into the body. Body over 16384: cut the lowest-signal entries until you are at or under the budget; tighten any entry over 800 bytes. Merging entries into longer lines is not compaction — it keeps every byte.
 4. Migrate an over-budget single file. A project still on one `.tick/learnings.md` holding its entries, over the head's 4096 bytes, is split: the entries move to the body `.tick/learnings-ref.md` under their categories; the hard rules and the category index stay in the head.
 
-The size budgets are hard. Compaction is the mechanism that keeps it honest — without this step the file grows indefinitely and stops being read.
+The size budgets are hard. Compaction is the mechanism that keeps them honest — without this step the files grow indefinitely and stop being read.
 
 #### 4. Outside-in verification
 
