@@ -137,7 +137,8 @@ func runClose(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to close tick: %w", err)
 	}
 
-	// Warn if .tick/learnings.md exceeds its size budget — never blocks the close.
+	// Warn, per file, if the learnings head (.tick/learnings.md) or body
+	// (.tick/learnings-ref.md) exceeds its budget — never blocks the close.
 	if t.Type == tick.TypeEpic {
 		for _, w := range tick.CheckLearnings(filepath.Join(root, ".tick")).Warnings() {
 			fmt.Fprintln(os.Stderr, w)
