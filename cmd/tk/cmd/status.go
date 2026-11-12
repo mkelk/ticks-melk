@@ -56,7 +56,8 @@ func runStatus(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("%s", output)
 
-	// Warn if .tick/learnings.md exceeds its size budget — never blocks status.
+	// Warn, per file, if the learnings head (.tick/learnings.md) or body
+	// (.tick/learnings-ref.md) exceeds its budget — never blocks status.
 	for _, w := range tick.CheckLearnings(filepath.Join(root, ".tick")).Warnings() {
 		fmt.Fprintln(os.Stderr, w)
 	}
