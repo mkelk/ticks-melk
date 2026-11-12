@@ -1,0 +1,21 @@
+{
+  "id": "lhr",
+  "title": "Reshape the implementer prompt template and warm-chain variant",
+  "description": "Reshape the \"Implementer prompt template\" and \"Warm-chain prompt variant\" in skills/ticks/references/agent-runner.md. Those two sections only; T1 already defined the gates elsewhere in the file.\n\nReplace the numbered Instructions step list with four parts: criteria (the acceptance), gates (the tick gate, with the by-path rule), boundaries, and report shape. Keep the following in substance:\n- the IMPORTANT FIRST STEP base check\n- the self-provisioning instruction (agent-runner \"Provisioning\" and claude-runner.md rely on it)\n- the read-inputs lines (.tick/learnings.md, .tick/config.md Testing and Rules, the harness instruction file)\n- the commit protocol `tick \u003ctick-id\u003e: \u003csummary\u003e`\n- the Boundaries section\n- the four STATUS lines\n\nMake these changes:\n- Add \"do not regenerate shared generated outputs; the integrator does that once after the merge\".\n- Replace \"implement test-first: write the failing test\" with the conditional planted-fault rule (same wording as tick-patterns.md's TDD section).\n- Add to the report one line per mandated check, each reading: ran clean / went red and changed the code / not applicable. A later epic's steering-sunset retro step tallies these lines, so keep the three outcomes literal.\n- Give the warm-chain variant the same shape: gates and check lines per tick, one status line per tick as today.\n\nDo NOT change the learnings path, the static-prefix order, or ledger lines; a later epic owns those.\n\nSpec (source of truth): docs/thoughts/2026-11-12-lean-epics.md. Edit only files under skills/ticks/ (never an installed copy). Settled names, use exactly: the \"tick gate\" (per tick, in the worktree, run by the implementer: typecheck, the tests the change reaches, the build) and the \"wave gate\" (per wave, or per chain integration, run by the integrator: the full suite, slow suites, specs, shared generated outputs regenerated once). The existing in-worktree/post-merge \"venues\" stay: a venue says where a test tier is safe to run; the gates say who runs what, when. Add no new config syntax: `## Testing` may group commands under the two gate names in prose; the project maps commands to gates. Keep the engine voice: terse, no step lists where a criterion will do.",
+  "notes": "2026-11-12 12:31 - runner-state: runner=claude branch=tick/pjz/chain1 worktree=/home/morten/git/.ticks-worktrees/pjz-chain1 chain=ada,tln,lhr,23c,1dw tier=strong(opus) reason: edits the engine's own rules; consistency across references",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "morten@elk.dk",
+  "blocked_by": [
+    "ada",
+    "tln"
+  ],
+  "parent": "pjz",
+  "acceptance_criteria": "- The template has no numbered step list; it reads as criteria, gates, boundaries, report shape\n- Base check, self-provisioning, read-inputs, commit protocol, Boundaries and the four STATUS lines are present\n- The report shape has the per-check line with the three literal outcomes; the warm-chain variant uses it per tick\n- `grep -n 'test-first: write the failing test' skills/ticks/references/agent-runner.md` returns nothing",
+  "created_by": "morten@elk.dk",
+  "created_at": "2026-11-12T11:30:33.9364124Z",
+  "updated_at": "2026-11-12T11:58:56.365019317Z",
+  "closed_at": "2026-11-12T11:58:56.365019317Z",
+  "closed_reason": "Completed: implementer template reshaped to criteria/gates/boundaries/report with per-check lines (ran clean / went red and changed the code / not applicable); warm-chain variant matches; base check, provisioning, read-inputs, commit, Boundaries kept. Wave gate at af06c92a: Pi/Go failures are host-load flakes, A/B-matched at baseline 403d086a (logs: ../.ticks-worktrees/logs/pjz/ab.log); CI on PR authoritative"
+}

@@ -1,0 +1,153 @@
+# Learnings — body (looked up)
+
+Problem → Cause → Rule entries under the categories the head (`.tick/learnings.md`) indexes.
+Budget: at most 16384 bytes, at most 800 bytes per entry. Read an entry when a head line
+points you at its category; the planner reads this file in full at partition time, and the
+retro compacts it. Process-level (cross-repo) learnings belong in the ticks skill, not here.
+
+## Tick authoring
+
+**Problem:** A machine-readable output field shipped with the wrong semantics and a test
+cementing the bug — caught only by the epic's final review.
+**Cause:** The tick description defined the field by implementation predicate ("true when the
+epic has zero children") instead of by consumer semantics (what the orchestration loop should
+DO when it sees the value: plan now vs wait).
+**Rule:** When a tick specifies a flag/field another tool consumes, define it by the consumer's
+action and let the implementation derive the predicate — and state the consumer in the tick.
+
+## This repo's build
+
+**Problem:** A new cobra subcommand compiles and tests green but is unreachable from the
+installed binary.
+**Cause:** `cmd/tk/main.go` has a legacy routing switch with a hard-coded case list; every
+cobra command must also be added there.
+**Rule:** Register new subcommands in BOTH `cmd/tk/cmd/*.go` (cobra) and the switch + usage
+text in `cmd/tk/main.go`. `TestLegacyDispatchCoversAllCobraCommands` (main_test.go) now fails
+on omissions — keep it passing rather than skipping it.
+
+**Problem:** In-process command tests hang or silently no-op when run after other tests.
+**Cause:** cobra state leaks across in-process executions: flag values persist, the --help
+flag value short-circuits later commands, and contexts only propagate to commands with nil ctx.
+**Rule:** Drive commands in tests only via `ExecuteArgs`/`ExecuteArgsContext` (cmd/tk/cmd/root.go),
+which reset flags and handle these quirks — never call `rootCmd.Execute()` directly. When you ADD
+a persistent flag var in `cmd/tk/cmd/*.go`, also reset it in `ResetFlags()` in root.go — otherwise
+its value leaks into later in-process test executions.
+
+**Problem:** Tickboard UI changes pass `pnpm test` but don't appear in the running `tk board`.
+**Cause:** The Go binary embeds pre-built assets from `internal/tickboard/server/static/`;
+source changes need a production build.
+**Rule:** After UI source changes, run `scripts/build-ui.sh` and commit the regenerated
+`static/` (and `ui/dist/`) so the embed is current.
+
+**Problem:** CI pnpm setup fails ("No pnpm version specified") despite a packageManager pin,
+or pnpm install fails with ERR_PNPM_IGNORED_BUILDS.
+**Cause:** The repo's only package.json is nested at internal/tickboard/ui/, but
+pnpm/action-setup reads the repo root by default; and pnpm 11 gates build scripts behind
+approval in pnpm-workspace.yaml (esbuild).
+**Rule:** Keep `package_json_file: internal/tickboard/ui/package.json` on the pnpm action and
+keep internal/tickboard/ui/pnpm-workspace.yaml committed. Workflow changes are only proven by
+an actual CI run, never by local tests.
+
+**Problem:** cloud/worker's full `pnpm test` crashes workerd at boot ("inserted row already
+exists in table") whenever multiple test files share the runtime; auth-integration.test.ts also
+has 2 stale tests hitting a removed /agent route (tracked: tick xdq).
+**Cause:** pre-existing vitest-pool-workers/Node-24 incompatibility plus stale tests; worker
+tests are not in CI so breakage is invisible.
+**Rule:** Verify worker changes with `npx vitest run test/<file>.test.ts` in isolation; never
+"fix" the boot crash by mocking. Full-suite health belongs to tick xdq.
+
+**Problem:** The Pi runner suite (`node --test extensions/ticks-runner/*.test.ts`) fails tens of
+tests, and `which go` fails, on a machine where Go is installed.
+**Cause:** Go here is a mise install that is not active in this directory; the Pi tests shell out
+to a built `tk`, so they need `go` on PATH.
+**Rule:** Run Go as `mise exec go@1.24 -- go …`, and run the Pi suite with
+`PATH=$HOME/.local/share/mise/installs/go/1.24.11/bin:$PATH`. Never write a mise config to fix it.
+
+## Schema codegen
+
+**Problem:** A schemas/websocket change left generated code inconsistent across the repo —
+Go types updated but the UI's generated TS stale (or vice versa).
+**Cause:** Two codegen consumers: `make codegen-go` writes internal/types/generated/types.go;
+`scripts/build-ui.sh` regenerates internal/tickboard/ui/src/types/generated/websocket/*.
+**Rule:** Any schema edit must run BOTH `make codegen-go` and `scripts/build-ui.sh`, and commit
+all regenerated output together. Tick authors: spell these commands out in any tick that
+touches `schemas/` — the 4bt foundation tick omitted them and the gap surfaced only at review.
+
+**Problem:** Adding a date field to schemas/ pulled a new runtime dependency into the generated
+Go (`*types.SerializableDate` from github.com/atombender/go-jsonschema/pkg/types) where the file
+had previously imported only `time`.
+**Cause:** go-jsonschema maps JSON-Schema `format:"date"` to its own SerializableDate type.
+**Rule:** For date-only fields use `"type":"string"` + pattern `^\d{4}-\d{2}-\d{2}$`, NOT
+`format:"date"` — generated Go/TS stay plain `string` with zero new deps; parse with a
+hand-written layout const (e.g. `tick.TargetDateLayout`). The regex is shape-only (accepts
+`2026-13-45`); Go `time.Parse` in `Validate()` is the authoritative gate, so validate there too.
+
+## Docs & marketing copy
+
+**Problem:** A user-facing page (docs/quickstart, landing) shipped copy-pasteable `tk` commands
+that don't exist — `tk done`, a `--title` flag, bare `tk create`, `tk ready <id>` — caught only
+at epic final review.
+**Cause:** Agents writing examples guess CLI syntax from memory instead of the real cobra defs.
+**Rule:** Any tick that writes `tk` commands into docs/UI/marketing copy must verify each against
+`cmd/tk/cmd/*.go` (`Use:`/`Args:`). Known traps: closing is `tk close <id>` (there is no
+`tk done`); `tk create` needs a positional title and has no `--title` flag; `tk ready` takes no
+args (it lists); `tk block <id> <blocker-id>` needs the blocker id. There is no `tk run`.
+Spell this verification step out in the tick.
+
+## Orchestration
+
+**Problem:** A tick's close vanished — the tracker showed it in_progress at epic close despite
+a successful tk close hours earlier.
+**Cause:** tk mutations are working-tree file edits; an implementer agent mistakenly ran
+git-restore against the shared checkout and wiped uncommitted tick state. A later "tree is
+clean" check read the wipe as healthy.
+**Rule:** Commit .tick state immediately after every mutation batch (claim, close, note) —
+before merging any agent branch or launching agents. If an implementer reports having touched
+the shared checkout, diff tick state against the activity log before trusting the tree.
+
+**Problem:** Wave-2 worktree agents branched from a base missing the just-merged wave-1
+foundation commit; one re-implemented the missing field and caused a merge conflict.
+**Cause:** Harness worktrees can be created from a stale ref rather than the orchestrator's
+current HEAD.
+**Rule:** Implementer prompts must name the prerequisite commit SHA and instruct: verify it is
+an ancestor (`git merge-base --is-ancestor <sha> HEAD`) and cherry-pick it if absent — never
+re-implement a sibling tick's work.
+
+**Problem:** Implementer agents dispatched without a `model=` parameter run at frontier tier
+by default, silently spending frontier budget on balanced/mechanical work.
+**Cause:** The Agent call template in claude-runner.md shows `model: "sonnet"` but it is one
+line in a 10-line block, not a named step. Under orchestration pressure the tier selection
+step gets skipped entirely.
+**Rule:** Before each Agent call, explicitly choose a tier from the claude-runner.md table and
+set `model=` to the matching model. Omitting it is not "defaulting to balanced" — it is
+implicitly choosing frontier. Resolve the tier per-tick, not once for the run.
+
+**Problem:** `tk create`/`tk update -d "..."` descriptions containing backticks (for inline
+`--flags` or code) silently corrupted the stored field — the backtick spans were shell
+command-substituted, embedding command output (e.g. a `tk roadmap` dump) into the description.
+**Cause:** Double-quoted shell strings still evaluate backticks and `$(...)`.
+**Rule:** Author tick descriptions/notes with SINGLE-quoted strings (or a heredoc), never
+double-quoted, whenever the text contains backticks, `$`, or `()`. Verify with `tk show <id>`
+after bulk creation — substitution failures go to stderr and are easy to miss.
+
+**Problem:** A `git merge` of an implementer branch failed/half-applied (rename + go.mod staged
+in the index), then a blind `git add .tick/ && git commit` for tracker state captured the
+half-staged leftovers — corrupting HEAD and causing add/add conflicts on the retry.
+**Cause:** `git add .tick/` stages .tick, but `git commit` commits the WHOLE index, including
+anything a prior failed merge left staged.
+**Rule:** Commit orchestrator tracker state with a pathspec — `git commit .tick/ -m "..."` —
+never `git add .tick/ && git commit`. And after any merge, check it actually committed
+(`git rev-parse -q --verify MERGE_HEAD` should be empty; `git status` clean) BEFORE committing
+tracker state. To recover a botched merge-commit, `git reset --hard <pre-merge-sha>` and re-merge.
+
+## TUI (internal/tui)
+
+**Problem:** Parallel view-model ticks each changed shared chrome (the view-tab strip / footer),
+so every OTHER view's teatest golden went stale at integration; and inserting a view mid-strip
+(Board at hotkey 2) shifted sibling hotkeys, making position-based golden navigation time out
+(`WaitFor` 5s) because the test landed on the wrong view.
+**Cause:** Goldens render the whole frame including shared chrome; view tab-hotkeys are positional.
+**Rule:** After integrating any view-model tick, regenerate cross-contaminated goldens
+(`go test ./internal/tui -update`) and confirm the diff is chrome-only. In view tests, reach a
+view by a stable means, not a hardcoded hotkey digit — or expect to fix sibling-view nav when a
+new view is inserted mid-strip. Tab order is List·Board·Roadmap·Timeline.

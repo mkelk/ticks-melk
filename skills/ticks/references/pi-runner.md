@@ -25,7 +25,7 @@ A generic skill installer may install `skills/ticks/` without the extension. Do 
 | Parallel dispatch | The extension supervises multiple Pi JSON-mode subprocesses concurrently; `max_parallel`/`--max-parallel` caps fan-out. |
 | Completion | Incremental JSONL parser, live snapshots, TERM/KILL cancellation, lease-loss abort-and-settle, full event log, and compact Markdown report. |
 | Continuation | Recovery reattaches/reuses the unique existing branch/worktree/artifacts; Pi session IDs are never durable authority. |
-| Verification | Configured Testing commands run in each accepted child and again on the merged controller after each wave. |
+| Verification | Configured Testing commands run in each accepted child and again on the merged controller after each wave. The Pi package does not yet split the tick gate from the wave gate: every Testing command runs at both. |
 | Integration | Boundary check and provisional merge; persist/run the full-wave gate; only then close durably and clean worktrees/branches. |
 | UX | Compact footer/widget, RPC text, `/ticks-status`, and a shared-model dashboard overlay/dump. |
 | Planning | Bounded parallel read-only scouts plus strict frontier synthesis; model-running dry-run by default, with an explicit idempotent controller apply. |
@@ -214,3 +214,15 @@ The harness creates and later removes a temporary git/tick repository, executes 
 - Interrupted model-only planning dry-runs start a new attempt; partial tracker applies resume from durable mapping state, but do not reattach to an old live model process.
 - Runs resume from durable state after controller loss; live child processes do not attach to a new controller.
 - Scout fan-out is bounded, but cost is reported rather than dollar-capped.
+
+The shared protocol's lean-dispatch rules, against the extension as it stands (`extensions/ticks-runner/`):
+
+| Shared rule | In the Pi extension |
+|---|---|
+| Parallel warm-chains and balancing | Not implemented. One child, one worktree and one branch per ready tick (`graph.ts` work plans); no chain grouping, no balancing against the longest tick. |
+| Retiring implementers after the review (warm turns) | Not implemented. Children run `--no-session` and exit; worktrees and branches are cleaned when the wave closes; review findings become new controller-owned repair ticks, dispatched fresh. |
+| The rate window as a width input | Not implemented. Width is the minimum of the ready count, the graph's maximum and `max_parallel` (its cap, from config, `TICKS_PI_MAX_PARALLEL` or `--max-parallel`); no rate-window input. |
+| Static-prefix ordering | Not implemented. The implementer prompt opens with per-tick data (integration commit, task, criteria) and tells the child to read the instruction files and `.tick/learnings.md` itself. |
+| The learnings-body lookup | Not implemented. The implementer prompt names only `.tick/learnings.md`; neither it nor the planner's prompts mention `.tick/learnings-ref.md`. |
+| The steering-sunset retro step | Not implemented. The closeout retro is a summary plus learned notes; no per-check report of what each mandated check caught. |
+| The orchestrator-context ledger line | Not implemented. No dispatch ledger is written; the dashboard sums the children's usage (including context tokens), not the orchestrating session's. |

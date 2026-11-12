@@ -1,0 +1,12 @@
+{
+  "id": "s07",
+  "title": "Lean engine",
+  "description": "Make the ticks engine lean: the harness checks, the model is given criteria, and steering is pruned on evidence. Spec: docs/thoughts/2026-11-12-lean-epics.md (mkelk/skills#3). Overview: .devmeta/increments/increment-01-kyl/_overview.md",
+  "status": "open",
+  "priority": 2,
+  "type": "task",
+  "owner": "morten@elk.dk",
+  "created_by": "morten@elk.dk",
+  "created_at": "2026-11-12T11:23:24.250499879Z",
+  "updated_at": "2026-11-12T11:23:24.250499879Z"
+}

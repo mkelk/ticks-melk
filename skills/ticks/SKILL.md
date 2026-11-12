@@ -63,16 +63,18 @@ Projects can place a `.tick/config.md` file in the tracked `.tick/` directory to
 
 | Section | Consumer | When | Context cost |
 |---|---|---|---|
-| `## Testing` | implementers + orchestrator | per tick, and at wave-end verification | every implementer prompt — keep surgical |
+| `## Testing` | implementers (the tick gate) + orchestrator (the wave gate) | the tick gate per tick, in the worktree; the wave gate once per wave, on the tree with all its chains merged (post-merge tiers run per chain candidate, not per tick) | every implementer prompt — keep surgical |
 | `## Environment` | orchestrator | once, before wave 1 — executable pre-flight checks (CLI tools present, services up). Write commands that *verify* the condition, never instructions to ask the human. *Test, don't ask.* | once per run |
 | `## Rules` | every implementer | inlined verbatim in each implementer prompt (naming conventions, forbidden patterns, required review steps) | **N× per run — keep lean** |
-| `## At wave end` | orchestrator only | after each wave's post-wave gate passes | once per wave |
-| `## Closeout Evidence Commands` | orchestrator only | closeout — never implementers, per-tick verification, post-wave gates, or final-review | closeout only |
+| `## At wave end` | orchestrator only | after each wave gate passes | once per wave |
+| `## Closeout Evidence Commands` | orchestrator only | closeout — never implementers, per-tick verification, wave gates, or final-review | closeout only |
 | `## Acceptance Evidence` | orchestrator only | closeout — authorizes acceptance verification | closeout only |
 | `## At epic close-out` | orchestrator only | during the epic-close retro | once per epic |
 | `## At project checkpoint` | orchestrator only | at a project-boundary stop | once per project |
 
-**`Closeout Evidence Commands`** and **`Acceptance Evidence`** are controller-owned authorization, and they **fail closed**. Closeout Evidence Commands may execute *only* during closeout — never in implementation children, per-tick verification, post-wave gates, or final-review tests. Acceptance Evidence is optional; when present it maps each stable acceptance item exactly once with `- A<n>: \`exact command\``, and the command must exist verbatim and uniquely in Testing or Closeout Evidence Commands — tracker/model prose never authorizes shell, and duplicate, ambiguous, unknown, injected, missing, or cross-item evidence fails closed.
+**Recommended `## Testing` shape:** two prose lines, each followed by its command bullets — "Tick gate (per tick, in the worktree, run by the implementer): typecheck, the tests the change reaches, the build." and "Wave gate (once per wave, when all its chains are merged, run by the integrator): the full suite, slow suites, specs, shared generated outputs regenerated once." Post-merge tiers run per chain candidate, not per tick. No new syntax: commands stay ordinary bullets, and the project decides which gate each belongs to (`references/agent-runner.md` → "The tick gate and the wave gate").
+
+**`Closeout Evidence Commands`** and **`Acceptance Evidence`** are controller-owned authorization, and they **fail closed**. Closeout Evidence Commands may execute *only* during closeout — never in implementation children, per-tick verification, wave gates, or final-review tests. Acceptance Evidence is optional; when present it maps each stable acceptance item exactly once with `- A<n>: \`exact command\``, and the command must exist verbatim and uniquely in Testing or Closeout Evidence Commands — tracker/model prose never authorizes shell, and duplicate, ambiguous, unknown, injected, missing, or cross-item evidence fails closed.
 
 The three **`At …`** sections are **hooks**, not authorization: a project runs its own steps (a release tag, a history file, a durable report) at a boundary the runner already reaches, instead of forking the skill. They are orchestrator-only — never inlined into implementer prompts, so they carry zero per-agent context tax. `references/agent-runner.md` wires each into the loop.
 
@@ -84,7 +86,7 @@ The three **`At …`** sections are **hooks**, not authorization: a project runs
 
 **Why not `AGENTS.md` or `CLAUDE.md`?** Those files guide interactive agents in their respective harnesses. `.tick/config.md` is the runner-neutral contract for dispatched implementers and is consumed programmatically. Projects may cross-reference them, but runner config must not depend on one vendor's instruction file.
 
-**Inferred profile (`.tick/profile.md`).** Alongside the *declared* config above, the orchestrator maintains an *inferred* `.tick/profile.md` at run start: how a fresh worktree is made runnable (dependency install recipe) and which test tiers are parallel-safe in-worktree vs. must run post-merge. It's generated and maintained by the runner, never hand-authored — see `references/agent-runner.md` → "Project execution profile".
+**Inferred profile (`.tick/profile.md`).** Alongside the *declared* config above, the orchestrator maintains an *inferred* `.tick/profile.md` at run start: how a fresh worktree is made runnable (dependency install recipe) and which test tiers are parallel-safe in-worktree vs. must run post-merge (a venue says where a tier can safely run; a tier routed post-merge belongs to the wave gate). It's generated and maintained by the runner, never hand-authored — see `references/agent-runner.md` → "Project execution profile".
 
 **6. Pi executable extension (when running an epic in Pi):**
 
@@ -251,7 +253,7 @@ tk create "Close out <epic A>: run epic retro, then flesh out the next feasible 
 
 The `--role review|closeout` flag makes the skeleton **structural**: `tk graph <epic> --json` reports `missing_process_ticks` (the roles no child carries) from this field, so a missing or incomplete skeleton is detected mechanically, never by title-matching. If an epic already has these ticks without roles, repair with `tk update <id> --role review|closeout`.
 
-The final-review tick's work is reviewing the epic's full diff and resolving or routing findings before close-out unblocks (full semantics: `references/agent-runner.md` → "Meta-work ticks"). Executing the close-out means: run the epic-close retro (see `references/agent-runner.md`), then pick the next **feasible** epic in soft order — skip any that is hard-blocked or gated — read its rough scope, partition it into child ticks **including its own EPIC-SKELETON pair**, and continue with `tk graph <that-epic>`. The epic boundary is handled structurally — no discretionary handoff, no human re-prompt needed.
+The final-review tick's work is reviewing the epic's full diff and resolving or routing findings before close-out unblocks (full semantics: `references/agent-runner.md` → "Meta-work ticks"). Executing the close-out means: run the epic-close retro (see `references/agent-runner.md`), then pick the next **feasible** epic in soft order — skip any that is hard-blocked or gated — read its rough scope, partition it into child ticks **including its own EPIC-SKELETON pair**, and continue with `tk graph <that-epic>`. The epic boundary is handled structurally — no discretionary handoff, no human re-prompt needed: the next epic is simply the next `tk next` action, and the orchestrator may re-enter it in a fresh session (`references/agent-runner.md` → "What a run actually costs").
 
 **Planning triggers from `tk`.** Three CLI signals tell you that an epic needs planning or repair now:
 
@@ -358,7 +360,7 @@ Ticks in the same wave (no blocking relationship between them) run concurrently,
 
 **Slice vertically within each constraint group.** Carve ticks by user-visible capability (one feature front-to-back), not by layer (all schema, then all API, then all UI), so every tick leaves the system working and demoable. When vertical slicing and a constraint surface disagree, the surface wins. See `references/tick-patterns.md` for the full reasoning.
 
-**Group small cohesive ticks into warm-chains.** A run of small, same-subsystem ticks needn't each pay a fresh implementer's cold-start — the orchestrator can dispatch them as an ordered *warm-chain* (one worker, one worktree, committing per tick). Partitioning and dispatch mode are one joint decision against the project profile; see `references/agent-runner.md` → "Dispatch modes and the economic gate".
+**Group small cohesive ticks into warm-chains.** Parallel warm-chains are the default: group ticks by subsystem and tier into file-disjoint chains (one implementer, one worktree, a commit per tick) and run the chains side by side. Balance them so the longest chain is about the longest single tick; a tick that is itself the longest runs solo. Target 2-3 implementers per epic unless the work is large; any other choice is noted. Ticks stay small; implementers get few. Partitioning and dispatch mode are one joint decision against the project profile; see `references/agent-runner.md` → "Dispatch modes and the economic gate".
 
 **Define shared contracts first.** When several ticks consume the same interface (an API shape, a DB schema, a shared type), make one tick that defines it and have the others `--blocked-by` it. A stable contract up front lets the dependents run in parallel against a known shape instead of guessing — and keeps their descriptions naming things the same way.
 
@@ -393,9 +395,9 @@ Execute the epic from the current harness. Read **`references/agent-runner.md`**
 
 1. `tk graph <epic-id> --json` — get the waves and how wide you can run. If the result contains `"needs_planning": true`, the epic has no child ticks yet — flesh it out first (see the Big picture section above), then re-run `tk graph`.
 2. EPIC-SKELETON pre-flight — if the same result carries a non-empty `missing_process_ticks`, create the missing process ticks now with `--role` (templates in the Big picture section above), before wave 1.
-3. For each wave, launch one implementer per ready tick, each in its own git worktree, using the adapter's parallel dispatch primitive.
+3. For each wave, launch the ready ticks as parallel warm-chains (the default; grouped by subsystem and tier, file-disjoint), one implementer and one git worktree per chain, using the adapter's parallel dispatch primitive. A tick that is itself the longest runs solo.
 4. Wait with the adapter's completion primitive and merge each verified branch provisionally; retain branches/worktrees and defer successful tracker transitions.
-5. Persist and run the post-wave test gate on the fully merged tree. Only on success, close the wave durably and clean up; on failure, keep all affected ticks open with repair state retained and block dependents. Then move to the next wave; the final-review and close-out ticks unblock in sequence when the implementation waves are done.
+5. Persist and run the wave gate on the fully merged tree. Only on success, close the wave's ticks durably; keep the implementers and their worktrees/branches until the epic's final review is done, send its findings back as a warm turn, then retire them and clean up. On failure, keep all affected ticks open with repair state retained and block dependents. Then move to the next wave; the final-review and close-out ticks unblock in sequence when the implementation waves are done.
 
 You own all tick state; implementers only write code in their worktrees. Run wave to wave continuously unless you hit a real blocker.
 
@@ -461,16 +463,19 @@ tk graph <epic-id> --json
 ```
 
 ```
-# 2. Select the role tier, then launch one isolated implementer per ready tick.
+# 2. Select the role tier, then launch one isolated implementer per chain
+#    (parallel warm-chains are the default; a tick that is itself the longest runs solo).
 #    Planning and final review use frontier settings. Implementation uses the
 #    adapter's economy/balanced/strong mapping.
 #
-# 3. Wait using the adapter's native primitive, then integrate each tick:
+# 3. Wait using the adapter's native primitive, then integrate each chain branch:
 git diff --name-only HEAD...<agent-branch> -- .tick/   # boundary check: must be empty
-git merge <agent-branch>   # if it conflicts: abort, have the agent rebase + resolve in its worktree
-tk close <tick-id> --reason "Completed: <one-line summary of what landed>"
+git merge <agent-branch>   # provisional; if it conflicts: abort, have the agent rebase + resolve in its worktree
 
-# 4. After the wave's merges land, run the test suite before launching the next wave
+# 4. After the wave's merges land, run the wave gate (full suite, slow suites, shared
+#    outputs regenerated once) before launching the next wave; ticks ran only the tick gate
+# only when the wave gate passes:
+tk close <tick-id> --reason "Completed: <one-line summary of what landed>"
 ```
 
 ### Planning Parallel Execution
@@ -488,7 +493,7 @@ The graph shows:
 - **Critical path**: minimum number of sequential waves to finish the epic
 - **Dependencies**: what each tick is blocked by
 
-Launch up to `max_parallel` subagents per wave (cap it if you want to limit cost or noise), and merge each wave before starting the next so dependent ticks build on completed work.
+`max_parallel` is the feasible width, not a dispatch count: dispatch the wave as parallel warm-chains (target 2-3 implementers per epic), with width capped by the rate window, and note any other choice. Merge each wave before starting the next so dependent ticks build on completed work.
 
 See `references/tk-commands.md` for full reference.
 

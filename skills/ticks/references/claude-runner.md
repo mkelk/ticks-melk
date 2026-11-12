@@ -7,9 +7,9 @@ Read [`agent-runner.md`](agent-runner.md) first. This file maps its capability c
 | Shared capability | Claude Code primitive |
 |---|---|
 | Isolation | `Agent(..., isolation: "worktree")` |
-| Parallel dispatch | Put all `Agent` calls for a wave in one message with `run_in_background: true` |
+| Parallel dispatch | Put all `Agent` calls for a wave (one per chain or solo tick) in one message with `run_in_background: true` |
 | Completion | Agent completion notifications and the value returned by `Agent` |
-| Continuation | `SendMessage` to the named agent or returned agent ID (live agents in this session only — see "Continuation after a crash") |
+| Continuation | `SendMessage` to the named agent or returned agent ID: mid-task corrections and the warm turn after review (agents spawned in this session, running or finished — see "Continuation after a crash") |
 | Review | A read-only reviewer `Agent` (see "Review" below for axis mapping; "Workflow" before reaching for fan-out) |
 
 Set `TK_ACTOR=claude:orchestrator` before tracker writes. For orchestrator self-isolation (the "don't run on main" rule), `EnterWorktree` gives the orchestrating session its own worktree as an alternative to creating a feature branch.
@@ -44,7 +44,7 @@ Agent(
   run_in_background: true,
   mode: "bypassPermissions",
   model: "<resolved tier>",
-  name: "tick-<tick-id>"  # when supported
+  name: "tick-<tick-id>"  # or "chain-<label>"; the warm-turn address, when supported
 )
 ```
 
@@ -52,18 +52,18 @@ Agent(
 
 The harness creates the worktree **at agent launch**, so the orchestrator cannot provision it beforehand. Two resolutions of the shared protocol's provisioning step (`agent-runner.md` → "Provisioning: runnable worktrees"):
 
-- **Default: implementer self-provisions.** The shared prompt template's provisioning step handles it — the agent applies the profile's recipe as its first action, before touching code. This requires the recipe to already exist in `.tick/profile.md` (discovered solo at run start, loop step 1), or the wave's agents will each rediscover it.
+- **Default: implementer self-provisions.** The shared prompt template's provisioning instruction (right after its base check) handles it — the agent applies the profile's recipe before touching code. This requires the recipe to already exist in `.tick/profile.md` (discovered solo at run start, loop step 1), or the wave's agents will each rediscover it.
 - **Alternative: orchestrator-created worktrees.** When provisioning must precede the agent (heavy setup, private resources, or you want to verify runnability before paying for a dispatch), create the worktree yourself, provision it, then dispatch a normal `Agent` **without** `isolation: "worktree"` and point its prompt at that directory and branch.
 
 Watch the concurrency cost: N simultaneous full dependency installs can thrash disk/network — prefer profile recipes that share immutable state safely from the main checkout, and remember the shared-deps **no-install** boundary. Apply the shared **economic gate** before provisioning wide — when a wave is too narrow/short to repay provisioning, deliberate-and-noted sequential is the correct call. Do NOT let a provisioning failure silently degrade the run to shared-tree sequential execution; if provisioning fails, fix the recipe (or fall back deliberately and note it), don't drift. If worktrees are **pooled** across ticks, the manual-worktree path fits best (harness-created `isolation: "worktree"` trees are single-shot); run cleanup at pool retirement (epic end), not per tick.
 
-**Warm-chain mapping.** A chain is **one `Agent` call** with the chain prompt variant (shared protocol → "Warm-chain prompt variant") — the warm context lives inside that single agent, so never split a chain across Agent calls. Mid-chain course corrections use `SendMessage` to the live agent; after a crash, redispatch a fresh Agent into the same worktree/branch pointed at the first un-committed tick (the completed prefix stays merged). Tier note: a chain aggregates several ticks' worth of judgment — resolve the chain's capability tier from its *hardest* link, not its average.
+**Warm-chain mapping.** A chain is **one `Agent` call** with the chain prompt variant (shared protocol → "Warm-chain prompt variant"; its gates, planted-fault rule and per-tick check lines come from there, not from this adapter) — the warm context lives inside that single agent, so never split a chain across Agent calls. Mid-chain course corrections use `SendMessage` to the live agent; after a crash, redispatch a fresh Agent into the same worktree/branch pointed at the first un-committed tick (the completed prefix stays merged). A finished chain or solo implementer is not retired at its tick's close: it stays warm until the epic's final review, and the review's findings on its code reach it as a warm turn — `SendMessage` to the finished implementer's agent ID or name, which resumes it with its context, within this session. If the warm worker is gone, the fallback is a fresh `Agent` without `isolation`, into the existing worktree and branch (see "Continuation after a crash"), noted in the dispatch ledger. Tier note: a chain aggregates several ticks' worth of judgment — resolve the chain's capability tier from its *hardest* link, not its average.
 
 ## Successful-integration cleanup
 
 This is the adapter's resolution of the shared protocol's "run the active adapter's successful-integration cleanup" step (`agent-runner.md`). **Claude isolation worktrees are not self-cleaning once they hold commits.** The harness auto-removes an `isolation: "worktree"` directory only while it is *unchanged*; every tick implementer commits code, so its worktree and `worktree-agent-*` branch persist after the run and accumulate under `.claude/worktrees/` (multi-GB leaks across a few epics). The orchestrator must remove them explicitly — do not assume the harness will.
 
-After the whole wave's integrated gate has passed and the tick is durably closed (and only then), remove its worktree and branch:
+Ticks still close at the wave gate. Worktree and branch cleanup waits until after the epic's final review: a warm turn on the review's findings runs in them (shared protocol → "Reviewing the work"). Once the final review's findings are fixed or deferred, and only then, remove each worktree and branch:
 
 ```bash
 # branch comes from the agent's report, e.g. worktree-agent-a1bdb1ab…
@@ -85,7 +85,7 @@ That leaves a window: a session that dies mid-wave has live branches with no not
 
 ## Continuation after a crash
 
-`SendMessage` only reaches agents alive in the current session. To continue incomplete work in an existing worktree after a crash or handoff, dispatch a fresh `Agent` **without** `isolation: "worktree"` and instruct it in the prompt to work in the existing worktree directory on the existing branch (give it the absolute path and branch name, plus the prior report and what remains). Never let it create a second branch for the tick.
+`SendMessage` only reaches agents spawned in this session, running or finished. To continue incomplete work in an existing worktree after a crash or handoff — or to deliver a warm turn whose warm worker is gone — dispatch a fresh `Agent` **without** `isolation: "worktree"` and instruct it in the prompt to work in the existing worktree directory on the existing branch (give it the absolute path and branch name, plus the prior report and what remains). Never let it create a second branch for the tick. A fresh dispatch in place of a warm turn is noted in the dispatch ledger.
 
 ## Workflow
 
@@ -98,7 +98,7 @@ The shared doc defines the review-axis menu (spec compliance, correctness, secur
 - **Purpose-built agents, if installed.** Claude Code's `pr-review-toolkit` plugin ships axis-specialized reviewers — `silent-failure-hunter` (error handling), `pr-test-analyzer` (test quality), `type-design-analyzer` (type/contract design), `comment-analyzer` (comment accuracy), `code-reviewer` (general quality + spec compliance), `code-simplifier` (simplification, which doubles as the retro drift pass). When a consuming repo has these — or equivalents — as `subagent_type` values, dispatch them directly, one per axis the diff earns.
 - **Otherwise, a focused `general-purpose` Agent per axis.** Give it a single axis as its remit and the shared severity + confidence format. Don't ask one agent to cover every axis at once — independent passes are the point of fan-out.
 
-Resolve the reviewer to a model **at least as capable as the implementer** (shared REVIEWER-TIER RULE), and to the frontier class for the epic final review. To parallelize, put the axis `Agent` calls in one message with `run_in_background: true`; the orchestrator then verifies findings against the code — low-confidence ones especially — before acting. Agents review; the orchestrator adjudicates.
+Resolve the reviewer to a model **at least as capable as the implementer** (shared REVIEWER-TIER RULE), and to the frontier class for the epic final review. To parallelize, put the axis `Agent` calls in one message with `run_in_background: true`; the orchestrator then verifies findings against the code — low-confidence ones especially — before acting. Agents review; the orchestrator adjudicates. Verified findings go back to the implementer that wrote the code as a warm turn: `SendMessage` to its agent ID or name, on its existing worktree and branch; if it is gone, a fresh `Agent` without `isolation` into that worktree and branch, noted in the dispatch ledger (see "Warm-chain mapping").
 
 ## Boundary hardening
 
@@ -168,3 +168,6 @@ E2's replay showed a gain (5 → 6 of 13); the final review then found a blocker
 
 ## Field note: restarts wipe the scratchpad and the implementers (2026-10-28, fh prices 11s66-jje)
 Three session restarts in one small epic killed three background implementers; the first left its tick uncommitted, and the orchestrator's briefs and gate logs, written to the session scratchpad, were gone with the next session's new scratchpad path. Keep briefs and logs beside the worktree (`../.ticks-worktrees/<wt>.logs/`), save an uncommitted diff as a WIP commit before a planned exit, and when sessions are restarting tell implementers to commit and push early. A dead tick whose diff only needs its gates run is cheaper to verify from the orchestrator than to redispatch a third time.
+
+## Field note: three parallel warm-chains kept warm through the review (2026-11-12, ticks-melk 01-kyl z5t)
+Eleven ticks ran as three file-disjoint chains in orchestrator-created worktrees (`tick/<epic>/chain-<name>`), wave wall ≈11 min with three cold starts instead of eleven. A mid-chain `SendMessage` carrying a sibling chain's wording was accepted, since the brief said to expect follow-ups. After the final review, `SendMessage` to each *finished* background implementer resumed it with its context. All three fixed their own files' findings as warm turns (51-154 s, +10-20k tokens each), against a fresh cold start of ≈4-5 min and ≈80k. Tell a warm worker to merge the integration commit before its fix, so its fix branch merges back clean.

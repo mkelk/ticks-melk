@@ -1,0 +1,17 @@
+{
+  "id": "pjz",
+  "title": "Lean brief and two-tier verification",
+  "description": "Lean brief and two-tier verification (foundation). Source of truth: docs/thoughts/2026-11-12-lean-epics.md — \"What looks general\", \"Harness vs steering\", and the Synthesis rows \"Engine, verification\" and \"Engine, the brief\". Overview: .devmeta/increments/increment-01-kyl/_overview.md.\n\nRewrite the implementer prompt template around criteria, gates, boundaries and report shape (no step lists beyond the protocol). Its report gains one line per mandated check, which E2's sunset step consumes. Write down the two verification tiers, shared generated outputs regenerated once by the integrator, planted faults only on logic, and the by-path test rule, consistently across agent-runner.md, SKILL.md, tick-patterns.md, claude-runner.md and codex-runner.md. Edit skills/ticks/ only; never an installed copy.\n\nDispatch: implementers at the strong tier; dispatch-ledger reason: \"edits the engine's own rules; consistency across references\". Final review at frontier.",
+  "status": "closed",
+  "priority": 2,
+  "type": "epic",
+  "owner": "morten@elk.dk",
+  "parent": "s07",
+  "acceptance_criteria": "1. agent-runner.md names two verification tiers. Per tick, in the worktree: typecheck, the tests the change reaches, and the build. Per wave or epic, by the integrator: the full suite, slow suites, specs, and shared generated outputs. The loop (steps 4e-4f), \"Post-merge verification\", and SKILL.md's `## Testing` row use those names. No file under skills/ticks/ tells an implementer to run the full suite or a slow tier per tick.\n2. Shared generated outputs (screenshots, baselines, built assets) are regenerated once by the integrator after the merge, written into the wave-end guidance. The implementer prompt tells implementers not to regenerate them.\n3. A planted fault (watch the test fail) is required only where the logic can be wrong in a way the test should catch. tick-patterns.md \"Test-Driven Development\", the prompt template, and both adapters agree; none mandates one on every new test.\n4. The by-path rule is in the engine's testing guidance: a test that reads a source by path escapes changed-file selection, so after editing such a file the implementer runs that package's tests whole.\n5. The implementer prompt template (and its warm-chain variant) is shaped as criteria, gates, boundaries, and report shape. The base check, read-inputs, and commit protocol and the Boundaries section stay. The report includes one line per mandated check: ran clean / went red and changed the code / not applicable.\n6. claude-runner.md and codex-runner.md agree with the new template; grep finds no adapter describing the old per-tick gate set.\n7. The `.tick/config.md` Testing commands pass: Pi runner `node --test` and Go `go test -short`. The Pi tests read tick-patterns.md.",
+  "base_branch": "2026-11-12-lean-engine",
+  "created_by": "morten@elk.dk",
+  "created_at": "2026-11-12T11:23:25.372499875Z",
+  "updated_at": "2026-11-12T12:01:56.087298839Z",
+  "closed_at": "2026-11-12T12:01:56.087298839Z",
+  "closed_reason": "Completed: tick gate + wave gate named across the engine; lean brief with per-check report lines; planted faults only on logic; by-path rule; DoD 1-7 verified (Pi by A/B parity under host load, Go by CI). Retro: .devmeta/increments/increment-01-kyl/ia-cycles/lean-brief-and-two-tier-verification.md"
+}

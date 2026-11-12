@@ -1,0 +1,20 @@
+{
+  "id": "uy4",
+  "title": "Retire implementers after the final review; should-fix as a warm turn",
+  "description": "In skills/ticks/references/agent-runner.md: loop step 4g and step 5, \"Amortize: pool worktrees\", \"Reviewing the work\" (the \"If a reviewer finds issues\" sentence and the should-fix policy), and \"Closing the epic\".\n\nThe text must say:\n- Implementers, and the worktree or branch a warm turn needs, are retired after the epic's final review, not after their tick. Closing the tick still happens at the wave gate.\n- The final review's should-fix (and blocker) items route back to the chain or implementer that wrote the code, as a warm turn, on its branch advanced to the integration commit.\n- If the warm worker is gone, the fallback is a fresh dispatch, noted in the dispatch ledger.\n- The mechanism is the adapter's (claude-runner and codex-runner own it; another chain edits those files). Do not restate it here.\n\nShared vocabulary (verbatim across all three parallel chains, which do not see each other):\n- Files: `.tick/learnings.md` is the always-read head (at most 4096 bytes: hard rules plus an index of the body's categories). `.tick/learnings-ref.md` is the looked-up body (Problem/Cause/Rule entries, at most 16384 bytes, at most 800 bytes per entry). The 800-byte entry limit applies to the body only. The engine owns the format; the project owns the content.\n- Check labels in implementer reports: the tick-gate command verbatim, `by-path run`, `planted fault`.\n- Check outcomes: `ran clean`, `went red and changed the code`, `went red, not from this change`, `not applicable`.\n- Terms: \"parallel warm-chains\", \"warm turn\", \"retire\" (an implementer is retired after the final review).\n- Existing section titles in agent-runner.md stay as they are. The gate names are \"tick gate\" and \"wave gate\", already defined.\nSpec (source of truth): docs/thoughts/2026-11-12-lean-epics.md. Edit only skills/ticks/ (never an installed copy) unless your task names other files. Keep the engine's terse voice; criteria, not step lists.",
+  "notes": "2026-11-12 13:48 - runner-state: runner=claude chain=P branch=tick/z5t/chain-P worktree=/home/morten/git/.ticks-worktrees/z5t-P base=441b6020 model=opus brief=/home/morten/git/.ticks-worktrees/logs/z5t/brief-P.md",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "morten@elk.dk",
+  "blocked_by": [
+    "6na"
+  ],
+  "parent": "z5t",
+  "acceptance_criteria": "- `grep -ni 'warm turn' skills/ticks/references/agent-runner.md` hits in \"Reviewing the work\" and in the loop\n- No text retires an implementer, or removes the worktree it needs, at tick close before the final review\n- The fallback (fresh dispatch, noted) is stated",
+  "created_by": "morten@elk.dk",
+  "created_at": "2026-11-12T12:06:22.320558509Z",
+  "updated_at": "2026-11-12T13:04:02.916089705Z",
+  "closed_at": "2026-11-12T13:04:02.916089705Z",
+  "closed_reason": "Completed: implementers retired after the final review; should-fix findings return as a warm turn, fresh dispatch noted as fallback (wave gate green by A/B at 7a77f486)"
+}

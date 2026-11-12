@@ -1,0 +1,20 @@
+{
+  "id": "q0f",
+  "title": "pi-runner.md: name what the Pi extension does not implement yet",
+  "description": "In skills/ticks/references/pi-runner.md, \"Current limitations\". Read extensions/ticks-runner/ (read-only; do not change any code) and state which of these the Pi extension implements and which it does not yet:\n- parallel warm-chains and balancing\n- retiring implementers after the review (warm turns)\n- the rate window as a width input (`max_parallel` is its cap)\n- static-prefix ordering\n- the learnings-body lookup\n- the steering-sunset retro step\n- the orchestrator-context ledger line\n\nShared vocabulary (verbatim across all three parallel chains, which do not see each other):\n- Files: `.tick/learnings.md` is the always-read head (at most 4096 bytes: hard rules plus an index of the body's categories). `.tick/learnings-ref.md` is the looked-up body (Problem/Cause/Rule entries, at most 16384 bytes, at most 800 bytes per entry). The 800-byte entry limit applies to the body only. The engine owns the format; the project owns the content.\n- Check labels in implementer reports: the tick-gate command verbatim, `by-path run`, `planted fault`.\n- Check outcomes: `ran clean`, `went red and changed the code`, `went red, not from this change`, `not applicable`.\n- Terms: \"parallel warm-chains\", \"warm turn\", \"retire\" (an implementer is retired after the final review).\n- Existing section titles in agent-runner.md stay as they are. The gate names are \"tick gate\" and \"wave gate\", already defined.\nSpec (source of truth): docs/thoughts/2026-11-12-lean-epics.md. Edit only skills/ticks/ (never an installed copy) unless your task names other files. Keep the engine's terse voice; criteria, not step lists.",
+  "notes": "2026-11-12 13:49 - runner-state: runner=claude chain=S branch=tick/z5t/chain-S worktree=/home/morten/git/.ticks-worktrees/z5t-S base=441b6020 model=opus brief=/home/morten/git/.ticks-worktrees/logs/z5t/brief-S.md",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "morten@elk.dk",
+  "blocked_by": [
+    "8bu"
+  ],
+  "parent": "z5t",
+  "acceptance_criteria": "- Each of the seven is named as implemented or not, from the code\n- No file under extensions/ changes",
+  "created_by": "morten@elk.dk",
+  "created_at": "2026-11-12T12:06:31.019452083Z",
+  "updated_at": "2026-11-12T13:04:11.776752719Z",
+  "closed_at": "2026-11-12T13:04:11.776752719Z",
+  "closed_reason": "Completed: pi-runner Current limitations names the seven lean-dispatch rules the extension does not implement, with code evidence (wave gate green by A/B at 7a77f486)"
+}

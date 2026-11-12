@@ -1,0 +1,17 @@
+{
+  "id": "zg4",
+  "title": "tk: per-file learnings budgets (head 4096, body 16384, 800 per body entry)",
+  "description": "In internal/tick/learnings.go and internal/tick/learnings_test.go; the warning call sites in cmd/tk/cmd/status.go and cmd/tk/cmd/close.go; and one line in CHANGELOG.md under [Unreleased] (Changed).\n\nBehaviour:\n- A head `.tick/learnings.md` over 4096 bytes warns, naming the file.\n- A body `.tick/learnings-ref.md` over 16384 bytes warns, and a body entry over 800 bytes warns with its line number (reuse the existing entry parsing).\n- An absent body gives no warning, and an absent head stays silent.\n- Warnings never block. `tk status` and `tk close` print them per file.\n- Keep the existing exported names working, or update every caller.\n\nUse TDD with a planted fault: these are boundary and absent-file logic, the case where watching a test fail earns its cost.\n\nThis tick runs alone in its own worktree. Another chain is editing skills/ticks/ docs in parallel; do not touch them. Go is reachable only as `mise exec go@1.24 -- go …` (see .tick/learnings.md).\n\nShared vocabulary (verbatim across all three parallel chains, which do not see each other):\n- Files: `.tick/learnings.md` is the always-read head (at most 4096 bytes: hard rules plus an index of the body's categories). `.tick/learnings-ref.md` is the looked-up body (Problem/Cause/Rule entries, at most 16384 bytes, at most 800 bytes per entry). The 800-byte entry limit applies to the body only. The engine owns the format; the project owns the content.\n- Check labels in implementer reports: the tick-gate command verbatim, `by-path run`, `planted fault`.\n- Check outcomes: `ran clean`, `went red and changed the code`, `went red, not from this change`, `not applicable`.\n- Terms: \"parallel warm-chains\", \"warm turn\", \"retire\" (an implementer is retired after the final review).\n- Existing section titles in agent-runner.md stay as they are. The gate names are \"tick gate\" and \"wave gate\", already defined.\nSpec (source of truth): docs/thoughts/2026-11-12-lean-epics.md. Edit only skills/ticks/ (never an installed copy) unless your task names other files. Keep the engine's terse voice; criteria, not step lists.",
+  "notes": "2026-11-12 13:49 - runner-state: runner=claude chain=G branch=tick/z5t/chain-G worktree=/home/morten/git/.ticks-worktrees/z5t-G base=441b6020 model=opus brief=/home/morten/git/.ticks-worktrees/logs/z5t/brief-G.md",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "morten@elk.dk",
+  "parent": "z5t",
+  "acceptance_criteria": "- Named tests pass under `mise exec go@1.24 -- go test -short -count=1 ./internal/tick/ ./cmd/tk/...`. They cover the head boundary (4096 ok, 4097 warns), the body boundary (16384 / 16385), the body entry limit (800 / 801), and an absent body (no warning).\n- `mise exec go@1.24 -- go build ./...` and `mise exec go@1.24 -- go vet ./internal/tick/ ./cmd/tk/...` are clean\n- Each warning string names its own file",
+  "created_by": "morten@elk.dk",
+  "created_at": "2026-11-12T12:06:32.068244274Z",
+  "updated_at": "2026-11-12T13:04:12.706004633Z",
+  "closed_at": "2026-11-12T13:04:12.706004633Z",
+  "closed_reason": "Completed: tk status/close warn per learnings file: head 4096, body 16384, 800 per body entry; absent files silent; boundary tests + planted faults (wave gate green by A/B at 7a77f486)"
+}

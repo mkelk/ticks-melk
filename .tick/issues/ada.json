@@ -1,0 +1,17 @@
+{
+  "id": "ada",
+  "title": "Name the tick gate and wave gate in agent-runner.md",
+  "description": "Define the two gates once in skills/ticks/references/agent-runner.md and use the names throughout that file, except the \"Implementer prompt template\" and \"Warm-chain prompt variant\" sections (T3 owns those).\n\n- Place one definition of the tick gate and the wave gate next to \"Post-merge verification (serial venue)\" or the profile's venue text. Say how the gates relate to venues: anything a venue routes post-merge belongs to the wave gate.\n- Put the by-path rule inside the tick gate definition. A test that reads a source file by path, not by import, escapes changed-file test selection. After editing a file that tests read by path, the implementer runs that package's tests whole.\n- Write the regenerate-once rule into the wave-end text: loop step 4f/4h and the \"Verify the wave after merging\" paragraph. Shared generated outputs (screenshots, baselines, built assets) are regenerated once, by the integrator, after the merge, and once per chain for a chain.\n- Use the gate names in the loop steps 4e-4f, \"Post-merge verification\", the run-start Testing bullet, \"Integrating finished work\" step 3, the warm-chain bullet in \"Dispatch modes\", and the DONE row of the status table.\n\nSpec (source of truth): docs/thoughts/2026-11-12-lean-epics.md. Edit only files under skills/ticks/ (never an installed copy). Settled names, use exactly: the \"tick gate\" (per tick, in the worktree, run by the implementer: typecheck, the tests the change reaches, the build) and the \"wave gate\" (per wave, or per chain integration, run by the integrator: the full suite, slow suites, specs, shared generated outputs regenerated once). The existing in-worktree/post-merge \"venues\" stay: a venue says where a test tier is safe to run; the gates say who runs what, when. Add no new config syntax: `## Testing` may group commands under the two gate names in prose; the project maps commands to gates. Keep the engine voice: terse, no step lists where a criterion will do.",
+  "notes": "2026-11-12 12:31 - runner-state: runner=claude branch=tick/pjz/chain1 worktree=/home/morten/git/.ticks-worktrees/pjz-chain1 chain=ada,tln,lhr,23c,1dw tier=strong(opus) reason: edits the engine's own rules; consistency across references",
+  "status": "closed",
+  "priority": 2,
+  "type": "task",
+  "owner": "morten@elk.dk",
+  "parent": "pjz",
+  "acceptance_criteria": "- Tick gate and wave gate are each defined once in agent-runner.md, with their relation to venues; every section listed in the description uses the names\n- `grep -n 'by path' skills/ticks/references/agent-runner.md` hits the by-path rule; the regenerate-once rule is in the wave-end text\n- Outside the template sections, no sentence tells an implementer to run the full suite or a slow tier",
+  "created_by": "morten@elk.dk",
+  "created_at": "2026-11-12T11:30:31.586443361Z",
+  "updated_at": "2026-11-12T11:58:54.459518494Z",
+  "closed_at": "2026-11-12T11:58:54.459518494Z",
+  "closed_reason": "Completed: tick gate + wave gate defined once in agent-runner.md (venue relation, by-path rule, regenerate-once in 4f), names used across the loop/post-merge/status table. Wave gate at af06c92a: Pi/Go failures are host-load flakes, A/B-matched at baseline 403d086a (logs: ../.ticks-worktrees/logs/pjz/ab.log); CI on PR authoritative"
+}

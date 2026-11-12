@@ -7,9 +7,9 @@ Read [`agent-runner.md`](agent-runner.md) first. This file maps its capability c
 | Shared capability | Codex primitive |
 |---|---|
 | Isolation | `git worktree add -b tick/<epic>/<tick> <path> <integration-commit>` |
-| Parallel dispatch | One background `codex exec -C <worktree>` process per ready tick |
+| Parallel dispatch | One background `codex exec -C <worktree>` process per chain (parallel warm-chains are the default) or solo tick |
 | Completion | Shell `wait` plus `--output-last-message <report>` |
-| Continuation | `codex exec resume` when a session is available; otherwise redispatch in the same worktree |
+| Continuation | `codex exec resume` when a session is available (mid-task corrections, the warm turn after review); otherwise a fresh dispatch in the same worktree, noted |
 | Review | `codex exec review` or a read-only `codex exec` against the diff |
 
 Set `TK_ACTOR=codex:orchestrator` before tracker writes.
@@ -40,9 +40,9 @@ codex exec \
 pid=$!
 ```
 
-Prepare `prompt_file` from the shared implementer template. Launch every ready tick before waiting. Keep an in-memory `tick -> pid` map, then use shell `wait <pid>` for completion. This is blocking process supervision, not polling. Read the small report first; inspect the log only for failures or missing status.
+Prepare `prompt_file` from the shared implementer template (or its warm-chain variant); it already carries the tick gate, the planted-fault rule and the report shape, so add the tick's data, not a second gate list. Launch every ready chain or solo tick before waiting. Keep an in-memory `unit -> pid` map (and the unit's session ID, for its warm turn), then use shell `wait <pid>` for completion. This is blocking process supervision, not polling. Read the small report first; inspect the log only for failures or missing status.
 
-After the whole wave's integrated gate passes and the tick is durably closed, remove the manually created worktree before deleting its merged branch:
+Ticks still close at the wave gate, but the worktree and branch stay until after the epic's final review: a warm turn on the review's findings runs in them (shared protocol → "Reviewing the work"). Once the final review's findings are fixed or deferred, remove each manually created worktree before deleting its merged branch:
 
 ```bash
 git worktree remove "$worktree"
@@ -68,9 +68,9 @@ At the time this adapter was updated, the recommended strongest model is `gpt-5.
 
 ## Continuation and handoff
 
-`codex exec resume <session-id>` is useful within one live orchestration session, but session IDs are not durable runner state. After a crash or cross-runner handoff, run a fresh `codex exec -C <existing-worktree>` with the tick, prior report, review feedback, and current branch state. Never create a second branch for the tick.
+`codex exec resume <session-id>` is useful within one live orchestration session, but session IDs are not durable runner state. It is the warm turn: an implementer is retired after the epic's final review, not after its tick, and the review's findings on its code go back to it by resuming its session. After a crash or cross-runner handoff, or when the warm worker is gone, run a fresh `codex exec -C <existing-worktree>` with the tick, prior report, review feedback, and current branch state — the fallback for a warm turn too, noted in the dispatch ledger. Never create a second branch for the tick.
 
-Codex loads `AGENTS.md` automatically. The implementer prompt must also tell it to read `.tick/config.md` and `.tick/learnings.md`; those files are execution inputs even though the implementer must not modify `.tick/`.
+Codex loads `AGENTS.md` automatically. The rest of the read order comes from the shared implementer template (instruction file, learnings head `.tick/learnings.md` with `.tick/learnings-ref.md` looked up by category when the head points there, then `.tick/config.md`); keep it in the prompt. Those files are execution inputs even though the implementer must not modify `.tick/`.
 
 ## Boundary hardening
 
