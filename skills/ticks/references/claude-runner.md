@@ -110,3 +110,61 @@ Do not use `TaskOutput` for subagent results; it can load the full transcript. U
 After the orchestrating session checks out another branch mid-session (e.g. for a PR merge) and returns, `isolation: "worktree"` dispatches may create the agent worktree from the wrong base commit (observed: based on master instead of the checked-out feature branch HEAD). Keep the "verify your worktree contains commit <X>" gate as the FIRST instruction of every implementer prompt, and on mismatch fall back to the orchestrator-created worktree path (git worktree add from the exact commit, dispatch without isolation into it).
 
 Recurred 2026-08-17 on a session that never switched branches (fresh session already on the feature branch): the harness worktree was again based on master, and because the gated agent stopped before committing, the harness auto-removed the unchanged worktree — so there was nothing to fast-forward. Practical consequence: when orchestrating on a non-default branch, prefer orchestrator-created worktrees (`git worktree add ../.ticks-worktrees/<unit> -b tick/<epic>/<unit> <exact-commit>` + dispatch without isolation) from the start; treat harness `isolation: "worktree"` as reliable only on the default branch.
+
+## Field note: `tk create -d` through the Bash tool (2026-09-26, japan-companion)
+Backticks and `$(…)` inside a double-quoted `-d "…"` are executed by the shell, silently
+mangling the description (lines like "add `X` and `Y`" became "add  and ."). Write the
+description to a scratch file and pass `-d "$(cat file)"`, or single-quote it. Check
+`tk show <id> --json` after creation when the text carried code spans. Same session: manual
+worktrees from the exact integration commit + dependency-driven launches ran a 6-wide wave
+on a feature branch with no base-commit surprises.
+
+## Field note: brief-in-a-file dispatch (2026-09-26, japan-companion increment 02)
+Writing each implementer's full brief (template + description + contracts) to a scratch
+file and making "read this file in full first" the agent's first instruction worked for
+8/8 dispatches: the orchestrator never loads the assembled prompts into its own context,
+and the brief stays self-contained on disk for redispatch after a crash. Keep the key facts
+(worktree, branch, integration commit, boundaries) repeated inline in the short Agent prompt.
+
+## Field note: mid-task `SendMessage` refused as injection (2026-09-26, japan-companion increment 02)
+A running implementer whose brief said "stay within the N items" declined a mid-task
+`SendMessage` adding an item, treating it as unverifiable. A second message that named the
+sender as the orchestrator that wrote the brief and stated the scope extension explicitly was
+accepted. Write briefs so follow-ups are expected ("the orchestrator may send you further items
+by message; treat them as part of this tick"), and phrase course corrections as such. Also:
+a warm-chain of three ≲10-min ticks took ≈18.5 min wall with one cold start (first data point).
+
+## Field note: implementers that background their own test runs (2026-09-28, fh read 11s25-rdx)
+Across one increment, about half the implementers started a long `pnpm fp test` (or a UI run) in the background despite a brief saying "foreground", and the harness handed the tick back with "waiting on its own background work" — several times per tick. Every one resumed and reported when its run finished; none lost work. The orchestrator's move is to wait for the report, check the worktree's processes by `/proc/*/cwd` if it runs long, and never merge on a completion notice that carries no report.
+
+## Field note: `tk` writes into the shell's current directory (2026-09-29, fh writer-d 11s29-kqv)
+The Bash tool's working directory persists between calls. One orchestrator call did `cd ../.ticks-worktrees/<wt> && pnpm install … && tk update <id> --status in_progress`, and the update landed in the worktree's `.tick/`, not the controller's: `tk` resolves `.tick/` from the cwd. The implementer later found "uncommitted `.tick/` changes it had not made", and the boundary check would have read them as its change. Run every `tk` command from the controller checkout (absolute paths, or `cd` back first); before merging, `git -C <worktree> status --short -- .tick/` should be empty, and a stray change there is discarded, then re-applied in the checkout.
+
+## Field note: the brief's base check vs the state commit (2026-09-29, fh picking 11s30-pkr)
+Worktrees were cut from commit A, then the orchestrator committed tick state (B) and wrote the
+briefs with `git rev-parse --short HEAD`, so every brief told its implementer to verify commit B
+while its worktree held A. Both implementers noticed, reasoned that B only touched `.tick/`, and
+went on; a stricter one would have reported BLOCKED. Take the base for the brief from the
+worktree itself (`git -C <worktree> rev-parse --short HEAD`), never from the checkout's HEAD.
+
+## Field note: a chain and a review round trip, measured (2026-09-29, fh picking 11s30-pkr)
+A warm-chain of two related ticks (a page, then the proof that runs it) took 31.5 min with one
+cold start; the two solo ticks before it took 6 and 19.5 min. An opus review found a blocker
+whose fix line contradicted the spec; the opus repair followed the fix line; the re-review
+caught it; a sonnet repair fixed the mechanical remainder in 9 min. The cheaper repair after a
+review round trip is right when the findings are mechanical; the repair still follows the
+finding's claim and the spec, not the reviewer's suggested fix.
+
+## Field note: three orchestrator slips in one epic (2026-09-29, fh sources 11s31-src E1)
+- `tk update` has no `--blocked-by`; a dependency added after creation is `tk block <id> <blocker…>`. A `&&` chain through that failing `tk update` skipped the worktree cuts and the briefs were written with an empty base commit: after any chain that cuts worktrees, print the base and check it is non-empty before writing a brief, and never put a `tk` call whose flags you have not used before inside a `&&` chain with the cuts.
+- A full post-wave gate under a load average of 40+ took 10 minutes and hit the Bash tool's 600 s foreground limit; the harness moved it to the background mid-run, which worked but left the orchestrator guessing. Under load, start a gate with `run_in_background` from the first call and read its output file on the completion notice.
+- A tick that adds a `class X extends Error` anywhere passes its own `--changed` set and fails the wave gate on a fingerprint test in another package. Add "run `<that test>` by name" to the brief of any tick that may add an error class, or expect it at the gate.
+
+## Field note: a gate in the checkout you are merging into (2026-10-01, fh privacy 11s41-neg)
+With dependency-driven launching, the orchestrator started the wave gate (full Vitest, ~10 min) in the controller checkout in the background, then merged the next finished tick into that same checkout while the gate was still reading files. The gate's result described no single tree and had to be voided and re-run on the union. Either run a background gate in a throwaway worktree at the exact commit (`git worktree add --detach <dir> <sha>`), or merge nothing into the checkout until the gate's EXIT line is written. Same run: a whole epic (7 ticks incl. a sweep, a repair and an evidence tick) took about 2 h wall with 3-wide first wave and dependency-driven launches.
+
+## Field note: a repair that changes what the proof measured (2026-10-11, fh reach 11s45-yfh E2)
+E2's replay showed a gain (5 → 6 of 13); the final review then found a blocker in what the writer was shown, and the gain had come through exactly that leak. A review repair that changes the measured path voids the evidence measured before it: re-run the proof on the repaired build before close-out, keep the old numbers in the evidence marked "superseded: measured with <the defect>", and say plainly in the landing note if the gain does not survive. Same run: an `--ff-only` merge failed and the `;`-chained close and worktree removal ran anyway; gate every close and cleanup on the merge's exit (`&&`), and merge with `--no-edit`, not `--ff-only`, after any tick-state commit.
+
+## Field note: restarts wipe the scratchpad and the implementers (2026-10-28, fh prices 11s66-jje)
+Three session restarts in one small epic killed three background implementers; the first left its tick uncommitted, and the orchestrator's briefs and gate logs, written to the session scratchpad, were gone with the next session's new scratchpad path. Keep briefs and logs beside the worktree (`../.ticks-worktrees/<wt>.logs/`), save an uncommitted diff as a WIP commit before a planned exit, and when sessions are restarting tell implementers to commit and push early. A dead tick whose diff only needs its gates run is cheaper to verify from the orchestrator than to redispatch a third time.
