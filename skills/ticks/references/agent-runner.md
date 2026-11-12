@@ -667,7 +667,9 @@ Subagents start fresh with none of your context — give them everything. Don't 
 ```
 You are implementing one task from the Ticks issue tracker, working in an isolated git worktree.
 
-IMPORTANT FIRST STEP: verify this worktree contains integration commit `<integration-commit>` and `<artifact>`. If it does not, merge `<integration-branch>` before editing; report STATUS: BLOCKED if the expected base cannot be established.
+IMPORTANT FIRST STEP: verify this worktree contains integration commit `<integration-commit>` and `<artifact>`. If it does not, merge `<integration-branch>` before editing; report STATUS: BLOCKED if the expected base cannot be established. If the worktree was created for you at launch and is not yet runnable, provision it next, before touching code, per the project profile's recipe (e.g. install dependencies) so the tick gate can run; skip this if the orchestrator already provisioned it.
+
+Read before changing anything: `.tick/learnings.md` (if present) — accumulated gotchas from earlier epics; `.tick/config.md` (if present) — its `Testing` and `Rules` sections apply to you, the orchestrator-only `At …`, `Closeout Evidence Commands`, and `Acceptance Evidence` sections do not; the repository instruction file used by your harness (`AGENTS.md`, `CLAUDE.md`, or equivalent) and any nested instruction files that apply; the existing code you will change.
 
 ## Task
 Title: <tick-title>
@@ -677,30 +679,29 @@ Epic: <epic-title> (<epic-id>)
 ## Description
 <tick-description>
 
-## Acceptance criteria
-<tick-acceptance>
-
 ## How this fits
 <1-2 sentences: where this sits in the epic, and what earlier ticks already built that you can rely on>
 
-## Instructions
-1. If this worktree was created for you at launch and is not yet runnable, provision it **first** per the project profile's recipe (e.g. install dependencies) so the in-worktree test tiers can run; skip if the orchestrator already provisioned it.
-2. Read `.tick/learnings.md` (if present) — accumulated gotchas from earlier epics.
-3. Read `.tick/config.md` (if present) — the `Testing` and `Rules` sections apply to you; the orchestrator-only `At …`, `Closeout Evidence Commands`, and `Acceptance Evidence` sections do not.
-4. Read the repository instruction file used by your harness (`AGENTS.md`, `CLAUDE.md`, or equivalent) and any nested instruction files that apply.
-5. Read the relevant existing code before changing anything.
-6. Implement the task test-first: write the failing test, then make it pass.
-7. Run the in-worktree test tiers named in the acceptance criteria and confirm they pass (tiers the profile routes post-merge are the orchestrator's to run — do not attempt them here).
-8. Commit your changes in this worktree: `git add -A && git commit -m "tick <tick-id>: <short summary>"`.
+## Criteria
+<tick-acceptance>
+Done means every criterion holds, the tick gate passes, and the work is committed in this worktree: `git add -A && git commit -m "tick <tick-id>: <short summary>"`. Watch a new test fail (a planted fault) only where the logic can be wrong in a way the test should catch; data tables, word lists and class maps need none.
+
+## Gates
+The tick gate is yours: typecheck, the tests the change reaches, the build, using the `Testing` commands. By-path rule: a test that reads a source file by path, not by import, escapes changed-file test selection; after editing a file that tests read by path, run that package's tests whole. The wave gate is the integrator's: the full suite, slow suites, specs, and any tier the profile routes post-merge run after the merge, not here.
 
 ## Boundaries (important)
 - Do NOT run any `tk` command and do NOT touch the `.tick/` directory — the orchestrator owns all tick state.
 - Stay in scope: implement this tick only. Don't add features it didn't ask for.
+- Do not regenerate shared generated outputs (screenshots, baselines, built assets); the integrator does that once after the merge.
 - If the task is ambiguous or you're missing something, stop and report it — don't guess.
 
 ## Report back, ending with one status line
 - Branch name (`git rev-parse --abbrev-ref HEAD`)
 - Files changed and tests added
+- One line per mandated check (each tick-gate command, the by-path run, a planted fault), each exactly one of:
+  <check>: ran clean
+  <check>: went red and changed the code
+  <check>: not applicable
 - Anything the next tick should know
 - Final line, exactly one of:
   STATUS: DONE
@@ -711,7 +712,7 @@ Epic: <epic-title> (<epic-id>)
 
 ### Warm-chain prompt variant
 
-For a chain assignment, adapt the template: under `## Task`, list the chain's ticks **in order**, each with its full description and acceptance inline (a chain implementer sees only its prompt — same self-contained rule). Replace the implement/verify/commit instructions with: *implement the ticks strictly in order; after each, run the in-worktree test tiers and commit `tick <tick-id>: <summary>` before starting the next; if a tick blocks, report and stop the chain there (completed ticks stay committed).* The report ends with **one status line per tick** (`<tick-id>: DONE | BLOCKED — reason`), so the orchestrator can close exactly the completed prefix at integration.
+For a chain assignment, keep the template's shape — base check, read-inputs, criteria, gates, boundaries, report — and adapt two parts. Under `## Task`, list the chain's ticks **in order**, each with its full description and acceptance inline as its criteria (a chain implementer sees only its prompt — same self-contained rule). Done becomes per tick: *implement the ticks strictly in order; each one is done when its criteria hold, its tick gate passes, and it is committed `tick <tick-id>: <summary>` before the next starts; if a tick blocks, report and stop the chain there (completed ticks stay committed).* The report carries the mandated-check lines per tick, and ends with **one status line per tick** (`<tick-id>: DONE | BLOCKED — reason`), so the orchestrator can close exactly the completed prefix at integration.
 
 ## Current limitations
 
