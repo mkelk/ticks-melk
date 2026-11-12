@@ -75,17 +75,23 @@ Orchestration produces commits and merges. If you're on `main`/`master`, create 
       merge — never by the ticks. With K chains in one wave, post-merge tiers run per chain
       candidate (4e); the full suite and the regeneration run once, when the whole wave is merged.
    g. Only after the wave gate passes, close all wave ticks durably (for a chain, close each tick its
-      report marks DONE), then clean their worktrees/branches.
+      report marks DONE). Closing a tick does not retire its implementer: keep it warm, with the
+      worktree or branch a warm turn needs, until the epic's final review is done (step 5); clean
+      up only what no warm turn will need.
       Always pass --reason: `tk close <id> --reason "Completed: <one-line summary of what landed>"`.
       Never use a bare `tk close`.
    h. Re-read `.tick/config.md` and run any steps in `At wave end` (no-op if absent), then go to the next wave.
 5. The final-review tick and close-out tick unblock in sequence — tk next returns each in turn.
-   Execute them like any other tick (see "Meta-work ticks" below).
+   Execute them like any other tick (see "Meta-work ticks" below). The final review's blocker and
+   should-fix items go back to the chain or implementer that wrote the code, as a warm turn on its
+   branch advanced to the integration commit; if the warm worker is gone, dispatch fresh, noted in
+   the dispatch ledger. Retire the implementers, and their worktrees and branches, after the final
+   review (see "Reviewing the work").
 ```
 
 Order matters: integrate a wave's work *before* launching the next, so wave N+1 agents branch from a tree that already contains wave N's changes.
 
-**Verify the wave after merging, not just the ticks.** Each implementer ran its tick gate in its own worktree — against a tree that didn't contain its siblings' changes. Two branches can merge cleanly and still break each other; the wave gate is where that shows. Shared generated outputs are regenerated once, by the integrator, after the merge — ticks that regenerate them duplicate work and collide. A merge is provisional until the wave gate passes: defer every close and cleanup. If the wave gate fails, reopen/keep open every affected tick, note the failed evidence, retain every branch/worktree, and block dependents. For repair, advance each already-merged retained branch to the integrated failure commit before adding a follow-up commit; this avoids replaying the original change or creating a duplicate branch. Only a passed gate authorizes durable closes and cleanup.
+**Verify the wave after merging, not just the ticks.** Each implementer ran its tick gate in its own worktree — against a tree that didn't contain its siblings' changes. Two branches can merge cleanly and still break each other; the wave gate is where that shows. Shared generated outputs are regenerated once, by the integrator, after the merge — ticks that regenerate them duplicate work and collide. A merge is provisional until the wave gate passes: defer every close and cleanup. If the wave gate fails, reopen/keep open every affected tick, note the failed evidence, retain every branch/worktree, and block dependents. For repair, advance each already-merged retained branch to the integrated failure commit before adding a follow-up commit; this avoids replaying the original change or creating a duplicate branch. Only a passed gate authorizes durable closes and cleanup; what a warm turn will need stays until the final review.
 
 **Optional: dependency-driven launching.** Waves are a barrier: nothing in wave N+1 starts until all of wave N is integrated. But a tick is actually ready the moment *its specific blockers* are merged and verified. Since you're woken per-agent anyway, you can launch a tick as soon as its last blocker integrates instead of waiting for the whole wave — a throughput win on epics with uneven waves. Wave barriers remain the simpler default and easier to audit; if you go dependency-driven, the per-tick rules below (merge, verify, then launch dependents) still apply unchanged.
 
@@ -189,7 +195,7 @@ Three ways to execute ready work; parallel warm-chains are the default, and any 
 
 **Chain protocol details:** a chain must be **dependency-closed** — every blocker of a chain tick is either an earlier tick in the same chain or already-integrated work — which is also what lets a chain legitimately collapse several graph waves into one dispatch; no two concurrent dispatch units share files (same rule as wave safety); mark the whole chain's ticks `in_progress` at dispatch; the chain prompt lists the ticks in order with each description + acceptance inline (same self-contained rule as single-tick prompts); the implementer runs the tick gate after each tick and commits before starting the next; `DONE` per tick in the final report, one line each. Note the gates still shrink the bill: worktrees need only the tick gate's tiers; the wave gate runs per *chain*, not per tick (K chains in one wave: loop step 4f).
 
-**Amortize: pool worktrees.** Instead of create → provision → destroy per tick, keep provisioned worktrees and reuse them for successive ticks or chains: reset to the current integration commit between assignments (`git checkout <integration-commit>` + `git clean -fd`), start each on a fresh branch. One provisioning then pays for many ticks. Cleanup moves from per-tick to pool retirement (epic end).
+**Amortize: pool worktrees.** Instead of create → provision → destroy per tick, keep provisioned worktrees and reuse them for successive ticks or chains: reset to the current integration commit between assignments (`git checkout <integration-commit>` + `git clean -fd`), start each on a fresh branch. One provisioning then pays for many ticks. A worktree whose implementer is kept warm for the final review's findings is not reassigned. Cleanup moves from per-tick to pool retirement, after the epic's final review.
 
 ### What a run actually costs
 
@@ -373,7 +379,7 @@ git merge <agent-branch>     # branch name comes from the agent's report
 tk close <tick-id> --reason "Completed: <one-line summary of what landed>"
 ```
 
-Commit all wave closes durably after the passed gate, then run the active adapter's successful-integration cleanup. Harness-managed worktrees may clean themselves; manually created worktrees and merged branches must be removed explicitly. A failed gate leaves the ticks open and all branches/worktrees intact.
+Commit all wave closes durably after the passed gate. Closing the tick does not retire the implementer: it, and the worktree or branch its warm turn needs, are retired after the epic's final review (see "Reviewing the work"); the active adapter's successful-integration cleanup runs then. Harness-managed worktrees may clean themselves; manually created worktrees and merged branches must be removed explicitly. A failed gate leaves the ticks open and all branches/worktrees intact.
 
 Always pass `--reason` with a concrete summary — never a bare `tk close <id>`. The reason appears in the activity feed and in the retro harvest; vague or absent reasons make the retro harder.
 
@@ -406,7 +412,7 @@ Ticks are designed to carry their own success criteria (tests in the acceptance)
   1. **Spec compliance** — does the diff match the tick's description + acceptance, with nothing missing and nothing extra? (Can be a quick inline check or a cheap reviewer subagent.)
   2. **Code quality** — only after spec compliance passes. Dispatch a reviewer subagent over the tick's branch. For logic-heavy diffs, include the maintainability axis (`references/code-smells.md`).
 
-  If a reviewer finds issues, continue the original implementer when possible or redispatch from its branch, then re-review. Don't move on with open issues.
+  If a reviewer finds issues, send them to the implementer that wrote the code as a warm turn, on its branch; if the warm worker is gone, dispatch fresh from that branch, noted in the dispatch ledger. Then re-review. Don't move on with open issues.
 
 Skipping per-tick review for routine, well-specified ticks is fine — that's the speed dividend of a good tick. Reserve the heavier review for the ticks that earn it.
 
@@ -414,8 +420,10 @@ Skipping per-tick review for routine, well-specified ticks is fine — that's th
 
 **Review severity policy:**
 - **Blocker** — must be fixed before the epic is closed out. Do not close with a known blocker.
-- **Should-fix** — fix now if feasible; if deferred, record it explicitly in the retro report as accepted tech debt.
+- **Should-fix** — fix now if feasible, as a warm turn (below); if deferred, record it explicitly in the retro report as accepted tech debt.
 - **Nit** — fix opportunistically; silence is fine if cost is not worth it.
+
+**Findings go back warm; retire after the final review.** The final review's blocker and should-fix items route back to the chain or implementer that wrote the code, as a warm turn, on its branch advanced to the integration commit: the fix costs a turn in a context that already read the code, not a cold start. So implementers, and the worktree or branch a warm turn needs, are retired after the epic's final review, not after their tick; closing the tick still happens at the wave gate. If the warm worker is gone, the fallback is a fresh dispatch, noted in the dispatch ledger. How a warm turn reaches a live implementer is the adapter's mechanism.
 
 Tag each finding with a **confidence** as well as a severity. Severity sets the gate (a blocker stops the close); confidence sets how much to trust the finding before acting. A wide fan-out generates noise — verify low-confidence findings against the code first, and drop the ones that don't survive.
 
@@ -476,7 +484,7 @@ tk close <epic-id> --reason "Completed: all tasks merged and green"   # if all d
 tk list --parent <epic-id> --awaiting=        # otherwise, report what's waiting on a human
 ```
 
-Before closing the epic, run the **Epic-close retro** (see below). Write the retro report as the close reason (or as a note on the epic tick if the reason field is short).
+Once the final review's findings are fixed (or deferred per the severity policy), retire the implementers and clean up their worktrees and branches — the epic's last cleanup. Before closing the epic, run the **Epic-close retro** (see below). Write the retro report as the close reason (or as a note on the epic tick if the reason field is short).
 
 **Merge, not squash.** Use `git merge`, never `git merge --squash`. Tick-stamped commits (`tick <id>: …`) are the audit trail the retro mines — squashing destroys it.
 
