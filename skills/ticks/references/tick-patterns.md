@@ -10,7 +10,7 @@ If tests don't make sense for a task, there should be another form of validation
 
 ## Definition of Ready (per-tick gate)
 
-Run this before `tk create`. A fresh subagent sees *only this tick* — not the spec, the epic, or sibling ticks — so anything vague becomes a guess. If a tick fails a line, tighten it or split it. If `.tick/learnings.md` exists, re-read it first — most recurring authoring mistakes (sizing, file footprints, missing test commands, hidden cross-tick dependencies) are captured there, and reading it takes less time than undoing a bad tick.
+Run this before `tk create`. A fresh subagent sees *only this tick* — not the spec, the epic, or sibling ticks — so anything vague becomes a guess. If a tick fails a line, tighten it or split it. Re-read the learnings first, the head `.tick/learnings.md` and the body `.tick/learnings-ref.md` (see *Step 0* below) — most recurring authoring mistakes (sizing, file footprints, missing test commands, hidden cross-tick dependencies) are recorded in the body, and reading it takes less time than undoing a bad tick.
 
 - [ ] **One deliverable** — the title names a single capability and needs no "and" (see *Tick Sizing*)
 - [ ] **Acceptance fits in ≤3 bullets** — if it doesn't, the scope is too broad to verify cleanly; split it
@@ -30,7 +30,7 @@ How you carve an epic into ticks matters as much as how you write each one.
 
 Use this ordered procedure every time you plan an epic. It replaces ad-hoc "define shared contracts first" intuition with a repeatable algorithm.
 
-**Step 0 — Re-read `.tick/learnings.md`.** If the file exists, read it in full before you partition. Partitioning mistakes (wrong wave boundaries, shared-file collisions, oversized foundation ticks) are a recurring learning category. This is the same re-read called for in the Definition of Ready preamble; do it here too, fresh — don't rely on an earlier in-context copy. (See `references/agent-runner.md` for the learnings file format and its size budget (~16 KB, ≤800 bytes per entry).)
+**Step 0 — Re-read the learnings, head and body.** At partition time, read the head `.tick/learnings.md` and the body `.tick/learnings-ref.md` in full, whichever exist. Partitioning mistakes (wrong wave boundaries, shared-file collisions, oversized foundation ticks) are what the body records; the head's index alone does not carry them. This is the same re-read the Definition of Ready preamble calls for; do it here too, fresh — don't rely on an earlier in-context copy. Budgets: the head is at most 4096 bytes (hard rules plus an index of the body's categories); the body is at most 16384 bytes, at most 800 bytes per entry. Format: `references/agent-runner.md` → "`.tick/learnings.md` — format and conventions".
 
 **Step 1 — List every deliverable in the epic.** Write them out explicitly; don't carry them only in your head. One deliverable = one named user-visible or system behaviour to be produced.
 
