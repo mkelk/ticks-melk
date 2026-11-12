@@ -106,6 +106,9 @@ func TestCheckLearnings_HeadBoundary(t *testing.T) {
 	if len(w) != 1 || !strings.HasPrefix(w[0], want) {
 		t.Errorf("warnings = %q, want one starting %q", w, want)
 	}
+	if len(w) == 1 && !strings.Contains(w[0], "move entries to the body") {
+		t.Errorf("head warning %q lacks the head hint", w[0])
+	}
 }
 
 // Body boundary: 16384 bytes is within budget, 16385 warns naming the body file.
@@ -121,6 +124,33 @@ func TestCheckLearnings_BodyBoundary(t *testing.T) {
 	want := fmt.Sprintf("warning: %s is %d bytes (budget %d)", bodyPath, LearningsBodyBudgetBytes+1, LearningsBodyBudgetBytes)
 	if len(w) != 1 || !strings.HasPrefix(w[0], want) {
 		t.Errorf("warnings = %q, want one starting %q", w, want)
+	}
+	if len(w) == 1 && !strings.Contains(w[0], "not compaction") {
+		t.Errorf("body warning %q lacks the body hint", w[0])
+	}
+}
+
+// An unreadable file (here a directory in its place) yields a zero report for
+// that file, while the other file is still checked — both ways round.
+func TestCheckLearnings_UnreadableFileZeroReport(t *testing.T) {
+	cases := []struct {
+		unreadable, other, content, wantPrefix string
+	}{
+		{LearningsHeadFile, LearningsBodyFile, strings.Repeat("b", LearningsBodyBudgetBytes+1), "warning: " + bodyPath + " "},
+		{LearningsBodyFile, LearningsHeadFile, strings.Repeat("h", LearningsHeadBudgetBytes+1), "warning: " + headPath + " "},
+	}
+	for _, tc := range cases {
+		t.Run(tc.unreadable, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.Mkdir(filepath.Join(dir, tc.unreadable), 0o755); err != nil {
+				t.Fatalf("mkdir: %v", err)
+			}
+			writeTickFile(t, dir, tc.other, tc.content)
+			w := CheckLearnings(dir).Warnings()
+			if len(w) != 1 || !strings.HasPrefix(w[0], tc.wantPrefix) {
+				t.Errorf("warnings = %q, want exactly one starting %q", w, tc.wantPrefix)
+			}
+		})
 	}
 }
 
