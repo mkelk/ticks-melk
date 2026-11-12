@@ -131,7 +131,7 @@ Before calling `tk graph`, read `.tick/config.md` (if present). Its sections are
 Consumed later in the loop, by the orchestrator only — never inlined into implementer prompts:
 
 - **`At wave end`** — extra steps after each wave gate passes (loop step 4h).
-- **`At epic close-out`** — extra retro steps and/or a durable destination for the retro report (see "Epic-close retro", step 7).
+- **`At epic close-out`** — extra retro steps and/or a durable destination for the retro report (see "Epic-close retro", steps 7 and 8).
 - **`At project checkpoint`** — steps and/or a durable destination for the completion report written at a project boundary stop (see "Discipline rules").
 
 An absent or empty hook section is a no-op; so is an unrecognized `##` heading, which makes a mistyped section name silent. List any unrecognized headings you find at run start instead of ignoring them.
@@ -494,7 +494,7 @@ Once the final review's findings are fixed (or deferred per the severity policy)
 
 ## Epic-close retro
 
-The retro runs inside every epic close-out task, **before** the `tk close` call. It takes 7 steps.
+The retro runs inside every epic close-out task, **before** the `tk close` call. It takes 8 steps.
 
 ### `.tick/learnings.md` — format and conventions
 
@@ -592,16 +592,26 @@ Real drift (anything that degrades quality or increases maintenance burden) beco
 
 For very large epics, this step can be fanned out with the harness's parallel review primitive, one agent per diff segment. Single-pass is the default.
 
-#### 6. Retro report
+#### 6. Steering sunset
+
+Harness checks stay constant; the model re-verifying itself shrinks on evidence.
+
+- **Scope.** The tally covers only checks that claim to catch something and carry a report line: the `## Testing` tick-gate commands, `by-path run`, and `planted fault`. Harness checks — the wave gate, the final review, the DoD, the checkpoint — are never candidates. Checks a project mandates through `.tick/config.md` `## Rules` are human intent held constant: the human changes them, the retro never demotes them.
+- **Tally.** Per check label, from the implementer reports' per-check lines. *Caught* means `went red and changed the code`. `went red, not from this change` is recorded but is not a catch. An epic where a check was only `not applicable` counts neither way. The prior epic's tally is read from the previous retro report.
+- **Demote.** A check with no catch for two consecutive epics is demoted in `.tick/config.md` `## Testing` from every tick to "where the logic warrants". The retro applies the demotion; the retro report records it with its evidence.
+- **Restore.** Rework found at the wave gate or the final review in a demoted check's domain restores the check to every tick — the sunset runs in reverse. The report records the restore and the rework behind it.
+
+#### 7. Retro report
 
 Write a short summary. If `.tick/config.md` → `At epic close-out` names a report destination, write the full report there as a durable file and keep a one-line summary as the close reason; otherwise write it as the epic's close reason or as a note on the epic tick. This is a different artifact from the closeout **verification** report that acceptance evidence produces — the retro report is the narrative; the verification report is the evidence. Include:
 
 - Learnings promoted, by destination (a few bullet points per tier that received anything).
 - Verification table: one row per scope item — scope item, verified yes/no, gap action if no.
 - Drift found and cleanup ticks created (or "none").
+- Steering-sunset tally (step 6): per check label, catches this epic and the prior one, and any demotion or restore with its evidence.
 - Proposed roadmap adjustments, if any, for the human to accept or reject (you may propose, not execute, roadmap changes).
 
-#### 7. Configured close-out steps
+#### 8. Configured close-out steps
 
 Re-read `.tick/config.md` → `At epic close-out` and execute any remaining steps it lists — e.g. update a project-history file, audit project docs, tag the release. No-op if the section is absent or empty. These are hook steps, not acceptance evidence: they run their own side effects, they do not authorize or replace the acceptance verification. Run them before the `tk close` on the epic. They are orchestrator work; never delegate them to an implementer prompt.
 
