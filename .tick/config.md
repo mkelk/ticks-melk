@@ -48,3 +48,28 @@
 - Package management is pnpm only — never npm or yarn.
 - After UI source changes, run `scripts/build-ui.sh` and commit regenerated `internal/tickboard/server/static/`.
 - Any edit under `schemas/` must run both `make codegen-go` and `make codegen-ts` and commit all regenerated output together.
+
+## At run start
+- Branch guard (verify, don't ask): `git rev-parse --abbrev-ref HEAD` must not be
+  `main`/`master` — devmeta runs only on an increment base branch. On main/master, stop
+  and tell the human (or switch to the active increment's branch per
+  `.devmeta/current-increment.md` → its `_overview.md` "How to run").
+
+## At epic close-out
+Resolve the ACTIVE increment from `.devmeta/current-increment.md`: its directory
+is <DIR>, its id is <ID>. Then:
+1. Write the full epic-close retro report to `<DIR>/ia-cycles/<epic-title>.md`
+   (one-line summary as the tk close --reason). Include the dispatch-mode and
+   review-depth ledgers.
+2. Append a narrative entry to `.devmeta/project-history.md`.
+3. Update `<DIR>/_overview.md` (mark this epic DONE).
+4. Living-docs audit: fix any doc the epic proved wrong.
+5. Tag: `git tag <ID>.<epic-slug> -m "<summary>"`.
+
+## At project checkpoint
+Same resolution as above. Then:
+1. Write the increment completion report to `<DIR>/completion.md`
+   (features, gates status, outstanding human items, postmortems).
+2. Integration stops at the increment's base branch: never merge it to `main`/`master` —
+   shipping the increment is the human's decision at this checkpoint.
+3. STOP for human review.
