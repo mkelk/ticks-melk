@@ -79,3 +79,11 @@ Project `s07` — the checkpoint boundary; the run stops there for human review.
 
 ## How to run
 `/dmtix go` on branch `2026-11-12-lean-engine` (no services needed). Resume: `/dmtix go` again.
+
+**Coordination:** the Claude session `skills-fe` wrote the spec and holds the work around this run. It pins the six fh streams on the installed skill and reinstalls after this increment's PR merges; it also owns the dmtix side (mkelk/skills#4). The orchestrator messages skills-fe (SendMessage) at:
+- z5t's close-out: the retro verdict and any roadmap proposals;
+- the project checkpoint: the PR number (#5).
+
+On any ambiguous spec line, ask skills-fe rather than guess. Keep the messages short.
+
+**Host:** load runs at ~40-54 from other sessions. Local Pi and Go suites flake on the baseline too; see `.tick/profile.md` (runtime tripwire) and settle a red gate by A/B.
