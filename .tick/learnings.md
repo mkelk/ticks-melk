@@ -56,6 +56,13 @@ tests are not in CI so breakage is invisible.
 **Rule:** Verify worker changes with `npx vitest run test/<file>.test.ts` in isolation; never
 "fix" the boot crash by mocking. Full-suite health belongs to tick xdq.
 
+**Problem:** The Pi runner suite (`node --test extensions/ticks-runner/*.test.ts`) fails tens of
+tests, and `which go` fails, on a machine where Go is installed.
+**Cause:** Go here is a mise install that is not active in this directory; the Pi tests shell out
+to a built `tk`, so they need `go` on PATH.
+**Rule:** Run Go as `mise exec go@1.24 -- go …`, and run the Pi suite with
+`PATH=$HOME/.local/share/mise/installs/go/1.24.11/bin:$PATH`. Never write a mise config to fix it.
+
 ## Schema codegen
 
 **Problem:** A schemas/websocket change left generated code inconsistent across the repo —
