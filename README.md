@@ -1,5 +1,12 @@
 # ticks
 
+> **This fork is retired (2026-11-12).** It existed to carry the ticks *engine skill*, and that
+> skill now lives in [`mkelk/skills`](https://github.com/mkelk/skills) at `skills/ticks/`, with its
+> history, beside dmtix, the method that runs on it. Install it from there:
+> `npx skills add mkelk/skills --skill ticks -g -a claude-code`. The `tk` binary comes from
+> upstream [`pengelbrecht/ticks`](https://github.com/pengelbrecht/ticks). This repository is kept
+> read-only for its history and its `.tick/` records.
+
 A multiplayer-first issue tracker for AI coding agents.
 
 ```bash
